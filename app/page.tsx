@@ -8,11 +8,32 @@ import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tab = "add" | "inventory" | "expenses" | "profit";
+type DateFilterMode = "all" | "month" | "year" | "custom";
+
 
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Other"];
+const todayIso = () => new Date().toISOString().slice(0, 10);
+const currentMonthStart = () => `${todayIso().slice(0, 7)}-01`;
+const currentYearStart = () => `${todayIso().slice(0, 4)}-01-01`;
+const dateInRange = (date: string, start: string, end: string) => {
+  if (!date) return false;
+  if (start && date < start) return false;
+  if (end && date > end) return false;
+  return true;
+};
+const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
+  if (mode === "all") return "All time";
+  if (mode === "month") return "This month";
+  if (mode === "year") return "This year";
+  if (start && end) return `${start} to ${end}`;
+  if (start) return `From ${start}`;
+  if (end) return `Through ${end}`;
+  return "Custom range";
+};
+
 
 const sampleCards = (): CardRecord[] => [
   {
@@ -62,6 +83,9 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
+  const [customStartDate, setCustomStartDate] = useState("");
+  const [customEndDate, setCustomEndDate] = useState("");
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
 
@@ -138,21 +162,38 @@ export default function Home() {
     });
   }, [cards, query, statusFilter]);
 
+  const dateRange = useMemo(() => {
+    if (dateFilterMode === "month") return { start: currentMonthStart(), end: todayIso() };
+    if (dateFilterMode === "year") return { start: currentYearStart(), end: todayIso() };
+    if (dateFilterMode === "custom") return { start: customStartDate, end: customEndDate };
+    return { start: "", end: "" };
+  }, [customEndDate, customStartDate, dateFilterMode]);
+  const selectedDateLabel = filterLabel(dateFilterMode, dateRange.start, dateRange.end);
+  const isAllTime = dateFilterMode === "all";
+
   const totals = useMemo(() => {
-    const notListedCards = cards.filter((card) => card.status === "Not Listed");
-    const listedCards = cards.filter((card) => card.status === "Listed");
-    const soldCards = cards.filter((card) => card.status === "Sold");
+    const purchasedInRange = (card: CardRecord) => isAllTime || dateInRange(card.purchaseDate, dateRange.start, dateRange.end);
+    const soldInRange = (card: CardRecord) => card.status === "Sold" && (isAllTime || dateInRange(card.saleDate, dateRange.start, dateRange.end));
+    const expenseInRange = (expense: ExpenseRecord) => isAllTime || dateInRange(expense.expenseDate, dateRange.start, dateRange.end);
+
+    const notListedCards = cards.filter((card) => card.status === "Not Listed" && purchasedInRange(card));
+    const listedCards = cards.filter((card) => card.status === "Listed" && purchasedInRange(card));
+    const soldCards = cards.filter(soldInRange);
+    const inventoryCostCards = cards.filter(purchasedInRange);
+    const filteredExpenses = expenses.filter(expenseInRange);
     const revenue = soldCards.reduce((sum, card) => sum + card.soldPrice, 0);
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + card.purchasePrice, 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
     const listedInventoryCost = listedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
-    const unsoldInventoryCost = unlistedInventoryCost + listedInventoryCost;
-    const totalInventoryCost = soldInventoryCost + unsoldInventoryCost;
-    const expenseBreakdown = expenseCategories.map((category) => ({
-      category,
-      total: expenses.filter((expense) => expense.category === category).reduce((sum, expense) => sum + expense.amount, 0),
-      count: expenses.filter((expense) => expense.category === category).length,
-    }));
+    const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+    const expenseBreakdown = expenseCategories.map((category) => {
+      const categoryExpenses = filteredExpenses.filter((expense) => expense.category === category);
+      return {
+        category,
+        total: categoryExpenses.reduce((sum, expense) => sum + expense.amount, 0),
+        count: categoryExpenses.length,
+      };
+    });
     const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
     const profit = revenue - totalInventoryCost - expensesTotal;
     return {
@@ -160,7 +201,6 @@ export default function Home() {
       soldInventoryCost,
       unlistedInventoryCost,
       listedInventoryCost,
-      unsoldInventoryCost,
       totalInventoryCost,
       expensesTotal,
       expenseBreakdown,
@@ -168,11 +208,12 @@ export default function Home() {
       notListedCards,
       listedCards,
       soldCards,
+      filteredExpenses,
       soldCount: soldCards.length,
       listedCount: listedCards.length,
       notListedCount: notListedCards.length,
     };
-  }, [cards, expenses]);
+  }, [cards, dateRange.end, dateRange.start, expenses, isAllTime]);
 
   const uploadFrontPhoto = async (file: File, target: "active" | "editing" = "active") => {
     setError("");
@@ -384,7 +425,7 @@ export default function Home() {
   };
 
   const exportCards = () => downloadCsv(cardsToCsv(cards), `card-inventory-${new Date().toISOString().slice(0, 10)}.csv`);
-  const exportExpenses = () => downloadCsv(expensesToCsv(expenses), `card-expenses-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${new Date().toISOString().slice(0, 10)}.csv`);
 
   const signOut = async () => {
     if (supabase) await supabase.auth.signOut();
@@ -544,6 +585,15 @@ export default function Home() {
             </div>
             <button className="secondary" onClick={exportExpenses} type="button">Export expenses</button>
           </div>
+          <DateFilterControls
+            mode={dateFilterMode}
+            startDate={customStartDate}
+            endDate={customEndDate}
+            selectedLabel={selectedDateLabel}
+            onModeChange={setDateFilterMode}
+            onStartDateChange={setCustomStartDate}
+            onEndDateChange={setCustomEndDate}
+          />
           <section className="statsGrid expenseBreakdown" aria-label="Expense category totals">
             <Stat label="Total expenses" value={money(totals.expensesTotal)} />
             {totals.expenseBreakdown.map((item) => (
@@ -561,7 +611,7 @@ export default function Home() {
           </form>
 
           <div className="expenseList">
-            {expenses.map((expense) => (
+            {totals.filteredExpenses.map((expense) => (
               <article className="expenseRow" key={expense.id}>
                 <div><strong>{expense.category}</strong><p>{expense.description || expense.vendor || "No description"}</p></div>
                 <span>{expense.expenseDate}</span>
@@ -572,7 +622,7 @@ export default function Home() {
                 </div>
               </article>
             ))}
-            {!expenses.length && <p className="empty">No expenses yet.</p>}
+            {!totals.filteredExpenses.length && <p className="empty">No expenses for {selectedDateLabel.toLowerCase()}.</p>}
           </div>
         </section>
       )}
@@ -583,8 +633,18 @@ export default function Home() {
             <div>
               <p className="eyebrow">Profit</p>
               <h2>Revenue minus inventory cost and expenses</h2>
+              <p className="muted">Showing {selectedDateLabel.toLowerCase()}.</p>
             </div>
           </div>
+          <DateFilterControls
+            mode={dateFilterMode}
+            startDate={customStartDate}
+            endDate={customEndDate}
+            selectedLabel={selectedDateLabel}
+            onModeChange={setDateFilterMode}
+            onStartDateChange={setCustomStartDate}
+            onEndDateChange={setCustomEndDate}
+          />
           <section className="statsGrid profitGrid" aria-label="Profit totals">
             <Stat label="Revenue from sold cards" value={money(totals.revenue)} />
             <Stat label="Total inventory cost" value={money(totals.totalInventoryCost)} />
@@ -750,6 +810,46 @@ function AuthPanel() {
 
 function NavButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return <button className={active ? "navButton active" : "navButton"} type="button" onClick={onClick}>{children}</button>;
+}
+
+function DateFilterControls({
+  mode,
+  startDate,
+  endDate,
+  selectedLabel,
+  onModeChange,
+  onStartDateChange,
+  onEndDateChange,
+}: {
+  mode: DateFilterMode;
+  startDate: string;
+  endDate: string;
+  selectedLabel: string;
+  onModeChange: (mode: DateFilterMode) => void;
+  onStartDateChange: (date: string) => void;
+  onEndDateChange: (date: string) => void;
+}) {
+  const setQuickMode = (nextMode: DateFilterMode) => onModeChange(nextMode);
+  return (
+    <section className="dateFilterBar" aria-label="Date filter">
+      <div>
+        <p className="eyebrow">Date filter</p>
+        <strong>{selectedLabel}</strong>
+      </div>
+      <div className="dateFilterButtons">
+        <button className={mode === "all" ? "secondary activeFilter" : "secondary"} type="button" onClick={() => setQuickMode("all")}>All time</button>
+        <button className={mode === "month" ? "secondary activeFilter" : "secondary"} type="button" onClick={() => setQuickMode("month")}>This month</button>
+        <button className={mode === "year" ? "secondary activeFilter" : "secondary"} type="button" onClick={() => setQuickMode("year")}>This year</button>
+        <button className={mode === "custom" ? "secondary activeFilter" : "secondary"} type="button" onClick={() => setQuickMode("custom")}>Custom</button>
+      </div>
+      {mode === "custom" && (
+        <div className="customDateRange">
+          <Field label="Start date" type="date" value={startDate} onChange={onStartDateChange} />
+          <Field label="End date" type="date" value={endDate} onChange={onEndDateChange} />
+        </div>
+      )}
+    </section>
+  );
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
