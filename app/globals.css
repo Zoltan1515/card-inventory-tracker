@@ -36,6 +36,29 @@ h2 { margin-bottom: 0; }
 h3 { margin-bottom: 14px; }
 .subhead { color: var(--muted); max-width: 760px; font-size: 1.05rem; line-height: 1.5; margin-bottom: 0; }
 .eyebrow { color: var(--primary); text-transform: uppercase; letter-spacing: 0.14em; font-weight: 700; font-size: 0.76rem; margin-bottom: 10px; }
+.brandLogo { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.logoMark {
+  width: 54px;
+  height: 62px;
+  border: 1px solid rgba(56,189,248,.65);
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(56,189,248,.28), rgba(34,197,94,.14)),
+    #0b1222;
+  box-shadow: 0 14px 36px rgba(56,189,248,.16), inset 0 1px 0 rgba(255,255,255,.12);
+  color: #e0f2fe;
+  display: grid;
+  place-items: center;
+  font-weight: 950;
+  line-height: .82;
+  letter-spacing: -0.08em;
+  transform: rotate(-4deg);
+}
+.logoMark span:first-child { font-size: 1.15rem; transform: translate(-5px, 3px); }
+.logoMark span:last-child { font-size: 1.35rem; transform: translate(6px, -3px); }
+.logoText { display: grid; gap: 2px; text-transform: uppercase; letter-spacing: .12em; }
+.logoText strong { color: var(--text); font-size: .9rem; }
+.logoText small { color: var(--primary); font-weight: 900; font-size: .68rem; }
 .heroActions { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
 .pill { display: inline-flex; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 8px 12px; white-space: nowrap; }
 .pill.good { color: var(--good); border-color: rgba(34,197,94,.35); }

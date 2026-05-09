@@ -436,7 +436,7 @@ export default function Home() {
       <main className="shell">
         <header className="hero">
           <div>
-            <p className="eyebrow">Card Inventory Tracker</p>
+            <Logo />
             <h1>Sign in to your card inventory.</h1>
             <p className="subhead">Create your login below and your cards will save securely to your account.</p>
           </div>
@@ -451,7 +451,7 @@ export default function Home() {
     <main className="shell">
       <header className="hero compactHero">
         <div>
-          <p className="eyebrow">Card Inventory Tracker</p>
+          <Logo />
           <h1>Inventory, expenses, and profit.</h1>
           <p className="subhead">Simple workflow: add inventory, mark cards sold with sale price, record expenses separately, and track profit.</p>
         </div>
@@ -759,6 +759,21 @@ function downloadCsv(content: string, filename: string) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function Logo() {
+  return (
+    <div className="brandLogo" aria-label="Wicked Card Tracker">
+      <span className="logoMark" aria-hidden="true">
+        <span>W</span>
+        <span>C</span>
+      </span>
+      <span className="logoText">
+        <strong>Wicked</strong>
+        <small>Card Tracker</small>
+      </span>
+    </div>
+  );
 }
 
 function AuthPanel() {
