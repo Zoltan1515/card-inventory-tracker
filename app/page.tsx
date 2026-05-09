@@ -1,9 +1,11 @@
 "use client";
 
+import type { Session } from "@supabase/supabase-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { CardRecord, CardStatus, costBasis, emptyCard, money, netProceeds, percent, profit, roi, totalFees } from "@/lib/card";
 import { cardsToCsv } from "@/lib/csv";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { cardToInsert, cardToUpdate, rowToCard } from "@/lib/dbCard";
+import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "card-inventory-tracker.cards.v1";
 const statuses: CardStatus[] = ["Purchased", "Ready to List", "Listed", "Sold", "Shipped"];
@@ -35,8 +37,6 @@ const sampleCards = (): CardRecord[] => [
     storageLocation: "Box A",
     purchaseSource: "Local show",
     purchasePrice: 40,
-    purchaseTax: 0,
-    inboundShipping: 0,
     listedPlatform: "eBay",
     askingPrice: 79.99,
     notes: "Sample card — delete or edit this.",
@@ -72,15 +72,59 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  const usingSupabase = Boolean(isSupabaseConfigured && supabase);
+
+  const loadSupabaseCards = async (userId: string) => {
+    if (!supabase) return;
+    setLoading(true);
+    setError("");
+    const { data, error: loadError } = await supabase
+      .from("cards")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (loadError) setError(loadError.message);
+    else setCards((data ?? []).map(rowToCard));
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    setCards(raw ? JSON.parse(raw) : sampleCards());
-  }, []);
+    if (!usingSupabase || !supabase) {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      setCards(raw ? JSON.parse(raw) : sampleCards());
+      setLoading(false);
+      return;
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      if (data.session?.user.id) loadSupabaseCards(data.session.user.id);
+      else setLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (nextSession?.user.id) loadSupabaseCards(nextSession.user.id);
+      else {
+        setCards([]);
+        setLoading(false);
+      }
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, [usingSupabase]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
-  }, [cards]);
+    if (!usingSupabase && !loading) {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+    }
+  }, [cards, loading, usingSupabase]);
 
   const filteredCards = useMemo(() => {
     const q = query.toLowerCase();
@@ -122,9 +166,43 @@ export default function Home() {
     setSelectedId(null);
   };
 
-  const saveCard = (event: FormEvent) => {
+  const saveCard = async (event: FormEvent) => {
     event.preventDefault();
     if (!activeCard.name.trim()) return;
+    setError("");
+    setNotice("");
+
+    if (usingSupabase && supabase && session?.user.id) {
+      if (selectedId) {
+        const { data, error: updateError } = await supabase
+          .from("cards")
+          .update(cardToUpdate(activeCard))
+          .eq("id", activeCard.id)
+          .eq("user_id", session.user.id)
+          .select("*")
+          .single();
+        if (updateError) {
+          setError(updateError.message);
+          return;
+        }
+        setCards((current) => current.map((card) => (card.id === activeCard.id ? rowToCard(data) : card)));
+      } else {
+        const { data, error: insertError } = await supabase
+          .from("cards")
+          .insert(cardToInsert(activeCard, session.user.id))
+          .select("*")
+          .single();
+        if (insertError) {
+          setError(insertError.message);
+          return;
+        }
+        setCards((current) => [rowToCard(data), ...current]);
+      }
+      setNotice("Saved to Supabase.");
+      resetForm();
+      return;
+    }
+
     setCards((current) => {
       const exists = current.some((card) => card.id === activeCard.id);
       return exists ? current.map((card) => (card.id === activeCard.id ? activeCard : card)) : [activeCard, ...current];
@@ -138,7 +216,15 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const deleteCard = (id: string) => {
+  const deleteCard = async (id: string) => {
+    setError("");
+    if (usingSupabase && supabase && session?.user.id) {
+      const { error: deleteError } = await supabase.from("cards").delete().eq("id", id).eq("user_id", session.user.id);
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+    }
     setCards((current) => current.filter((card) => card.id !== id));
     if (selectedId === id) resetForm();
   };
@@ -159,6 +245,27 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  const signOut = async () => {
+    if (supabase) await supabase.auth.signOut();
+    resetForm();
+  };
+
+  if (usingSupabase && !session) {
+    return (
+      <main className="shell">
+        <header className="hero">
+          <div>
+            <p className="eyebrow">Card Inventory Tracker MVP</p>
+            <h1>Sign in to your card inventory.</h1>
+            <p className="subhead">Supabase is connected. Create your login below and your cards will save to the cloud database.</p>
+          </div>
+          <span className="pill good">Supabase connected</span>
+        </header>
+        <AuthPanel />
+      </main>
+    );
+  }
+
   return (
     <main className="shell">
       <header className="hero">
@@ -169,9 +276,14 @@ export default function Home() {
         </div>
         <div className="heroActions">
           <button className="secondary" onClick={exportCsv} type="button">Export CSV</button>
-          <span className={isSupabaseConfigured ? "pill good" : "pill"}>{isSupabaseConfigured ? "Supabase ready" : "Local browser storage"}</span>
+          <span className={usingSupabase ? "pill good" : "pill"}>{usingSupabase ? "Supabase cloud storage" : "Local browser storage"}</span>
+          {session && <button className="secondary" onClick={signOut} type="button">Sign out</button>}
         </div>
       </header>
+
+      {notice && <p className="notice">{notice}</p>}
+      {error && <p className="errorBox">{error}</p>}
+      {loading && <p className="notice">Loading inventory…</p>}
 
       <section className="statsGrid" aria-label="Dashboard totals">
         <Stat label="Cards" value={String(totals.inventoryCount)} />
@@ -284,10 +396,57 @@ export default function Home() {
               </div>
             </article>
           ))}
-          {!filteredCards.length && <p className="empty">No cards match your filters.</p>}
+          {!filteredCards.length && <p className="empty">No cards yet. Add your first card above.</p>}
         </div>
       </section>
     </main>
+  );
+}
+
+function AuthPanel() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"signin" | "signup">("signup");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!supabase) return;
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+    const result = mode === "signup"
+      ? await supabase.auth.signUp({ email, password })
+      : await supabase.auth.signInWithPassword({ email, password });
+    setSubmitting(false);
+    if (result.error) {
+      setError(result.error.message);
+      return;
+    }
+    setMessage(mode === "signup" ? "Account created. If Supabase asks for email confirmation, check your inbox before signing in." : "Signed in.");
+  };
+
+  return (
+    <section className="panel authPanel">
+      <div className="panelHeader">
+        <div>
+          <p className="eyebrow">Supabase login</p>
+          <h2>{mode === "signup" ? "Create your account" : "Sign in"}</h2>
+        </div>
+        <button className="secondary" type="button" onClick={() => setMode(mode === "signup" ? "signin" : "signup")}>
+          {mode === "signup" ? "I already have an account" : "Create new account"}
+        </button>
+      </div>
+      <form className="authForm" onSubmit={submit}>
+        <Field label="Email" type="email" value={email} onChange={setEmail} required />
+        <Field label="Password" type="password" value={password} onChange={setPassword} required />
+        <button className="primary" disabled={submitting} type="submit">{submitting ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}</button>
+      </form>
+      {message && <p className="notice">{message}</p>}
+      {error && <p className="errorBox">{error}</p>}
+    </section>
   );
 }
 
