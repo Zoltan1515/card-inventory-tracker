@@ -101,31 +101,35 @@ export default function Home() {
     setLoading(true);
     setError("");
 
-    const membershipResult = await supabase
-      .from("workspace_members")
-      .select("workspace_id")
-      .eq("user_id", userId)
-      .limit(1)
-      .maybeSingle();
+    try {
+      const membershipResult = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", userId)
+        .limit(1)
+        .maybeSingle();
 
-    const activeWorkspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
-    setWorkspaceId(activeWorkspaceId);
+      const activeWorkspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
+      setWorkspaceId(activeWorkspaceId);
 
-    const cardQuery = supabase.from("cards").select("*").order("created_at", { ascending: false });
-    const expenseQuery = supabase.from("expenses").select("*").order("expense_date", { ascending: false });
+      const cardQuery = supabase.from("cards").select("*").order("created_at", { ascending: false });
+      const expenseQuery = supabase.from("expenses").select("*").order("expense_date", { ascending: false });
 
-    const [cardsResult, expensesResult] = await Promise.all([
-      activeWorkspaceId ? cardQuery.eq("workspace_id", activeWorkspaceId) : cardQuery.eq("user_id", userId),
-      activeWorkspaceId ? expenseQuery.eq("workspace_id", activeWorkspaceId) : expenseQuery.eq("user_id", userId),
-    ]);
+      const [cardsResult, expensesResult] = await Promise.all([
+        activeWorkspaceId ? cardQuery.eq("workspace_id", activeWorkspaceId) : cardQuery.eq("user_id", userId),
+        activeWorkspaceId ? expenseQuery.eq("workspace_id", activeWorkspaceId) : expenseQuery.eq("user_id", userId),
+      ]);
 
-    if (cardsResult.error) setError(cardsResult.error.message);
-    else setCards((cardsResult.data ?? []).map(rowToCard));
+      if (cardsResult.error) setError(cardsResult.error.message);
+      else setCards((cardsResult.data ?? []).map(rowToCard));
 
-    if (expensesResult.error) setError(`Expenses table needs setup: ${expensesResult.error.message}`);
-    else setExpenses((expensesResult.data ?? []).map(rowToExpense));
-
-    setLoading(false);
+      if (expensesResult.error) setError(`Expenses table needs setup: ${expensesResult.error.message}`);
+      else setExpenses((expensesResult.data ?? []).map(rowToExpense));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load your account data. Please refresh and try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -139,16 +143,23 @@ export default function Home() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user.id) loadSupabaseData(data.session.user.id);
-      else setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        if (data.session?.user.id) loadSupabaseData(data.session.user.id);
+        else setLoading(false);
+      })
+      .catch((sessionError) => {
+        setError(sessionError instanceof Error ? sessionError.message : "Could not restore your login. Please sign in again.");
+        setLoading(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      if (nextSession?.user.id) loadSupabaseData(nextSession.user.id);
-      else {
+      if (nextSession?.user.id) {
+        void loadSupabaseData(nextSession.user.id);
+      } else {
         setWorkspaceId(null);
         setCards([]);
         setExpenses([]);
