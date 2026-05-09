@@ -98,7 +98,6 @@ export default function Home() {
 
   const loadSupabaseData = async (userId: string) => {
     if (!supabase) return;
-    setLoading(true);
     setError("");
 
     try {
@@ -147,8 +146,8 @@ export default function Home() {
       .getSession()
       .then(({ data }) => {
         setSession(data.session);
-        if (data.session?.user.id) loadSupabaseData(data.session.user.id);
-        else setLoading(false);
+        setLoading(false);
+        if (data.session?.user.id) void loadSupabaseData(data.session.user.id);
       })
       .catch((sessionError) => {
         setError(sessionError instanceof Error ? sessionError.message : "Could not restore your login. Please sign in again.");
@@ -157,6 +156,7 @@ export default function Home() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      setLoading(false);
       if (nextSession?.user.id) {
         void loadSupabaseData(nextSession.user.id);
       } else {
