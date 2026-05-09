@@ -135,13 +135,19 @@ export default function Home() {
     const revenue = soldCards.reduce((sum, card) => sum + card.soldPrice, 0);
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + card.purchasePrice, 0);
     const unsoldInventoryCost = cards.filter((card) => card.status !== "Sold").reduce((sum, card) => sum + card.purchasePrice, 0);
-    const expensesTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const expenseBreakdown = expenseCategories.map((category) => ({
+      category,
+      total: expenses.filter((expense) => expense.category === category).reduce((sum, expense) => sum + expense.amount, 0),
+      count: expenses.filter((expense) => expense.category === category).length,
+    }));
+    const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
     const profit = revenue - soldInventoryCost - expensesTotal;
     return {
       revenue,
       soldInventoryCost,
       unsoldInventoryCost,
       expensesTotal,
+      expenseBreakdown,
       profit,
       soldCount: soldCards.length,
       listedCount: cards.filter((card) => card.status === "Listed").length,
@@ -442,6 +448,13 @@ export default function Home() {
             </div>
             <button className="secondary" onClick={exportExpenses} type="button">Export expenses</button>
           </div>
+          <section className="statsGrid expenseBreakdown" aria-label="Expense category totals">
+            <Stat label="Total expenses" value={money(totals.expensesTotal)} />
+            {totals.expenseBreakdown.map((item) => (
+              <Stat key={item.category} label={`${item.category} (${item.count})`} value={money(item.total)} />
+            ))}
+          </section>
+
           <form className="formGrid expenseForm" onSubmit={saveExpense}>
             <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} />
             <Field label="Amount" type="number" value={String(activeExpense.amount)} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} required />
@@ -479,12 +492,19 @@ export default function Home() {
           <section className="statsGrid profitGrid" aria-label="Profit totals">
             <Stat label="Revenue from sold cards" value={money(totals.revenue)} />
             <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
-            <Stat label="Expenses" value={money(totals.expensesTotal)} />
+            <Stat label="Total expenses" value={money(totals.expensesTotal)} />
             <Stat label="Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
             <Stat label="Unsold inventory cost" value={money(totals.unsoldInventoryCost)} />
             <Stat label="Listed cards" value={String(totals.listedCount)} />
             <Stat label="Not listed" value={String(totals.notListedCount)} />
             <Stat label="Sold cards" value={String(totals.soldCount)} />
+          </section>
+
+          <h3>Expense breakdown</h3>
+          <section className="statsGrid expenseBreakdown" aria-label="Profit expense breakdown">
+            {totals.expenseBreakdown.map((item) => (
+              <Stat key={item.category} label={`${item.category} (${item.count})`} value={money(item.total)} />
+            ))}
           </section>
 
           <h3>Sold cards</h3>
