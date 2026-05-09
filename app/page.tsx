@@ -434,13 +434,8 @@ export default function Home() {
   if (usingSupabase && !session) {
     return (
       <main className="shell">
-        <header className="hero">
-          <div>
-            <Logo />
-            <h1>Sign in to your card inventory.</h1>
-            <p className="subhead">Create your login below and your cards will save securely to your account.</p>
-          </div>
-          <span className="pill good">Account storage ready</span>
+        <header className="hero logoHero">
+          <Logo />
         </header>
         <AuthPanel />
       </main>
@@ -449,16 +444,9 @@ export default function Home() {
 
   return (
     <main className="shell">
-      <header className="hero compactHero">
-        <div>
-          <Logo />
-          <h1>Inventory, expenses, and profit.</h1>
-          <p className="subhead">Simple workflow: add inventory, mark cards sold with sale price, record expenses separately, and track profit.</p>
-        </div>
-        <div className="heroActions">
-          <span className={usingSupabase ? "pill good" : "pill"}>{usingSupabase ? "Account storage" : "Local browser storage"}</span>
-          {session && <button className="secondary" onClick={signOut} type="button">Sign out</button>}
-        </div>
+      <header className="hero compactHero logoHero">
+        <Logo />
+        {session && <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button>}
       </header>
 
       <nav className="navBar" aria-label="Main navigation">
