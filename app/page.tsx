@@ -512,7 +512,6 @@ export default function Home() {
               Front photo
               <input
                 accept="image/*"
-                capture="environment"
                 type="file"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
@@ -719,7 +718,6 @@ export default function Home() {
                 Front photo
                 <input
                   accept="image/*"
-                  capture="environment"
                   type="file"
                   onChange={(e) => {
                     const file = e.target.files?.[0];
