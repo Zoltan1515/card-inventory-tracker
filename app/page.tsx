@@ -1,7 +1,7 @@
 "use client";
 
 import type { Session } from "@supabase/supabase-js";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, cardProfit, cardRoi, emptyCard, emptyExpense, money, percent } from "@/lib/card";
 import { cardsToCsv, expensesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard, rowToExpense } from "@/lib/dbCard";
@@ -508,18 +508,10 @@ export default function Home() {
             <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard({ ...activeCard, status: v as CardStatus })} />
             <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status })} placeholder="eBay, Whatnot, TCGplayer..." />
             <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => setActiveCard({ ...activeCard, listingUrl: v })} />
-            <label className="full photoUploadLabel">
-              Front photo
-              <input
-                accept="image/*"
-                type="file"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) uploadFrontPhoto(file);
-                }}
-              />
-              <span className="muted">Upload or take one front photo of the card.</span>
-            </label>
+            <PhotoUploadControl
+              helpText="Take a new card photo, or choose one from your gallery."
+              onPick={(file) => uploadFrontPhoto(file)}
+            />
             {activeCard.frontPhotoUrl && (
               <div className="photoPreview full">
                 <img src={activeCard.frontPhotoUrl} alt="Front of card preview" />
@@ -714,18 +706,10 @@ export default function Home() {
                   <Field label="Sold where?" value={editingCard.salePlatform} onChange={(v) => setEditingCard({ ...editingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." />
                 </>
               )}
-              <label className="full photoUploadLabel">
-                Front photo
-                <input
-                  accept="image/*"
-                  type="file"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) uploadFrontPhoto(file, "editing");
-                  }}
-                />
-                <span className="muted">Add or replace the front photo for this card.</span>
-              </label>
+              <PhotoUploadControl
+                helpText="Take a new card photo, or choose a replacement from your gallery."
+                onPick={(file) => uploadFrontPhoto(file, "editing")}
+              />
               {editingCard.frontPhotoUrl && (
                 <div className="photoPreview full">
                   <img src={editingCard.frontPhotoUrl} alt={`Front of ${editingCard.name}`} />
@@ -780,6 +764,31 @@ function Logo() {
   return (
     <div className="brandLogo" aria-label="Wicked Card Tracker">
       <img src="/wicked-card-tracker-logo.png" alt="Wicked Card Tracker" />
+    </div>
+  );
+}
+
+function PhotoUploadControl({ helpText, onPick }: { helpText: string; onPick: (file: File) => void }) {
+  const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) onPick(file);
+  };
+
+  return (
+    <div className="full photoUploadLabel">
+      <span>Front photo</span>
+      <div className="photoUploadActions">
+        <label className="primary photoChoiceButton">
+          Take photo
+          <input accept="image/*" capture="environment" type="file" onChange={handleFile} />
+        </label>
+        <label className="secondary photoChoiceButton">
+          Choose from gallery
+          <input accept="image/*" type="file" onChange={handleFile} />
+        </label>
+      </div>
+      <span className="muted">{helpText}</span>
     </div>
   );
 }

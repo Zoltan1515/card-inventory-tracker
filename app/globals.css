@@ -95,7 +95,10 @@ textarea { min-height: 90px; resize: vertical; }
 .full { grid-column: 1 / -1; }
 .calc { display: flex; flex-wrap: wrap; gap: 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
 .calc span { color: var(--muted); }
-.photoUploadLabel { border: 1px dashed var(--line); border-radius: 16px; padding: 14px; background: rgba(11,18,34,.6); }
+.photoUploadLabel { display: grid; gap: 10px; border: 1px dashed var(--line); border-radius: 16px; padding: 14px; background: rgba(11,18,34,.6); color: var(--muted); font-size: .86rem; font-weight: 700; }
+.photoUploadActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.photoChoiceButton { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; }
+.photoChoiceButton input { display: none; }
 .photoPreview { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
 .photoPreview img, .cardThumb { width: 92px; height: 128px; border-radius: 12px; object-fit: cover; border: 1px solid var(--line); background: #0b1222; }
 .placeholderThumb { display: grid; place-items: center; color: var(--muted); font-size: .78rem; text-align: center; padding: 8px; }
