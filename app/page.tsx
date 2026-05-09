@@ -567,13 +567,6 @@ export default function Home() {
             <Stat label="Sold cards" value={String(totals.soldCount)} />
           </section>
 
-          <h3>Expense breakdown</h3>
-          <section className="statsGrid expenseBreakdown" aria-label="Profit expense breakdown">
-            {totals.expenseBreakdown.map((item) => (
-              <Stat key={item.category} label={`${item.category} (${item.count})`} value={money(item.total)} />
-            ))}
-          </section>
-
           <h3>Sold cards</h3>
           <div className="cardsList">
             {cards.filter((card) => card.status === "Sold").map((card) => (
