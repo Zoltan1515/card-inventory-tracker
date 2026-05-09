@@ -52,6 +52,7 @@ export default function Home() {
   const [activeCard, setActiveCard] = useState<CardRecord>(emptyCard());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
+  const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
@@ -173,10 +174,15 @@ export default function Home() {
     };
   }, [cards, expenses]);
 
-  const uploadFrontPhoto = async (file: File) => {
+  const uploadFrontPhoto = async (file: File, target: "active" | "editing" = "active") => {
     setError("");
     setNotice("");
     setPhotoUploading(true);
+
+    const applyPhoto = (url: string) => {
+      if (target === "editing") setEditingCard((card) => (card ? { ...card, frontPhotoUrl: url } : card));
+      else setActiveCard((card) => ({ ...card, frontPhotoUrl: url }));
+    };
 
     if (usingSupabase && supabase && session?.user.id) {
       const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
@@ -193,7 +199,7 @@ export default function Home() {
       }
 
       const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
-      setActiveCard((card) => ({ ...card, frontPhotoUrl: data.publicUrl }));
+      applyPhoto(data.publicUrl);
       setNotice("Front photo uploaded.");
     } else {
       const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -202,7 +208,7 @@ export default function Home() {
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(file);
       });
-      setActiveCard((card) => ({ ...card, frontPhotoUrl: dataUrl }));
+      applyPhoto(dataUrl);
       setNotice("Front photo added locally.");
     }
 
@@ -291,6 +297,17 @@ export default function Home() {
     const nextCard = { ...card, ...updates, updatedAt: new Date().toISOString() };
     const ok = await updateCard(nextCard);
     if (ok) setNotice(`Updated listing info for ${card.name}.`);
+  };
+
+  const saveEditedCard = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingCard?.name.trim()) return;
+    const nextCard = { ...editingCard, updatedAt: new Date().toISOString() };
+    const ok = await updateCard(nextCard);
+    if (ok) {
+      setNotice(`Updated ${nextCard.name}.`);
+      setEditingCard(null);
+    }
   };
 
   const saveSale = async (event: FormEvent) => {
@@ -507,6 +524,7 @@ export default function Home() {
                   )}
                 </div>
                 <div className="rowActions">
+                  <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
                   <button className="secondary" onClick={() => setSellingCard({ ...card, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Enter sale</button>
                   <button className="danger" onClick={() => deleteCard(card.id)} type="button">Delete</button>
                 </div>
@@ -584,6 +602,66 @@ export default function Home() {
             <ProfitStatusSection title="Sold cards" cards={totals.soldCards} totalLabel="Sold inventory cost" total={totals.soldInventoryCost} emptyText="No sold cards yet. Use Inventory → Enter sale." showSale />
           </div>
         </section>
+      )}
+
+      {editingCard && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Edit card details">
+          <form className="modal panel" onSubmit={saveEditedCard}>
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Edit card</p>
+                <h2>{editingCard.name || "Card details"}</h2>
+              </div>
+              <button className="secondary" type="button" onClick={() => setEditingCard(null)}>Cancel</button>
+            </div>
+            <div className="formGrid simpleForm">
+              <Field label="Card/player name" value={editingCard.name} onChange={(v) => setEditingCard({ ...editingCard, name: v })} required />
+              <Field label="Category" value={editingCard.category} onChange={(v) => setEditingCard({ ...editingCard, category: v })} placeholder="Sports, Pokemon, MTG..." />
+              <Field label="Year" value={editingCard.year} onChange={(v) => setEditingCard({ ...editingCard, year: v })} />
+              <Field label="Set" value={editingCard.setName} onChange={(v) => setEditingCard({ ...editingCard, setName: v })} />
+              <Field label="Card #" value={editingCard.cardNumber} onChange={(v) => setEditingCard({ ...editingCard, cardNumber: v })} />
+              <Field label="Purchase price" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
+              <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
+              <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard({
+                ...editingCard,
+                status: v as CardStatus,
+                saleDate: v === "Sold" ? editingCard.saleDate || new Date().toISOString().slice(0, 10) : "",
+                soldPrice: v === "Sold" ? editingCard.soldPrice : 0,
+                salePlatform: v === "Sold" ? editingCard.salePlatform : "",
+              })} />
+              <Field label="Listed where?" value={editingCard.listedPlatform} onChange={(v) => setEditingCard({ ...editingCard, listedPlatform: v, status: v ? "Listed" : editingCard.status })} placeholder="eBay, Whatnot, TCGplayer..." />
+              <Field label="Listing URL" value={editingCard.listingUrl} onChange={(v) => setEditingCard({ ...editingCard, listingUrl: v })} />
+              {editingCard.status === "Sold" && (
+                <>
+                  <Field label="Sold for" type="number" value={String(editingCard.soldPrice)} onChange={(v) => setEditingCard({ ...editingCard, soldPrice: Number(v || 0) })} />
+                  <Field label="Sale date" type="date" value={editingCard.saleDate} onChange={(v) => setEditingCard({ ...editingCard, saleDate: v })} />
+                  <Field label="Sold where?" value={editingCard.salePlatform} onChange={(v) => setEditingCard({ ...editingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." />
+                </>
+              )}
+              <label className="full photoUploadLabel">
+                Front photo
+                <input
+                  accept="image/*"
+                  capture="environment"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) uploadFrontPhoto(file, "editing");
+                  }}
+                />
+                <span className="muted">Add or replace the front photo for this card.</span>
+              </label>
+              {editingCard.frontPhotoUrl && (
+                <div className="photoPreview full">
+                  <img src={editingCard.frontPhotoUrl} alt={`Front of ${editingCard.name}`} />
+                  <button className="secondary" type="button" onClick={() => setEditingCard({ ...editingCard, frontPhotoUrl: "" })}>Remove photo</button>
+                </div>
+              )}
+              <label className="full textareaLabel">Notes<textarea value={editingCard.notes} onChange={(e) => setEditingCard({ ...editingCard, notes: e.target.value })} /></label>
+              <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Save changes"}</button>
+            </div>
+          </form>
+        </div>
       )}
 
       {sellingCard && (
