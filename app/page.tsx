@@ -63,6 +63,12 @@ export default function Home() {
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
 
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(""), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
   const loadSupabaseData = async (userId: string) => {
     if (!supabase) return;
     setLoading(true);
