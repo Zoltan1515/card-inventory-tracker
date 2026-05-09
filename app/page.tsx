@@ -138,27 +138,38 @@ export default function Home() {
   }, [cards, query, statusFilter]);
 
   const totals = useMemo(() => {
+    const notListedCards = cards.filter((card) => card.status === "Not Listed");
+    const listedCards = cards.filter((card) => card.status === "Listed");
     const soldCards = cards.filter((card) => card.status === "Sold");
     const revenue = soldCards.reduce((sum, card) => sum + card.soldPrice, 0);
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + card.purchasePrice, 0);
-    const unsoldInventoryCost = cards.filter((card) => card.status !== "Sold").reduce((sum, card) => sum + card.purchasePrice, 0);
+    const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+    const listedInventoryCost = listedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+    const unsoldInventoryCost = unlistedInventoryCost + listedInventoryCost;
+    const totalInventoryCost = soldInventoryCost + unsoldInventoryCost;
     const expenseBreakdown = expenseCategories.map((category) => ({
       category,
       total: expenses.filter((expense) => expense.category === category).reduce((sum, expense) => sum + expense.amount, 0),
       count: expenses.filter((expense) => expense.category === category).length,
     }));
     const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
-    const profit = revenue - soldInventoryCost - expensesTotal;
+    const profit = revenue - totalInventoryCost - expensesTotal;
     return {
       revenue,
       soldInventoryCost,
+      unlistedInventoryCost,
+      listedInventoryCost,
       unsoldInventoryCost,
+      totalInventoryCost,
       expensesTotal,
       expenseBreakdown,
       profit,
+      notListedCards,
+      listedCards,
+      soldCards,
       soldCount: soldCards.length,
-      listedCount: cards.filter((card) => card.status === "Listed").length,
-      notListedCount: cards.filter((card) => card.status === "Not Listed").length,
+      listedCount: listedCards.length,
+      notListedCount: notListedCards.length,
     };
   }, [cards, expenses]);
 
@@ -558,24 +569,19 @@ export default function Home() {
           </div>
           <section className="statsGrid profitGrid" aria-label="Profit totals">
             <Stat label="Revenue from sold cards" value={money(totals.revenue)} />
-            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
+            <Stat label="Total inventory cost" value={money(totals.totalInventoryCost)} />
             <Stat label="Total expenses" value={money(totals.expensesTotal)} />
             <Stat label="Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
-            <Stat label="Unsold inventory cost" value={money(totals.unsoldInventoryCost)} />
-            <Stat label="Listed cards" value={String(totals.listedCount)} />
-            <Stat label="Not listed" value={String(totals.notListedCount)} />
-            <Stat label="Sold cards" value={String(totals.soldCount)} />
+            <Stat label="Unlisted inventory" value={money(totals.unlistedInventoryCost)} />
+            <Stat label="Listed inventory" value={money(totals.listedInventoryCost)} />
+            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
+            <Stat label="Sold cards revenue" value={money(totals.revenue)} />
           </section>
 
-          <h3>Sold cards</h3>
-          <div className="cardsList">
-            {cards.filter((card) => card.status === "Sold").map((card) => (
-              <article className="cardRow compactRow" key={card.id}>
-                <div><strong>{card.name}</strong><p className="muted">Sold for {money(card.soldPrice)} · Cost {money(card.purchasePrice)}</p></div>
-                <div className="rowMoney"><span className={cardProfit(card) >= 0 ? "positive" : "negative"}>{money(cardProfit(card))}</span><small>{percent(cardRoi(card))} before expenses</small></div>
-              </article>
-            ))}
-            {!cards.some((card) => card.status === "Sold") && <p className="empty">No sold cards yet. Use Inventory → Enter sale.</p>}
+          <div className="profitSections">
+            <ProfitStatusSection title="Unlisted cards" cards={totals.notListedCards} totalLabel="Money in unlisted cards" total={totals.unlistedInventoryCost} emptyText="No unlisted cards." />
+            <ProfitStatusSection title="Listed cards" cards={totals.listedCards} totalLabel="Money in listed cards" total={totals.listedInventoryCost} emptyText="No listed cards." />
+            <ProfitStatusSection title="Sold cards" cards={totals.soldCards} totalLabel="Sold inventory cost" total={totals.soldInventoryCost} emptyText="No sold cards yet. Use Inventory → Enter sale." showSale />
           </div>
         </section>
       )}
@@ -670,6 +676,61 @@ function NavButton({ active, onClick, children }: { active: boolean; onClick: ()
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
   return <div className="stat"><span>{label}</span><strong className={tone}>{value}</strong></div>;
+}
+
+function ProfitStatusSection({
+  title,
+  cards,
+  total,
+  totalLabel,
+  emptyText,
+  showSale = false,
+}: {
+  title: string;
+  cards: CardRecord[];
+  total: number;
+  totalLabel: string;
+  emptyText: string;
+  showSale?: boolean;
+}) {
+  return (
+    <section className="profitStatusSection">
+      <div className="profitSectionHeader">
+        <div>
+          <h3>{title}</h3>
+          <p className="muted">{cards.length} cards</p>
+        </div>
+        <div className="rowMoney">
+          <span>{money(total)}</span>
+          <small>{totalLabel}</small>
+        </div>
+      </div>
+      <div className="cardsList">
+        {cards.map((card) => (
+          <article className="cardRow compactRow" key={card.id}>
+            <div>
+              <strong>{card.name}</strong>
+              <p className="muted">
+                {card.year || "No year"}{card.setName ? ` · ${card.setName}` : ""}{card.cardNumber ? ` · #${card.cardNumber}` : ""}
+              </p>
+            </div>
+            {showSale ? (
+              <div className="rowMoney">
+                <span className={cardProfit(card) >= 0 ? "positive" : "negative"}>{money(cardProfit(card))}</span>
+                <small>Sold {money(card.soldPrice)} · cost {money(card.purchasePrice)}</small>
+              </div>
+            ) : (
+              <div className="rowMoney">
+                <span>{money(card.purchasePrice)}</span>
+                <small>purchase cost</small>
+              </div>
+            )}
+          </article>
+        ))}
+        {cards.length === 0 && <p className="empty">{emptyText}</p>}
+      </div>
+    </section>
+  );
 }
 
 function Field({ label, value, onChange, type = "text", placeholder, required }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean }) {

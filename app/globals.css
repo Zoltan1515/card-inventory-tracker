@@ -115,6 +115,10 @@ textarea { min-height: 90px; resize: vertical; }
 .rowMoney span { font-weight: 900; font-size: 1.15rem; }
 .rowMoney small, .muted { color: var(--muted); }
 .rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.profitSections { display: grid; gap: 18px; }
+.profitStatusSection { border: 1px solid var(--line); border-radius: 18px; padding: 18px; background: rgba(15,23,42,.42); }
+.profitSectionHeader { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 12px; }
+.profitSectionHeader h3 { margin: 0; }
 .inventoryControls { display: grid; gap: 8px; min-width: 180px; }
 .miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
 .inventoryControls input, .inventoryControls select { padding: 10px; }
