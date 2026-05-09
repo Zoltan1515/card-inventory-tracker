@@ -79,6 +79,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
   const [session, setSession] = useState<Session | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -100,9 +101,22 @@ export default function Home() {
     setLoading(true);
     setError("");
 
+    const membershipResult = await supabase
+      .from("workspace_members")
+      .select("workspace_id")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    const activeWorkspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
+    setWorkspaceId(activeWorkspaceId);
+
+    const cardQuery = supabase.from("cards").select("*").order("created_at", { ascending: false });
+    const expenseQuery = supabase.from("expenses").select("*").order("expense_date", { ascending: false });
+
     const [cardsResult, expensesResult] = await Promise.all([
-      supabase.from("cards").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-      supabase.from("expenses").select("*").eq("user_id", userId).order("expense_date", { ascending: false }),
+      activeWorkspaceId ? cardQuery.eq("workspace_id", activeWorkspaceId) : cardQuery.eq("user_id", userId),
+      activeWorkspaceId ? expenseQuery.eq("workspace_id", activeWorkspaceId) : expenseQuery.eq("user_id", userId),
     ]);
 
     if (cardsResult.error) setError(cardsResult.error.message);
@@ -116,6 +130,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!usingSupabase || !supabase) {
+      setWorkspaceId(null);
       const rawCards = window.localStorage.getItem(CARD_STORAGE_KEY);
       const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
       setCards(rawCards ? JSON.parse(rawCards) : sampleCards());
@@ -134,6 +149,7 @@ export default function Home() {
       setSession(nextSession);
       if (nextSession?.user.id) loadSupabaseData(nextSession.user.id);
       else {
+        setWorkspaceId(null);
         setCards([]);
         setExpenses([]);
         setLoading(false);
@@ -265,7 +281,7 @@ export default function Home() {
     if (usingSupabase && supabase && session?.user.id) {
       const { data, error: insertError } = await supabase
         .from("cards")
-        .insert(cardToInsert(activeCard, session.user.id))
+        .insert(cardToInsert(activeCard, session.user.id, workspaceId))
         .select("*")
         .single();
       if (insertError) {
@@ -285,13 +301,12 @@ export default function Home() {
   const updateCard = async (card: CardRecord) => {
     setError("");
     if (usingSupabase && supabase && session?.user.id) {
-      const { data, error: updateError } = await supabase
+      let updateQuery = supabase
         .from("cards")
         .update(cardToUpdate(card))
-        .eq("id", card.id)
-        .eq("user_id", session.user.id)
-        .select("*")
-        .single();
+        .eq("id", card.id);
+      updateQuery = workspaceId ? updateQuery.eq("workspace_id", workspaceId) : updateQuery.eq("user_id", session.user.id);
+      const { data, error: updateError } = await updateQuery.select("*").single();
       if (updateError) {
         setError(updateError.message);
         return false;
@@ -306,7 +321,9 @@ export default function Home() {
   const deleteCard = async (id: string) => {
     setError("");
     if (usingSupabase && supabase && session?.user.id) {
-      const { error: deleteError } = await supabase.from("cards").delete().eq("id", id).eq("user_id", session.user.id);
+      let deleteQuery = supabase.from("cards").delete().eq("id", id);
+      deleteQuery = workspaceId ? deleteQuery.eq("workspace_id", workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
         return;
@@ -376,13 +393,12 @@ export default function Home() {
 
     if (usingSupabase && supabase && session?.user.id) {
       if (editingExpenseId) {
-        const { data, error: updateError } = await supabase
+        let updateQuery = supabase
           .from("expenses")
           .update(expenseToUpdate(activeExpense))
-          .eq("id", activeExpense.id)
-          .eq("user_id", session.user.id)
-          .select("*")
-          .single();
+          .eq("id", activeExpense.id);
+        updateQuery = workspaceId ? updateQuery.eq("workspace_id", workspaceId) : updateQuery.eq("user_id", session.user.id);
+        const { data, error: updateError } = await updateQuery.select("*").single();
         if (updateError) {
           setError(updateError.message);
           return;
@@ -391,7 +407,7 @@ export default function Home() {
       } else {
         const { data, error: insertError } = await supabase
           .from("expenses")
-          .insert(expenseToInsert(activeExpense, session.user.id))
+          .insert(expenseToInsert(activeExpense, session.user.id, workspaceId))
           .select("*")
           .single();
         if (insertError) {
@@ -415,7 +431,9 @@ export default function Home() {
   const deleteExpense = async (id: string) => {
     setError("");
     if (usingSupabase && supabase && session?.user.id) {
-      const { error: deleteError } = await supabase.from("expenses").delete().eq("id", id).eq("user_id", session.user.id);
+      let deleteQuery = supabase.from("expenses").delete().eq("id", id);
+      deleteQuery = workspaceId ? deleteQuery.eq("workspace_id", workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
         return;

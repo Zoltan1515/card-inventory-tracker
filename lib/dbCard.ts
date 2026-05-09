@@ -3,6 +3,7 @@ import type { CardRecord, ExpenseRecord } from "./card";
 type CardRow = {
   id: string;
   user_id: string;
+  workspace_id?: string | null;
   name: string;
   category: string | null;
   year: string | null;
@@ -25,6 +26,7 @@ type CardRow = {
 type ExpenseRow = {
   id: string;
   user_id: string;
+  workspace_id?: string | null;
   category: ExpenseRecord["category"] | string | null;
   amount: number | string | null;
   expense_date: string | null;
@@ -71,8 +73,9 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   updatedAt: row.updated_at ?? new Date().toISOString(),
 });
 
-export const cardToInsert = (card: CardRecord, userId: string) => ({
+export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null) => ({
   user_id: userId,
+  ...(workspaceId ? { workspace_id: workspaceId } : {}),
   name: card.name,
   category: card.category,
   year: card.year,
@@ -119,8 +122,9 @@ export const rowToExpense = (row: ExpenseRow): ExpenseRecord => ({
   updatedAt: row.updated_at ?? new Date().toISOString(),
 });
 
-export const expenseToInsert = (expense: ExpenseRecord, userId: string) => ({
+export const expenseToInsert = (expense: ExpenseRecord, userId: string, workspaceId?: string | null) => ({
   user_id: userId,
+  ...(workspaceId ? { workspace_id: workspaceId } : {}),
   category: expense.category,
   amount: expense.amount,
   expense_date: dateOrNull(expense.expenseDate),
