@@ -9,6 +9,7 @@ const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["status", "Status"],
   ["listedPlatform", "Listed Platform"],
   ["listingUrl", "Listing URL"],
+  ["frontPhotoUrl", "Front Photo URL"],
   ["purchaseDate", "Purchase Date"],
   ["purchasePrice", "Purchase Price"],
   ["saleDate", "Sale Date"],

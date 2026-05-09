@@ -11,6 +11,7 @@ type CardRow = {
   status: CardRecord["status"] | string | null;
   listed_platform: string | null;
   listing_url: string | null;
+  front_photo_url: string | null;
   purchase_date: string | null;
   purchase_price: number | string | null;
   sale_date: string | null;
@@ -59,6 +60,7 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   status: normalizeStatus(row.status),
   listedPlatform: text(row.listed_platform),
   listingUrl: text(row.listing_url),
+  frontPhotoUrl: text(row.front_photo_url),
   purchaseDate: text(row.purchase_date),
   purchasePrice: num(row.purchase_price),
   saleDate: text(row.sale_date),
@@ -79,6 +81,7 @@ export const cardToInsert = (card: CardRecord, userId: string) => ({
   status: card.status,
   listed_platform: card.listedPlatform,
   listing_url: card.listingUrl,
+  front_photo_url: card.frontPhotoUrl,
   purchase_date: dateOrNull(card.purchaseDate),
   purchase_price: card.purchasePrice,
   sale_date: dateOrNull(card.saleDate),
@@ -96,6 +99,7 @@ export const cardToUpdate = (card: CardRecord) => ({
   status: card.status,
   listed_platform: card.listedPlatform,
   listing_url: card.listingUrl,
+  front_photo_url: card.frontPhotoUrl,
   purchase_date: dateOrNull(card.purchaseDate),
   purchase_price: card.purchasePrice,
   sale_date: dateOrNull(card.saleDate),

@@ -10,6 +10,7 @@ export type CardRecord = {
   status: CardStatus;
   listedPlatform: string;
   listingUrl: string;
+  frontPhotoUrl: string;
   purchaseDate: string;
   purchasePrice: number;
   saleDate: string;
@@ -45,6 +46,7 @@ export const emptyCard = (): CardRecord => {
     status: "Not Listed",
     listedPlatform: "",
     listingUrl: "",
+    frontPhotoUrl: "",
     purchaseDate: new Date().toISOString().slice(0, 10),
     purchasePrice: 0,
     saleDate: "",

@@ -60,6 +60,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
 
@@ -160,6 +161,42 @@ export default function Home() {
       notListedCount: cards.filter((card) => card.status === "Not Listed").length,
     };
   }, [cards, expenses]);
+
+  const uploadFrontPhoto = async (file: File) => {
+    setError("");
+    setNotice("");
+    setPhotoUploading(true);
+
+    if (usingSupabase && supabase && session?.user.id) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${session.user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: uploadError } = await supabase.storage.from("card-photos").upload(path, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+      if (uploadError) {
+        setError(`Photo upload failed. Make sure the card-photos storage SQL has been run. ${uploadError.message}`);
+        setPhotoUploading(false);
+        return;
+      }
+
+      const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
+      setActiveCard((card) => ({ ...card, frontPhotoUrl: data.publicUrl }));
+      setNotice("Front photo uploaded.");
+    } else {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      setActiveCard((card) => ({ ...card, frontPhotoUrl: dataUrl }));
+      setNotice("Front photo added locally.");
+    }
+
+    setPhotoUploading(false);
+  };
 
   const saveCard = async (event: FormEvent) => {
     event.preventDefault();
@@ -385,8 +422,27 @@ export default function Home() {
             <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard({ ...activeCard, status: v as CardStatus })} />
             <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status })} placeholder="eBay, Whatnot, TCGplayer..." />
             <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => setActiveCard({ ...activeCard, listingUrl: v })} />
+            <label className="full photoUploadLabel">
+              Front photo
+              <input
+                accept="image/*"
+                capture="environment"
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) uploadFrontPhoto(file);
+                }}
+              />
+              <span className="muted">Upload or take one front photo of the card.</span>
+            </label>
+            {activeCard.frontPhotoUrl && (
+              <div className="photoPreview full">
+                <img src={activeCard.frontPhotoUrl} alt="Front of card preview" />
+                <button className="secondary" type="button" onClick={() => setActiveCard({ ...activeCard, frontPhotoUrl: "" })}>Remove photo</button>
+              </div>
+            )}
             <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => setActiveCard({ ...activeCard, notes: e.target.value })} /></label>
-            <button className="primary full" type="submit">Add to inventory</button>
+            <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Add to inventory"}</button>
           </form>
         </section>
       )}
@@ -411,6 +467,11 @@ export default function Home() {
           <div className="cardsList">
             {filteredCards.map((card) => (
               <article className="cardRow" key={card.id}>
+                {card.frontPhotoUrl ? (
+                  <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} />
+                ) : (
+                  <div className="cardThumb placeholderThumb">No photo</div>
+                )}
                 <div>
                   <div className="rowTitle"><strong>{card.name}</strong><span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{card.status}</span></div>
                   <p>{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}</p>
