@@ -764,14 +764,7 @@ function downloadCsv(content: string, filename: string) {
 function Logo() {
   return (
     <div className="brandLogo" aria-label="Wicked Card Tracker">
-      <span className="logoMark" aria-hidden="true">
-        <span>W</span>
-        <span>C</span>
-      </span>
-      <span className="logoText">
-        <strong>Wicked</strong>
-        <small>Card Tracker</small>
-      </span>
+      <img src="/wicked-card-tracker-logo.png" alt="Wicked Card Tracker" />
     </div>
   );
 }
