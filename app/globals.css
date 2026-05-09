@@ -80,7 +80,7 @@ textarea { min-height: 90px; resize: vertical; }
 .danger { background: rgba(248,113,113,.12); color: var(--bad); border: 1px solid rgba(248,113,113,.28); }
 .filters { display: flex; gap: 12px; min-width: min(720px, 100%); align-items: center; }
 .cardsList, .expenseList { display: grid; gap: 12px; }
-.cardRow { border-radius: 18px; padding: 18px; display: grid; grid-template-columns: 1fr auto auto; gap: 18px; align-items: center; }
+.cardRow { border-radius: 18px; padding: 18px; display: grid; grid-template-columns: 1fr auto minmax(180px, 260px) auto; gap: 18px; align-items: center; }
 .compactRow { grid-template-columns: 1fr auto; }
 .cardRow p, .expenseRow p { margin: 6px 0 0; color: var(--muted); }
 .rowTitle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -92,6 +92,9 @@ textarea { min-height: 90px; resize: vertical; }
 .rowMoney span { font-weight: 900; font-size: 1.15rem; }
 .rowMoney small, .muted { color: var(--muted); }
 .rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.inventoryControls { display: grid; gap: 8px; min-width: 180px; }
+.miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
+.inventoryControls input, .inventoryControls select { padding: 10px; }
 .expenseRow { border-radius: 16px; padding: 16px; display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 16px; }
 .positive { color: var(--good); }
 .negative { color: var(--bad); }

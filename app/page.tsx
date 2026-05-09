@@ -208,6 +208,31 @@ export default function Home() {
     setCards((current) => current.filter((card) => card.id !== id));
   };
 
+  const changeCardStatus = async (card: CardRecord, status: CardStatus) => {
+    const nextCard = {
+      ...card,
+      status,
+      saleDate: status === "Sold" ? card.saleDate || new Date().toISOString().slice(0, 10) : "",
+      soldPrice: status === "Sold" ? card.soldPrice : 0,
+      salePlatform: status === "Sold" ? card.salePlatform : "",
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (status === "Sold" && !card.soldPrice) {
+      setSellingCard(nextCard);
+      return;
+    }
+
+    const ok = await updateCard(nextCard);
+    if (ok) setNotice(`${card.name} changed to ${status}.`);
+  };
+
+  const updateListingInfo = async (card: CardRecord, updates: Partial<Pick<CardRecord, "listedPlatform" | "listingUrl">>) => {
+    const nextCard = { ...card, ...updates, updatedAt: new Date().toISOString() };
+    const ok = await updateCard(nextCard);
+    if (ok) setNotice(`Updated listing info for ${card.name}.`);
+  };
+
   const saveSale = async (event: FormEvent) => {
     event.preventDefault();
     if (!sellingCard) return;
@@ -383,6 +408,19 @@ export default function Home() {
                 <div className="rowMoney">
                   <span>{money(card.purchasePrice)}</span>
                   <small>purchase price</small>
+                </div>
+                <div className="inventoryControls">
+                  <label className="miniLabel">Status
+                    <select value={card.status} onChange={(e) => changeCardStatus(card, e.target.value as CardStatus)}>
+                      {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+                    </select>
+                  </label>
+                  {card.status === "Listed" && (
+                    <>
+                      <input aria-label={`Listed platform for ${card.name}`} placeholder="Listed where?" value={card.listedPlatform} onChange={(e) => updateListingInfo(card, { listedPlatform: e.target.value })} />
+                      <input aria-label={`Listing URL for ${card.name}`} placeholder="Listing URL" value={card.listingUrl} onChange={(e) => updateListingInfo(card, { listingUrl: e.target.value })} />
+                    </>
+                  )}
                 </div>
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setSellingCard({ ...card, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Enter sale</button>
