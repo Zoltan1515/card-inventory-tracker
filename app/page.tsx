@@ -783,7 +783,7 @@ function AuthPanel() {
       setError(result.error.message);
       return;
     }
-    setMessage(mode === "signup" ? "Account created. If Supabase asks for email confirmation, check your inbox before signing in." : "Signed in.");
+    setMessage(mode === "signup" ? "Account created. Check your email to confirm your account before signing in." : "Signed in.");
   };
 
   return (
