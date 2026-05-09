@@ -438,9 +438,9 @@ export default function Home() {
           <div>
             <p className="eyebrow">Card Inventory Tracker</p>
             <h1>Sign in to your card inventory.</h1>
-            <p className="subhead">Supabase is connected. Create your login below and your cards will save to the cloud database.</p>
+            <p className="subhead">Create your login below and your cards will save securely to your account.</p>
           </div>
-          <span className="pill good">Supabase connected</span>
+          <span className="pill good">Account storage ready</span>
         </header>
         <AuthPanel />
       </main>
@@ -456,7 +456,7 @@ export default function Home() {
           <p className="subhead">Simple workflow: add inventory, mark cards sold with sale price, record expenses separately, and track profit.</p>
         </div>
         <div className="heroActions">
-          <span className={usingSupabase ? "pill good" : "pill"}>{usingSupabase ? "Supabase cloud storage" : "Local browser storage"}</span>
+          <span className={usingSupabase ? "pill good" : "pill"}>{usingSupabase ? "Account storage" : "Local browser storage"}</span>
           {session && <button className="secondary" onClick={signOut} type="button">Sign out</button>}
         </div>
       </header>
@@ -790,7 +790,7 @@ function AuthPanel() {
     <section className="panel authPanel">
       <div className="panelHeader">
         <div>
-          <p className="eyebrow">Supabase login</p>
+          <p className="eyebrow">Account login</p>
           <h2>{mode === "signup" ? "Create your account" : "Sign in"}</h2>
         </div>
         <button className="secondary" type="button" onClick={() => setMode(mode === "signup" ? "signin" : "signup")}>
