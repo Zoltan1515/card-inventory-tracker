@@ -1,36 +1,28 @@
-import type { CardRecord } from "./card";
+import type { CardRecord, ExpenseRecord } from "./card";
 
-const headers: Array<[keyof CardRecord, string]> = [
+const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["name", "Name"],
   ["category", "Category"],
   ["year", "Year"],
   ["setName", "Set"],
   ["cardNumber", "Card Number"],
-  ["variant", "Variant"],
-  ["condition", "Condition"],
-  ["rawOrGraded", "Raw/Graded"],
-  ["gradingCompany", "Grading Company"],
-  ["grade", "Grade"],
-  ["certNumber", "Cert Number"],
   ["status", "Status"],
-  ["storageLocation", "Storage Location"],
-  ["purchaseDate", "Purchase Date"],
-  ["purchaseSource", "Purchase Source"],
-  ["purchasePrice", "Purchase Price"],
-  ["purchaseTax", "Purchase Tax"],
-  ["inboundShipping", "Inbound Shipping"],
   ["listedPlatform", "Listed Platform"],
   ["listingUrl", "Listing URL"],
-  ["askingPrice", "Asking Price"],
+  ["purchaseDate", "Purchase Date"],
+  ["purchasePrice", "Purchase Price"],
   ["saleDate", "Sale Date"],
   ["salePlatform", "Sale Platform"],
   ["soldPrice", "Sold Price"],
-  ["platformFees", "Platform Fees"],
-  ["paymentFees", "Payment Fees"],
-  ["promotedFees", "Promoted Fees"],
-  ["outboundShipping", "Outbound Shipping"],
-  ["packagingCost", "Packaging Cost"],
   ["notes", "Notes"],
+];
+
+const expenseHeaders: Array<[keyof ExpenseRecord, string]> = [
+  ["expenseDate", "Date"],
+  ["category", "Category"],
+  ["amount", "Amount"],
+  ["vendor", "Vendor"],
+  ["description", "Description"],
 ];
 
 const escapeCsv = (value: unknown) => {
@@ -40,7 +32,13 @@ const escapeCsv = (value: unknown) => {
 };
 
 export const cardsToCsv = (cards: CardRecord[]) => {
-  const head = headers.map(([, label]) => escapeCsv(label)).join(",");
-  const rows = cards.map((card) => headers.map(([key]) => escapeCsv(card[key])).join(","));
+  const head = cardHeaders.map(([, label]) => escapeCsv(label)).join(",");
+  const rows = cards.map((card) => cardHeaders.map(([key]) => escapeCsv(card[key])).join(","));
+  return [head, ...rows].join("\n");
+};
+
+export const expensesToCsv = (expenses: ExpenseRecord[]) => {
+  const head = expenseHeaders.map(([, label]) => escapeCsv(label)).join(",");
+  const rows = expenses.map((expense) => expenseHeaders.map(([key]) => escapeCsv(expense[key])).join(","));
   return [head, ...rows].join("\n");
 };

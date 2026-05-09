@@ -2,25 +2,17 @@
 
 import type { Session } from "@supabase/supabase-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { CardRecord, CardStatus, costBasis, emptyCard, money, netProceeds, percent, profit, roi, totalFees } from "@/lib/card";
-import { cardsToCsv } from "@/lib/csv";
-import { cardToInsert, cardToUpdate, rowToCard } from "@/lib/dbCard";
+import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, cardProfit, cardRoi, emptyCard, emptyExpense, money, percent } from "@/lib/card";
+import { cardsToCsv, expensesToCsv } from "@/lib/csv";
+import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard, rowToExpense } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-const STORAGE_KEY = "card-inventory-tracker.cards.v1";
-const statuses: CardStatus[] = ["Purchased", "Ready to List", "Listed", "Sold", "Shipped"];
-const numberFields = new Set<keyof CardRecord>([
-  "purchasePrice",
-  "purchaseTax",
-  "inboundShipping",
-  "askingPrice",
-  "soldPrice",
-  "platformFees",
-  "paymentFees",
-  "promotedFees",
-  "outboundShipping",
-  "packagingCost",
-]);
+type Tab = "add" | "inventory" | "expenses" | "profit";
+
+const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
+const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
+const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
+const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Other"];
 
 const sampleCards = (): CardRecord[] => [
   {
@@ -31,15 +23,11 @@ const sampleCards = (): CardRecord[] => [
     year: "2023",
     setName: "Prizm",
     cardNumber: "101",
-    variant: "Silver",
-    condition: "Near Mint",
     status: "Listed",
-    storageLocation: "Box A",
-    purchaseSource: "Local show",
-    purchasePrice: 40,
     listedPlatform: "eBay",
-    askingPrice: 79.99,
-    notes: "Sample card — delete or edit this.",
+    listingUrl: "https://example.com/listing",
+    purchasePrice: 40,
+    notes: "Sample listed card.",
   },
   {
     ...emptyCard(),
@@ -49,29 +37,25 @@ const sampleCards = (): CardRecord[] => [
     year: "2021",
     setName: "Evolving Skies",
     cardNumber: "215",
-    variant: "Holo",
-    condition: "Near Mint",
     status: "Sold",
-    storageLocation: "Sold bin",
-    purchaseSource: "eBay lot",
-    purchasePrice: 18,
-    inboundShipping: 2,
     saleDate: new Date().toISOString().slice(0, 10),
     salePlatform: "eBay",
+    purchasePrice: 18,
     soldPrice: 52,
-    platformFees: 7.1,
-    outboundShipping: 4.25,
-    packagingCost: 0.5,
-    notes: "Sample sold card with fees.",
+    notes: "Sample sold card.",
   },
 ];
 
 export default function Home() {
   const [cards, setCards] = useState<CardRecord[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [activeCard, setActiveCard] = useState<CardRecord>(emptyCard());
+  const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
+  const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
@@ -79,40 +63,47 @@ export default function Home() {
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
 
-  const loadSupabaseCards = async (userId: string) => {
+  const loadSupabaseData = async (userId: string) => {
     if (!supabase) return;
     setLoading(true);
     setError("");
-    const { data, error: loadError } = await supabase
-      .from("cards")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
 
-    if (loadError) setError(loadError.message);
-    else setCards((data ?? []).map(rowToCard));
+    const [cardsResult, expensesResult] = await Promise.all([
+      supabase.from("cards").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+      supabase.from("expenses").select("*").eq("user_id", userId).order("expense_date", { ascending: false }),
+    ]);
+
+    if (cardsResult.error) setError(cardsResult.error.message);
+    else setCards((cardsResult.data ?? []).map(rowToCard));
+
+    if (expensesResult.error) setError(`Expenses table needs setup: ${expensesResult.error.message}`);
+    else setExpenses((expensesResult.data ?? []).map(rowToExpense));
+
     setLoading(false);
   };
 
   useEffect(() => {
     if (!usingSupabase || !supabase) {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      setCards(raw ? JSON.parse(raw) : sampleCards());
+      const rawCards = window.localStorage.getItem(CARD_STORAGE_KEY);
+      const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
+      setCards(rawCards ? JSON.parse(rawCards) : sampleCards());
+      setExpenses(rawExpenses ? JSON.parse(rawExpenses) : []);
       setLoading(false);
       return;
     }
 
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
-      if (data.session?.user.id) loadSupabaseCards(data.session.user.id);
+      if (data.session?.user.id) loadSupabaseData(data.session.user.id);
       else setLoading(false);
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      if (nextSession?.user.id) loadSupabaseCards(nextSession.user.id);
+      if (nextSession?.user.id) loadSupabaseData(nextSession.user.id);
       else {
         setCards([]);
+        setExpenses([]);
         setLoading(false);
       }
     });
@@ -122,15 +113,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!usingSupabase && !loading) {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+      window.localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards));
+      window.localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(expenses));
     }
-  }, [cards, loading, usingSupabase]);
+  }, [cards, expenses, loading, usingSupabase]);
 
   const filteredCards = useMemo(() => {
     const q = query.toLowerCase();
     return cards.filter((card) => {
       const matchesStatus = statusFilter === "All" || card.status === statusFilter;
-      const matchesQuery = [card.name, card.category, card.year, card.setName, card.cardNumber, card.variant, card.storageLocation, card.purchaseSource, card.salePlatform]
+      const matchesQuery = [card.name, card.category, card.year, card.setName, card.cardNumber, card.listedPlatform, card.salePlatform]
         .join(" ")
         .toLowerCase()
         .includes(q);
@@ -139,32 +131,23 @@ export default function Home() {
   }, [cards, query, statusFilter]);
 
   const totals = useMemo(() => {
-    const sold = cards.filter((card) => card.status === "Sold" || card.status === "Shipped");
+    const soldCards = cards.filter((card) => card.status === "Sold");
+    const revenue = soldCards.reduce((sum, card) => sum + card.soldPrice, 0);
+    const soldInventoryCost = soldCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+    const unsoldInventoryCost = cards.filter((card) => card.status !== "Sold").reduce((sum, card) => sum + card.purchasePrice, 0);
+    const expensesTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const profit = revenue - soldInventoryCost - expensesTotal;
     return {
-      inventoryCount: cards.length,
+      revenue,
+      soldInventoryCost,
+      unsoldInventoryCost,
+      expensesTotal,
+      profit,
+      soldCount: soldCards.length,
       listedCount: cards.filter((card) => card.status === "Listed").length,
-      needActionCount: cards.filter((card) => card.status === "Purchased" || card.status === "Ready to List").length,
-      soldCount: sold.length,
-      costBasis: cards.reduce((sum, card) => sum + costBasis(card), 0),
-      listedValue: cards.reduce((sum, card) => sum + card.askingPrice, 0),
-      grossSales: sold.reduce((sum, card) => sum + card.soldPrice, 0),
-      fees: sold.reduce((sum, card) => sum + totalFees(card), 0),
-      profit: sold.reduce((sum, card) => sum + profit(card), 0),
+      notListedCount: cards.filter((card) => card.status === "Not Listed").length,
     };
-  }, [cards]);
-
-  const updateActive = (field: keyof CardRecord, value: string) => {
-    setActiveCard((card) => ({
-      ...card,
-      [field]: numberFields.has(field) ? Number(value || 0) : value,
-      updatedAt: new Date().toISOString(),
-    }));
-  };
-
-  const resetForm = () => {
-    setActiveCard(emptyCard());
-    setSelectedId(null);
-  };
+  }, [cards, expenses]);
 
   const saveCard = async (event: FormEvent) => {
     event.preventDefault();
@@ -173,47 +156,44 @@ export default function Home() {
     setNotice("");
 
     if (usingSupabase && supabase && session?.user.id) {
-      if (selectedId) {
-        const { data, error: updateError } = await supabase
-          .from("cards")
-          .update(cardToUpdate(activeCard))
-          .eq("id", activeCard.id)
-          .eq("user_id", session.user.id)
-          .select("*")
-          .single();
-        if (updateError) {
-          setError(updateError.message);
-          return;
-        }
-        setCards((current) => current.map((card) => (card.id === activeCard.id ? rowToCard(data) : card)));
-      } else {
-        const { data, error: insertError } = await supabase
-          .from("cards")
-          .insert(cardToInsert(activeCard, session.user.id))
-          .select("*")
-          .single();
-        if (insertError) {
-          setError(insertError.message);
-          return;
-        }
-        setCards((current) => [rowToCard(data), ...current]);
+      const { data, error: insertError } = await supabase
+        .from("cards")
+        .insert(cardToInsert(activeCard, session.user.id))
+        .select("*")
+        .single();
+      if (insertError) {
+        setError(insertError.message);
+        return;
       }
-      setNotice("Saved to Supabase.");
-      resetForm();
-      return;
+      setCards((current) => [rowToCard(data), ...current]);
+    } else {
+      setCards((current) => [{ ...activeCard, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...current]);
     }
 
-    setCards((current) => {
-      const exists = current.some((card) => card.id === activeCard.id);
-      return exists ? current.map((card) => (card.id === activeCard.id ? activeCard : card)) : [activeCard, ...current];
-    });
-    resetForm();
+    setNotice("Inventory added.");
+    setActiveCard(emptyCard());
+    setTab("inventory");
   };
 
-  const editCard = (card: CardRecord) => {
-    setActiveCard(card);
-    setSelectedId(card.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const updateCard = async (card: CardRecord) => {
+    setError("");
+    if (usingSupabase && supabase && session?.user.id) {
+      const { data, error: updateError } = await supabase
+        .from("cards")
+        .update(cardToUpdate(card))
+        .eq("id", card.id)
+        .eq("user_id", session.user.id)
+        .select("*")
+        .single();
+      if (updateError) {
+        setError(updateError.message);
+        return false;
+      }
+      setCards((current) => current.map((item) => (item.id === card.id ? rowToCard(data) : item)));
+      return true;
+    }
+    setCards((current) => current.map((item) => (item.id === card.id ? card : item)));
+    return true;
   };
 
   const deleteCard = async (id: string) => {
@@ -226,28 +206,86 @@ export default function Home() {
       }
     }
     setCards((current) => current.filter((card) => card.id !== id));
-    if (selectedId === id) resetForm();
   };
 
-  const markSold = (card: CardRecord) => {
-    setActiveCard({ ...card, status: "Sold", saleDate: card.saleDate || new Date().toISOString().slice(0, 10), updatedAt: new Date().toISOString() });
-    setSelectedId(card.id);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+  const saveSale = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!sellingCard) return;
+    const soldCard = {
+      ...sellingCard,
+      status: "Sold" as const,
+      saleDate: sellingCard.saleDate || new Date().toISOString().slice(0, 10),
+      updatedAt: new Date().toISOString(),
+    };
+    const ok = await updateCard(soldCard);
+    if (ok) {
+      setNotice(`Sold ${soldCard.name} for ${money(soldCard.soldPrice)}.`);
+      setSellingCard(null);
+      setTab("profit");
+    }
   };
 
-  const exportCsv = () => {
-    const blob = new Blob([cardsToCsv(cards)], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `card-inventory-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const saveExpense = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!activeExpense.amount) return;
+    setError("");
+    setNotice("");
+
+    if (usingSupabase && supabase && session?.user.id) {
+      if (editingExpenseId) {
+        const { data, error: updateError } = await supabase
+          .from("expenses")
+          .update(expenseToUpdate(activeExpense))
+          .eq("id", activeExpense.id)
+          .eq("user_id", session.user.id)
+          .select("*")
+          .single();
+        if (updateError) {
+          setError(updateError.message);
+          return;
+        }
+        setExpenses((current) => current.map((expense) => (expense.id === activeExpense.id ? rowToExpense(data) : expense)));
+      } else {
+        const { data, error: insertError } = await supabase
+          .from("expenses")
+          .insert(expenseToInsert(activeExpense, session.user.id))
+          .select("*")
+          .single();
+        if (insertError) {
+          setError(insertError.message);
+          return;
+        }
+        setExpenses((current) => [rowToExpense(data), ...current]);
+      }
+    } else {
+      setExpenses((current) => {
+        const exists = current.some((expense) => expense.id === activeExpense.id);
+        return exists ? current.map((expense) => (expense.id === activeExpense.id ? activeExpense : expense)) : [{ ...activeExpense, id: crypto.randomUUID() }, ...current];
+      });
+    }
+
+    setNotice("Expense saved.");
+    setActiveExpense(emptyExpense());
+    setEditingExpenseId(null);
   };
+
+  const deleteExpense = async (id: string) => {
+    setError("");
+    if (usingSupabase && supabase && session?.user.id) {
+      const { error: deleteError } = await supabase.from("expenses").delete().eq("id", id).eq("user_id", session.user.id);
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+    }
+    setExpenses((current) => current.filter((expense) => expense.id !== id));
+  };
+
+  const exportCards = () => downloadCsv(cardsToCsv(cards), `card-inventory-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportExpenses = () => downloadCsv(expensesToCsv(expenses), `card-expenses-${new Date().toISOString().slice(0, 10)}.csv`);
 
   const signOut = async () => {
     if (supabase) await supabase.auth.signOut();
-    resetForm();
   };
 
   if (usingSupabase && !session) {
@@ -255,7 +293,7 @@ export default function Home() {
       <main className="shell">
         <header className="hero">
           <div>
-            <p className="eyebrow">Card Inventory Tracker MVP</p>
+            <p className="eyebrow">Card Inventory Tracker</p>
             <h1>Sign in to your card inventory.</h1>
             <p className="subhead">Supabase is connected. Create your login below and your cards will save to the cloud database.</p>
           </div>
@@ -268,139 +306,197 @@ export default function Home() {
 
   return (
     <main className="shell">
-      <header className="hero">
+      <header className="hero compactHero">
         <div>
-          <p className="eyebrow">Card Inventory Tracker MVP</p>
-          <h1>Track every card from purchase to sale.</h1>
-          <p className="subhead">Add cards quickly, mark them listed or sold, enter fees, and see real profit/loss at a glance.</p>
+          <p className="eyebrow">Card Inventory Tracker</p>
+          <h1>Inventory, expenses, and profit.</h1>
+          <p className="subhead">Simple workflow: add inventory, mark cards sold with sale price, record expenses separately, and track profit.</p>
         </div>
         <div className="heroActions">
-          <button className="secondary" onClick={exportCsv} type="button">Export CSV</button>
           <span className={usingSupabase ? "pill good" : "pill"}>{usingSupabase ? "Supabase cloud storage" : "Local browser storage"}</span>
           {session && <button className="secondary" onClick={signOut} type="button">Sign out</button>}
         </div>
       </header>
 
+      <nav className="navBar" aria-label="Main navigation">
+        <NavButton active={tab === "add"} onClick={() => setTab("add")}>Add Inventory</NavButton>
+        <NavButton active={tab === "inventory"} onClick={() => setTab("inventory")}>Inventory</NavButton>
+        <NavButton active={tab === "expenses"} onClick={() => setTab("expenses")}>Expenses</NavButton>
+        <NavButton active={tab === "profit"} onClick={() => setTab("profit")}>Profit</NavButton>
+      </nav>
+
       {notice && <p className="notice">{notice}</p>}
       {error && <p className="errorBox">{error}</p>}
-      {loading && <p className="notice">Loading inventory…</p>}
+      {loading && <p className="notice">Loading…</p>}
 
-      <section className="statsGrid" aria-label="Dashboard totals">
-        <Stat label="Cards" value={String(totals.inventoryCount)} />
-        <Stat label="Listed" value={String(totals.listedCount)} />
-        <Stat label="Need action" value={String(totals.needActionCount)} />
-        <Stat label="Sold" value={String(totals.soldCount)} />
-        <Stat label="Cost basis" value={money(totals.costBasis)} />
-        <Stat label="Listed value" value={money(totals.listedValue)} />
-        <Stat label="Gross sales" value={money(totals.grossSales)} />
-        <Stat label="Fees/shipping" value={money(totals.fees)} />
-        <Stat label="Net profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
-      </section>
-
-      <section className="panel">
-        <div className="panelHeader">
-          <div>
-            <p className="eyebrow">{selectedId ? "Edit card" : "Add card"}</p>
-            <h2>{selectedId ? activeCard.name : "New inventory item"}</h2>
+      {tab === "add" && (
+        <section className="panel">
+          <div className="panelHeader">
+            <div>
+              <p className="eyebrow">Add Inventory</p>
+              <h2>Add a card</h2>
+            </div>
           </div>
-          {selectedId && <button className="secondary" onClick={resetForm} type="button">Cancel edit</button>}
-        </div>
+          <form className="formGrid simpleForm" onSubmit={saveCard}>
+            <Field label="Card/player name" value={activeCard.name} onChange={(v) => setActiveCard({ ...activeCard, name: v })} required />
+            <Field label="Category" value={activeCard.category} onChange={(v) => setActiveCard({ ...activeCard, category: v })} placeholder="Sports, Pokemon, MTG..." />
+            <Field label="Year" value={activeCard.year} onChange={(v) => setActiveCard({ ...activeCard, year: v })} />
+            <Field label="Set" value={activeCard.setName} onChange={(v) => setActiveCard({ ...activeCard, setName: v })} />
+            <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => setActiveCard({ ...activeCard, cardNumber: v })} />
+            <Field label="Purchase price" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
+            <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
+            <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard({ ...activeCard, status: v as CardStatus })} />
+            <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status })} placeholder="eBay, Whatnot, TCGplayer..." />
+            <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => setActiveCard({ ...activeCard, listingUrl: v })} />
+            <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => setActiveCard({ ...activeCard, notes: e.target.value })} /></label>
+            <button className="primary full" type="submit">Add to inventory</button>
+          </form>
+        </section>
+      )}
 
-        <form className="formGrid" onSubmit={saveCard}>
-          <Field label="Card/player name" value={activeCard.name} onChange={(v) => updateActive("name", v)} required />
-          <Field label="Category" value={activeCard.category} onChange={(v) => updateActive("category", v)} placeholder="Basketball, Pokemon, MTG..." />
-          <Field label="Year" value={activeCard.year} onChange={(v) => updateActive("year", v)} />
-          <Field label="Set" value={activeCard.setName} onChange={(v) => updateActive("setName", v)} />
-          <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => updateActive("cardNumber", v)} />
-          <Field label="Variant/parallel" value={activeCard.variant} onChange={(v) => updateActive("variant", v)} />
-          <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => updateActive("status", v)} />
-          <Field label="Storage location" value={activeCard.storageLocation} onChange={(v) => updateActive("storageLocation", v)} placeholder="Box A, listed bin..." />
-          <Field label="Condition" value={activeCard.condition} onChange={(v) => updateActive("condition", v)} />
-          <Select label="Raw/graded" value={activeCard.rawOrGraded} options={["Raw", "Graded"]} onChange={(v) => updateActive("rawOrGraded", v)} />
-          <Field label="Grading company" value={activeCard.gradingCompany} onChange={(v) => updateActive("gradingCompany", v)} placeholder="PSA, BGS, SGC..." />
-          <Field label="Grade" value={activeCard.grade} onChange={(v) => updateActive("grade", v)} placeholder="10" />
-          <Field label="Cert #" value={activeCard.certNumber} onChange={(v) => updateActive("certNumber", v)} />
-
-          <h3 className="formSection">Purchase</h3>
-          <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => updateActive("purchaseDate", v)} />
-          <Field label="Purchase source" value={activeCard.purchaseSource} onChange={(v) => updateActive("purchaseSource", v)} placeholder="eBay, show, Facebook..." />
-          <Field label="Purchase price" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => updateActive("purchasePrice", v)} />
-          <Field label="Tax" type="number" value={String(activeCard.purchaseTax)} onChange={(v) => updateActive("purchaseTax", v)} />
-          <Field label="Inbound shipping" type="number" value={String(activeCard.inboundShipping)} onChange={(v) => updateActive("inboundShipping", v)} />
-
-          <h3 className="formSection">Listing / Sale</h3>
-          <Field label="Listed platform" value={activeCard.listedPlatform} onChange={(v) => updateActive("listedPlatform", v)} placeholder="eBay, TCGplayer..." />
-          <Field label="Asking price" type="number" value={String(activeCard.askingPrice)} onChange={(v) => updateActive("askingPrice", v)} />
-          <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => updateActive("listingUrl", v)} />
-          <Field label="Sale date" type="date" value={activeCard.saleDate} onChange={(v) => updateActive("saleDate", v)} />
-          <Field label="Sale platform" value={activeCard.salePlatform} onChange={(v) => updateActive("salePlatform", v)} />
-          <Field label="Sold price" type="number" value={String(activeCard.soldPrice)} onChange={(v) => updateActive("soldPrice", v)} />
-          <Field label="Platform fees" type="number" value={String(activeCard.platformFees)} onChange={(v) => updateActive("platformFees", v)} />
-          <Field label="Payment fees" type="number" value={String(activeCard.paymentFees)} onChange={(v) => updateActive("paymentFees", v)} />
-          <Field label="Promoted/other fees" type="number" value={String(activeCard.promotedFees)} onChange={(v) => updateActive("promotedFees", v)} />
-          <Field label="Outbound shipping" type="number" value={String(activeCard.outboundShipping)} onChange={(v) => updateActive("outboundShipping", v)} />
-          <Field label="Packaging cost" type="number" value={String(activeCard.packagingCost)} onChange={(v) => updateActive("packagingCost", v)} />
-          <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => updateActive("notes", e.target.value)} /></label>
-
-          <div className="calc full">
-            <span>Cost basis: <strong>{money(costBasis(activeCard))}</strong></span>
-            <span>Net proceeds: <strong>{money(netProceeds(activeCard))}</strong></span>
-            <span>Profit: <strong className={profit(activeCard) >= 0 ? "positive" : "negative"}>{money(profit(activeCard))}</strong></span>
-            <span>ROI: <strong>{percent(roi(activeCard))}</strong></span>
+      {tab === "inventory" && (
+        <section className="panel">
+          <div className="panelHeader inventoryHeader">
+            <div>
+              <p className="eyebrow">Inventory</p>
+              <h2>{filteredCards.length} cards</h2>
+            </div>
+            <div className="filters">
+              <input aria-label="Search inventory" placeholder="Search cards..." value={query} onChange={(e) => setQuery(e.target.value)} />
+              <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as CardStatus | "All")}>
+                <option value="All">All statuses</option>
+                {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
+              </select>
+              <button className="secondary" onClick={exportCards} type="button">Export inventory</button>
+            </div>
           </div>
 
-          <button className="primary full" type="submit">{selectedId ? "Save changes" : "Add card"}</button>
-        </form>
-      </section>
-
-      <section className="panel">
-        <div className="panelHeader inventoryHeader">
-          <div>
-            <p className="eyebrow">Inventory</p>
-            <h2>{filteredCards.length} cards shown</h2>
+          <div className="cardsList">
+            {filteredCards.map((card) => (
+              <article className="cardRow" key={card.id}>
+                <div>
+                  <div className="rowTitle"><strong>{card.name}</strong><span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{card.status}</span></div>
+                  <p>{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}</p>
+                  <p className="muted">{card.status === "Sold" ? `Sold on ${card.salePlatform || "unknown platform"} for ${money(card.soldPrice)}` : card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}` : "Not listed yet"}</p>
+                  {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
+                </div>
+                <div className="rowMoney">
+                  <span>{money(card.purchasePrice)}</span>
+                  <small>purchase price</small>
+                </div>
+                <div className="rowActions">
+                  <button className="secondary" onClick={() => setSellingCard({ ...card, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Enter sale</button>
+                  <button className="danger" onClick={() => deleteCard(card.id)} type="button">Delete</button>
+                </div>
+              </article>
+            ))}
+            {!filteredCards.length && <p className="empty">No cards match your filters.</p>}
           </div>
-          <div className="filters">
-            <input aria-label="Search inventory" placeholder="Search cards..." value={query} onChange={(e) => setQuery(e.target.value)} />
-            <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as CardStatus | "All")}>
-              <option value="All">All statuses</option>
-              {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-            </select>
-          </div>
-        </div>
+        </section>
+      )}
 
-        <div className="cardsList">
-          {filteredCards.map((card) => (
-            <article className="cardRow" key={card.id}>
+      {tab === "expenses" && (
+        <section className="panel">
+          <div className="panelHeader inventoryHeader">
+            <div>
+              <p className="eyebrow">Expenses</p>
+              <h2>Record HST, duties, grading, shipping, and other expenses</h2>
+            </div>
+            <button className="secondary" onClick={exportExpenses} type="button">Export expenses</button>
+          </div>
+          <form className="formGrid expenseForm" onSubmit={saveExpense}>
+            <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} />
+            <Field label="Amount" type="number" value={String(activeExpense.amount)} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} required />
+            <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} />
+            <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
+            <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
+            <button className="primary" type="submit">{editingExpenseId ? "Save expense" : "Add expense"}</button>
+          </form>
+
+          <div className="expenseList">
+            {expenses.map((expense) => (
+              <article className="expenseRow" key={expense.id}>
+                <div><strong>{expense.category}</strong><p>{expense.description || expense.vendor || "No description"}</p></div>
+                <span>{expense.expenseDate}</span>
+                <strong>{money(expense.amount)}</strong>
+                <div className="rowActions">
+                  <button className="secondary" type="button" onClick={() => { setActiveExpense(expense); setEditingExpenseId(expense.id); }}>Edit</button>
+                  <button className="danger" type="button" onClick={() => deleteExpense(expense.id)}>Delete</button>
+                </div>
+              </article>
+            ))}
+            {!expenses.length && <p className="empty">No expenses yet.</p>}
+          </div>
+        </section>
+      )}
+
+      {tab === "profit" && (
+        <section className="panel">
+          <div className="panelHeader">
+            <div>
+              <p className="eyebrow">Profit</p>
+              <h2>Revenue minus inventory cost and expenses</h2>
+            </div>
+          </div>
+          <section className="statsGrid profitGrid" aria-label="Profit totals">
+            <Stat label="Revenue from sold cards" value={money(totals.revenue)} />
+            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
+            <Stat label="Expenses" value={money(totals.expensesTotal)} />
+            <Stat label="Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
+            <Stat label="Unsold inventory cost" value={money(totals.unsoldInventoryCost)} />
+            <Stat label="Listed cards" value={String(totals.listedCount)} />
+            <Stat label="Not listed" value={String(totals.notListedCount)} />
+            <Stat label="Sold cards" value={String(totals.soldCount)} />
+          </section>
+
+          <h3>Sold cards</h3>
+          <div className="cardsList">
+            {cards.filter((card) => card.status === "Sold").map((card) => (
+              <article className="cardRow compactRow" key={card.id}>
+                <div><strong>{card.name}</strong><p className="muted">Sold for {money(card.soldPrice)} · Cost {money(card.purchasePrice)}</p></div>
+                <div className="rowMoney"><span className={cardProfit(card) >= 0 ? "positive" : "negative"}>{money(cardProfit(card))}</span><small>{percent(cardRoi(card))} before expenses</small></div>
+              </article>
+            ))}
+            {!cards.some((card) => card.status === "Sold") && <p className="empty">No sold cards yet. Use Inventory → Enter sale.</p>}
+          </div>
+        </section>
+      )}
+
+      {sellingCard && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Enter sale details">
+          <form className="modal panel" onSubmit={saveSale}>
+            <div className="panelHeader">
               <div>
-                <div className="rowTitle"><strong>{card.name}</strong><span>{card.status}</span></div>
-                <p>{[card.year, card.setName, card.cardNumber, card.variant].filter(Boolean).join(" • ") || "No card details yet"}</p>
-                <p className="muted">Location: {card.storageLocation || "Not set"} · Cost: {money(costBasis(card))} · Asking: {money(card.askingPrice)}</p>
+                <p className="eyebrow">Enter sale</p>
+                <h2>{sellingCard.name}</h2>
               </div>
-              <div className="rowMoney">
-                {card.status === "Sold" || card.status === "Shipped" ? (
-                  <>
-                    <span className={profit(card) >= 0 ? "positive" : "negative"}>{money(profit(card))}</span>
-                    <small>{percent(roi(card))} ROI</small>
-                  </>
-                ) : (
-                  <>
-                    <span>{money(costBasis(card))}</span>
-                    <small>open cost basis</small>
-                  </>
-                )}
+              <button className="secondary" type="button" onClick={() => setSellingCard(null)}>Cancel</button>
+            </div>
+            <div className="formGrid simpleForm">
+              <Field label="Sold for" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
+              <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} />
+              <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." />
+              <div className="calc full">
+                <span>Purchase price: <strong>{money(sellingCard.purchasePrice)}</strong></span>
+                <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
               </div>
-              <div className="rowActions">
-                <button className="secondary" onClick={() => editCard(card)} type="button">Edit</button>
-                <button className="secondary" onClick={() => markSold(card)} type="button">Mark sold</button>
-                <button className="danger" onClick={() => deleteCard(card.id)} type="button">Delete</button>
-              </div>
-            </article>
-          ))}
-          {!filteredCards.length && <p className="empty">No cards yet. Add your first card above.</p>}
+              <button className="primary full" type="submit">Save sale</button>
+            </div>
+          </form>
         </div>
-      </section>
+      )}
     </main>
   );
+}
+
+function downloadCsv(content: string, filename: string) {
+  const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function AuthPanel() {
@@ -448,6 +544,10 @@ function AuthPanel() {
       {error && <p className="errorBox">{error}</p>}
     </section>
   );
+}
+
+function NavButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return <button className={active ? "navButton active" : "navButton"} type="button" onClick={onClick}>{children}</button>;
 }
 
 function Stat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
