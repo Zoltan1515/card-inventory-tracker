@@ -132,6 +132,10 @@ textarea { min-height: 90px; resize: vertical; }
 .secondary:hover { border-color: var(--primary); }
 .danger { background: rgba(248,113,113,.12); color: var(--bad); border: 1px solid rgba(248,113,113,.28); }
 .filters { display: flex; gap: 12px; min-width: min(720px, 100%); align-items: center; }
+.inventoryFilterPanel { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.5); padding: 14px; display: grid; grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(145px, 1fr)); gap: 12px; margin-bottom: 18px; align-items: end; }
+.inventoryFilterPanel label { min-width: 0; }
+.filterSearch { grid-column: span 2; }
+.filterActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .dateFilterBar { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.5); padding: 14px; display: grid; gap: 12px; margin-bottom: 18px; }
 .dateFilterBar .eyebrow { margin-bottom: 4px; }
 .dateFilterButtons { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -179,6 +183,8 @@ textarea { min-height: 90px; resize: vertical; }
 
 @media (max-width: 1000px) {
   .statsGrid, .profitGrid, .expenseBreakdown, .attentionStats { grid-template-columns: repeat(2, 1fr); }
+  .inventoryFilterPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filterSearch { grid-column: 1 / -1; }
   .formGrid, .simpleForm, .expenseForm { grid-template-columns: repeat(2, 1fr); }
   .cardRow, .expenseRow { grid-template-columns: 1fr; }
   .rowMoney { justify-items: start; }
@@ -193,6 +199,10 @@ textarea { min-height: 90px; resize: vertical; }
   .heroActions { align-items: stretch; }
   .navBar { grid-template-columns: 1fr 1fr; }
   .statsGrid, .profitGrid, .expenseBreakdown, .attentionStats, .formGrid, .simpleForm, .expenseForm { grid-template-columns: 1fr; }
+  .inventoryFilterPanel { grid-template-columns: 1fr; }
+  .filterSearch { grid-column: auto; }
+  .filterActions { justify-content: stretch; }
+  .filterActions .secondary { width: 100%; }
   .attentionItem { grid-template-columns: 1fr; }
   .attentionItem span { text-align: left; }
   .filters, .customDateRange { flex-direction: column; display: flex; }
