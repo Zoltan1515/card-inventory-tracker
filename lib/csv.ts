@@ -11,7 +11,7 @@ const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["listedPlatform", "Listed Platform"],
   ["listingUrl", "Listing URL"],
   ["askingPrice", "Asking Price"],
-  ["lowestAcceptablePrice", "Lowest Acceptable Price"],
+  ["lowestAcceptablePrice", "Minimum Sale Price"],
   ["listedDate", "Listed Date"],
   ["frontPhotoUrl", "Front Photo URL"],
   ["purchaseDate", "Purchase Date"],
