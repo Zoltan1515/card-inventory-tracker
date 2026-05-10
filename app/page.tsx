@@ -49,13 +49,19 @@ const dateInRange = (date: string, start: string, end: string) => {
   if (end && date > end) return false;
   return true;
 };
+const formatDateLabel = (date: string) => {
+  if (!date) return "";
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+};
 const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
   if (mode === "all") return "All time";
   if (mode === "month") return "This month";
   if (mode === "year") return "This year";
-  if (start && end) return `${start} to ${end}`;
-  if (start) return `From ${start}`;
-  if (end) return `Through ${end}`;
+  if (start && end) return `${formatDateLabel(start)} – ${formatDateLabel(end)}`;
+  if (start) return `From ${formatDateLabel(start)}`;
+  if (end) return `Through ${formatDateLabel(end)}`;
   return "Custom range";
 };
 const daysSince = (isoDate: string) => {
@@ -719,7 +725,8 @@ export default function Home() {
   };
 
   const exportCards = () => downloadCsv(cardsToCsv(cards), `card-inventory-${new Date().toISOString().slice(0, 10)}.csv`);
-  const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
+  const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
 
   const signOut = async () => {
     if (supabase) await supabase.auth.signOut();
@@ -961,7 +968,7 @@ export default function Home() {
               <p className="eyebrow">Expenses</p>
               <h2>Record HST, duties, grading, shipping, and other expenses</h2>
             </div>
-            <button className="secondary" onClick={exportExpenses} type="button">Export expenses</button>
+            <button className="secondary" onClick={exportExpenses} type="button">Export filtered expenses ({totals.filteredExpenses.length})</button>
           </div>
           <DateFilterControls
             mode={dateFilterMode}
@@ -1280,7 +1287,7 @@ function DateFilterControls({
     <section className="dateFilterBar" aria-label="Date filter">
       <div>
         <p className="eyebrow">Date filter</p>
-        <strong>{selectedLabel}</strong>
+        <strong>Viewing: {selectedLabel}</strong>
       </div>
       <div className="dateFilterButtons">
         <button className={mode === "all" ? "secondary activeFilter" : "secondary"} type="button" onClick={() => setQuickMode("all")}>All time</button>
