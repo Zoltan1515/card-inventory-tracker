@@ -7,8 +7,23 @@ import { cardsToCsv, expensesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard, rowToExpense } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-type Tab = "add" | "inventory" | "expenses" | "profit";
+type Tab = "add" | "attention" | "inventory" | "expenses" | "profit";
 type DateFilterMode = "all" | "month" | "year" | "custom";
+type AttentionItem = {
+  id: string;
+  recordId: string;
+  kind: "card" | "expense";
+  title: string;
+  detail: string;
+  action?: string;
+};
+type AttentionGroup = {
+  key: string;
+  title: string;
+  count: number;
+  description: string;
+  items: AttentionItem[];
+};
 
 
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
@@ -32,6 +47,17 @@ const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
   if (start) return `From ${start}`;
   if (end) return `Through ${end}`;
   return "Custom range";
+};
+const daysSince = (isoDate: string) => {
+  if (!isoDate) return null;
+  const time = new Date(`${isoDate}T00:00:00`).getTime();
+  if (Number.isNaN(time)) return null;
+  const today = new Date(`${todayIso()}T00:00:00`).getTime();
+  return Math.max(0, Math.floor((today - time) / 86_400_000));
+};
+const listedAgeDate = (card: CardRecord) => {
+  const cardWithListedDate = card as CardRecord & { listedDate?: string };
+  return cardWithListedDate.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate;
 };
 
 
@@ -241,6 +267,140 @@ export default function Home() {
       notListedCount: notListedCards.length,
     };
   }, [cards, dateRange.end, dateRange.start, expenses, isAllTime]);
+
+  const attentionGroups = useMemo<AttentionGroup[]>(() => {
+    const cardsMissingPhotos = cards
+      .filter((card) => !card.frontPhotoUrl.trim())
+      .map((card) => ({
+        id: `photo-${card.id}`,
+        recordId: card.id,
+        kind: "card" as const,
+        title: card.name || "Unnamed card",
+        detail: `${card.status} • ${money(card.purchasePrice)} purchase cost`,
+        action: "Edit card and add a front photo",
+      }));
+
+    const unlistedCards = cards
+      .filter((card) => card.status === "Not Listed")
+      .map((card) => ({
+        id: `unlisted-${card.id}`,
+        recordId: card.id,
+        kind: "card" as const,
+        title: card.name || "Unnamed card",
+        detail: [card.category, card.purchaseDate ? `Bought ${card.purchaseDate}` : "No purchase date", money(card.purchasePrice)].filter(Boolean).join(" • "),
+        action: "Edit card or mark as listed",
+      }));
+
+    const listedMissingUrls = cards
+      .filter((card) => card.status === "Listed" && !card.listingUrl.trim())
+      .map((card) => ({
+        id: `listing-url-${card.id}`,
+        recordId: card.id,
+        kind: "card" as const,
+        title: card.name || "Unnamed card",
+        detail: `Listed on ${card.listedPlatform || "unknown platform"}`,
+        action: "Edit card and add the listing URL",
+      }));
+
+    const listedOverThirtyDays = cards
+      .filter((card) => card.status === "Listed")
+      .map((card) => ({ card, referenceDate: listedAgeDate(card) }))
+      .map(({ card, referenceDate }) => ({ card, referenceDate, age: daysSince(referenceDate) }))
+      .filter((item): item is { card: CardRecord; referenceDate: string; age: number } => item.age !== null && item.age > 30)
+      .map(({ card, referenceDate, age }) => ({
+        id: `listed-age-${card.id}`,
+        recordId: card.id,
+        kind: "card" as const,
+        title: card.name || "Unnamed card",
+        detail: `${age} days since listed/status date ${referenceDate}${card.listedPlatform ? ` • ${card.listedPlatform}` : ""}`,
+        action: "Review price or listing",
+      }));
+
+    const soldMissingSaleInfo = cards
+      .filter((card) => card.status === "Sold" && (!card.soldPrice || !card.saleDate))
+      .map((card) => ({
+        id: `sale-info-${card.id}`,
+        recordId: card.id,
+        kind: "card" as const,
+        title: card.name || "Unnamed card",
+        detail: `${!card.soldPrice ? "Missing sold price" : "Sold price saved"} • ${!card.saleDate ? "Missing sale date" : card.saleDate}`,
+        action: "Edit card and complete sale details",
+      }));
+
+    const incompleteExpenses = expenses
+      .filter((expense) => !expense.category || !expense.amount || !expense.expenseDate)
+      .map((expense) => ({
+        id: `expense-${expense.id}`,
+        recordId: expense.id,
+        kind: "expense" as const,
+        title: expense.description || expense.vendor || "Expense record",
+        detail: `${!expense.category ? "Missing type" : expense.category} • ${!expense.amount ? "Missing amount" : money(expense.amount)} • ${!expense.expenseDate ? "Missing date" : expense.expenseDate}`,
+        action: "Edit expense details",
+      }));
+
+    return [
+      {
+        key: "missing-photos",
+        title: "Cards missing photos",
+        count: cardsMissingPhotos.length,
+        description: "Add front photos so cards are easier to recognize and list.",
+        items: cardsMissingPhotos,
+      },
+      {
+        key: "unlisted",
+        title: "Bought but not listed",
+        count: unlistedCards.length,
+        description: "Inventory that still needs to be listed or moved forward.",
+        items: unlistedCards,
+      },
+      {
+        key: "missing-listing-url",
+        title: "Listed cards missing URLs",
+        count: listedMissingUrls.length,
+        description: "Add listing links so both users can quickly open live listings.",
+        items: listedMissingUrls,
+      },
+      {
+        key: "listed-over-30",
+        title: "Listed over 30 days",
+        count: listedOverThirtyDays.length,
+        description: "Review older listed cards for pricing, photos, or platform changes.",
+        items: listedOverThirtyDays,
+      },
+      {
+        key: "missing-sale-info",
+        title: "Sold cards missing sale info",
+        count: soldMissingSaleInfo.length,
+        description: "Complete sale price and date so profit stays accurate.",
+        items: soldMissingSaleInfo,
+      },
+      {
+        key: "incomplete-expenses",
+        title: "Incomplete expenses",
+        count: incompleteExpenses.length,
+        description: "Fix expense records before exporting reports for bookkeeping.",
+        items: incompleteExpenses,
+      },
+    ];
+  }, [cards, expenses]);
+
+  const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
+
+  const openAttentionItem = (item: AttentionItem) => {
+    if (item.kind === "card") {
+      const card = cards.find((entry) => entry.id === item.recordId);
+      if (card) setEditingCard(card);
+      return;
+    }
+
+    const expense = expenses.find((entry) => entry.id === item.recordId);
+    if (expense) {
+      setActiveExpense(expense);
+      setEditingExpenseId(expense.id);
+      setTab("expenses");
+      window.setTimeout(() => document.getElementById("expense-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    }
+  };
 
   const uploadFrontPhoto = async (file: File, target: "active" | "editing" = "active") => {
     setError("");
@@ -480,6 +640,7 @@ export default function Home() {
 
       <nav className="navBar" aria-label="Main navigation">
         <NavButton active={tab === "add"} onClick={() => setTab("add")}>Add Inventory</NavButton>
+        <NavButton active={tab === "attention"} onClick={() => setTab("attention")}>Needs Attention{totalAttentionItems ? ` (${totalAttentionItems})` : ""}</NavButton>
         <NavButton active={tab === "inventory"} onClick={() => setTab("inventory")}>Inventory</NavButton>
         <NavButton active={tab === "expenses"} onClick={() => setTab("expenses")}>Expenses</NavButton>
         <NavButton active={tab === "profit"} onClick={() => setTab("profit")}>Profit</NavButton>
@@ -521,6 +682,47 @@ export default function Home() {
             <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => setActiveCard({ ...activeCard, notes: e.target.value })} /></label>
             <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Add to inventory"}</button>
           </form>
+        </section>
+      )}
+
+      {tab === "attention" && (
+        <section className="panel">
+          <div className="panelHeader inventoryHeader">
+            <div>
+              <p className="eyebrow">Needs Attention</p>
+              <h2>{totalAttentionItems ? `${totalAttentionItems} things to review` : "Everything looks caught up"}</h2>
+              <p className="muted">Quick list of cards and expenses that need the next business action.</p>
+            </div>
+            <button className="secondary" type="button" onClick={() => setTab("inventory")}>Open inventory</button>
+          </div>
+
+          <section className="attentionStats" aria-label="Needs attention summary">
+            {attentionGroups.map((group) => (
+              <button
+                className={`attentionStat ${group.count ? "hasItems" : ""}`}
+                disabled={!group.count}
+                key={group.key}
+                onClick={() => {
+                  const element = document.getElementById(`attention-${group.key}`);
+                  element?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                type="button"
+              >
+                <span>{group.title}</span>
+                <strong>{group.count}</strong>
+              </button>
+            ))}
+          </section>
+
+          {totalAttentionItems === 0 ? (
+            <p className="empty">No action items right now. New missing photos, unlisted cards, old listings, sale gaps, or incomplete expenses will show here.</p>
+          ) : (
+            <div className="attentionGroups">
+              {attentionGroups.map((group) => (
+                <AttentionGroupSection group={group} key={group.key} onOpenItem={openAttentionItem} />
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -609,7 +811,7 @@ export default function Home() {
             ))}
           </section>
 
-          <form className="formGrid expenseForm" onSubmit={saveExpense}>
+          <form className="formGrid expenseForm" id="expense-form" onSubmit={saveExpense}>
             <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} />
             <Field label="Amount" type="number" value={String(activeExpense.amount)} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} required />
             <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} />
@@ -765,6 +967,45 @@ function Logo() {
     <div className="brandLogo" aria-label="Wicked Card Tracker">
       <img src="/wicked-card-tracker-logo.png" alt="Wicked Card Tracker" />
     </div>
+  );
+}
+
+function AttentionGroupSection({ group, onOpenItem }: { group: AttentionGroup; onOpenItem: (item: AttentionItem) => void }) {
+  if (!group.count) {
+    return (
+      <section className="attentionGroup isClear" id={`attention-${group.key}`}>
+        <div className="attentionGroupHeader">
+          <div>
+            <h3>{group.title}</h3>
+            <p>{group.description}</p>
+          </div>
+          <span className="clearBadge">Clear</span>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="attentionGroup" id={`attention-${group.key}`}>
+      <div className="attentionGroupHeader">
+        <div>
+          <h3>{group.title}</h3>
+          <p>{group.description}</p>
+        </div>
+        <span className="attentionCount">{group.count}</span>
+      </div>
+      <div className="attentionItemList">
+        {group.items.map((item) => (
+          <button className="attentionItem" key={item.id} onClick={() => onOpenItem(item)} type="button">
+            <div>
+              <strong>{item.title}</strong>
+              <p>{item.detail}</p>
+            </div>
+            {item.action && <span>{item.action}</span>}
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }
 
