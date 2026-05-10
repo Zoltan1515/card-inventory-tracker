@@ -68,7 +68,7 @@ export const emptyExpense = (): ExpenseRecord => {
   const now = new Date().toISOString();
   return {
     id: crypto.randomUUID(),
-    category: "Shipping",
+    category: "" as ExpenseCategory,
     amount: 0,
     expenseDate: new Date().toISOString().slice(0, 10),
     description: "",
