@@ -9,6 +9,16 @@ import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tab = "add" | "attention" | "inventory" | "expenses" | "profit";
 type DateFilterMode = "all" | "month" | "year" | "custom";
+type PhotoFilter = "All" | "Has photo" | "Missing photo";
+type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
+type InventorySort =
+  | "newest-purchase"
+  | "oldest-purchase"
+  | "highest-purchase"
+  | "lowest-purchase"
+  | "highest-sold"
+  | "highest-profit"
+  | "name-az";
 type AttentionItem = {
   id: string;
   recordId: string;
@@ -59,6 +69,8 @@ const listedAgeDate = (card: CardRecord) => {
   const cardWithListedDate = card as CardRecord & { listedDate?: string };
   return cardWithListedDate.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate;
 };
+const dateValue = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() || 0 : 0);
+const uniqueSorted = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
 
 const sampleCards = (): CardRecord[] => [
@@ -104,6 +116,11 @@ export default function Home() {
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
+  const [categoryFilter, setCategoryFilter] = useState("All");
+  const [platformFilter, setPlatformFilter] = useState("All");
+  const [photoFilter, setPhotoFilter] = useState<PhotoFilter>("All");
+  const [listingUrlFilter, setListingUrlFilter] = useState<ListingUrlFilter>("All");
+  const [inventorySort, setInventorySort] = useState<InventorySort>("newest-purchase");
   const [session, setSession] = useState<Session | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -203,17 +220,65 @@ export default function Home() {
     }
   }, [cards, expenses, loading, usingSupabase]);
 
+  const inventoryCategories = useMemo(() => uniqueSorted(cards.map((card) => card.category)), [cards]);
+  const inventoryPlatforms = useMemo(() => uniqueSorted(cards.map((card) => card.listedPlatform)), [cards]);
+  const filtersAreActive = Boolean(
+    query.trim() ||
+    statusFilter !== "All" ||
+    categoryFilter !== "All" ||
+    platformFilter !== "All" ||
+    photoFilter !== "All" ||
+    listingUrlFilter !== "All" ||
+    inventorySort !== "newest-purchase"
+  );
+
+  const clearInventoryFilters = () => {
+    setQuery("");
+    setStatusFilter("All");
+    setCategoryFilter("All");
+    setPlatformFilter("All");
+    setPhotoFilter("All");
+    setListingUrlFilter("All");
+    setInventorySort("newest-purchase");
+  };
+
   const filteredCards = useMemo(() => {
-    const q = query.toLowerCase();
-    return cards.filter((card) => {
+    const q = query.trim().toLowerCase();
+    const filtered = cards.filter((card) => {
       const matchesStatus = statusFilter === "All" || card.status === statusFilter;
-      const matchesQuery = [card.name, card.category, card.year, card.setName, card.cardNumber, card.listedPlatform, card.salePlatform]
+      const matchesCategory = categoryFilter === "All" || card.category === categoryFilter;
+      const matchesPlatform = platformFilter === "All" || card.listedPlatform === platformFilter;
+      const hasPhoto = Boolean(card.frontPhotoUrl.trim());
+      const matchesPhoto = photoFilter === "All" || (photoFilter === "Has photo" ? hasPhoto : !hasPhoto);
+      const hasListingUrl = Boolean(card.listingUrl.trim());
+      const matchesListingUrl = listingUrlFilter === "All" || (listingUrlFilter === "Has listing URL" ? hasListingUrl : !hasListingUrl);
+      const searchableText = [card.name, card.category, card.year, card.setName, card.cardNumber, card.notes, card.listedPlatform, card.listingUrl, card.salePlatform]
         .join(" ")
-        .toLowerCase()
-        .includes(q);
-      return matchesStatus && matchesQuery;
+        .toLowerCase();
+      const matchesQuery = !q || searchableText.includes(q);
+      return matchesStatus && matchesCategory && matchesPlatform && matchesPhoto && matchesListingUrl && matchesQuery;
     });
-  }, [cards, query, statusFilter]);
+
+    return [...filtered].sort((a, b) => {
+      switch (inventorySort) {
+        case "oldest-purchase":
+          return dateValue(a.purchaseDate) - dateValue(b.purchaseDate);
+        case "highest-purchase":
+          return b.purchasePrice - a.purchasePrice;
+        case "lowest-purchase":
+          return a.purchasePrice - b.purchasePrice;
+        case "highest-sold":
+          return b.soldPrice - a.soldPrice;
+        case "highest-profit":
+          return cardProfit(b) - cardProfit(a);
+        case "name-az":
+          return a.name.localeCompare(b.name);
+        case "newest-purchase":
+        default:
+          return dateValue(b.purchaseDate) - dateValue(a.purchaseDate);
+      }
+    });
+  }, [cards, categoryFilter, inventorySort, listingUrlFilter, photoFilter, platformFilter, query, statusFilter]);
 
   const dateRange = useMemo(() => {
     if (dateFilterMode === "month") return { start: currentMonthStart(), end: todayIso() };
@@ -731,17 +796,63 @@ export default function Home() {
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Inventory</p>
-              <h2>{filteredCards.length} cards</h2>
+              <h2>Showing {filteredCards.length} of {cards.length} cards</h2>
             </div>
-            <div className="filters">
-              <input aria-label="Search inventory" placeholder="Search cards..." value={query} onChange={(e) => setQuery(e.target.value)} />
+            <button className="secondary" onClick={exportCards} type="button">Export inventory</button>
+          </div>
+
+          <section className="inventoryFilterPanel" aria-label="Inventory search and filters">
+            <label className="filterSearch">Search inventory
+              <input aria-label="Search inventory" placeholder="Search name, set, card #, notes..." value={query} onChange={(e) => setQuery(e.target.value)} />
+            </label>
+            <label>Status
               <select aria-label="Filter by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as CardStatus | "All")}>
                 <option value="All">All statuses</option>
                 {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
               </select>
-              <button className="secondary" onClick={exportCards} type="button">Export inventory</button>
+            </label>
+            <label>Category
+              <select aria-label="Filter by category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                <option value="All">All categories</option>
+                {inventoryCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </label>
+            <label>Platform
+              <select aria-label="Filter by platform" value={platformFilter} onChange={(e) => setPlatformFilter(e.target.value)}>
+                <option value="All">All platforms</option>
+                {inventoryPlatforms.map((platform) => <option key={platform} value={platform}>{platform}</option>)}
+              </select>
+            </label>
+            <label>Photo
+              <select aria-label="Filter by photo" value={photoFilter} onChange={(e) => setPhotoFilter(e.target.value as PhotoFilter)}>
+                <option value="All">All photo statuses</option>
+                <option value="Has photo">Has photo</option>
+                <option value="Missing photo">Missing photo</option>
+              </select>
+            </label>
+            <label>Listing URL
+              <select aria-label="Filter by listing URL" value={listingUrlFilter} onChange={(e) => setListingUrlFilter(e.target.value as ListingUrlFilter)}>
+                <option value="All">All listing URL statuses</option>
+                <option value="Has listing URL">Has listing URL</option>
+                <option value="Missing listing URL">Missing listing URL</option>
+              </select>
+            </label>
+            <label>Sort
+              <select aria-label="Sort inventory" value={inventorySort} onChange={(e) => setInventorySort(e.target.value as InventorySort)}>
+                <option value="newest-purchase">Newest purchase date</option>
+                <option value="oldest-purchase">Oldest purchase date</option>
+                <option value="highest-purchase">Highest purchase price</option>
+                <option value="lowest-purchase">Lowest purchase price</option>
+                <option value="highest-sold">Highest sold price</option>
+                <option value="highest-profit">Highest profit before expenses</option>
+                <option value="name-az">Name A-Z</option>
+              </select>
+            </label>
+            <div className="filterActions">
+              <span className="muted">{filtersAreActive ? "Filters active" : "No filters active"}</span>
+              <button className="secondary" disabled={!filtersAreActive} onClick={clearInventoryFilters} type="button">Clear filters</button>
             </div>
-          </div>
+          </section>
 
           <div className="cardsList">
             {filteredCards.map((card) => (
