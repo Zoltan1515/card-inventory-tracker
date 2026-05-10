@@ -48,10 +48,28 @@ h3 { margin-bottom: 14px; }
 .heroActions { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
 .pill { display: inline-flex; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 8px 12px; white-space: nowrap; }
 .pill.good { color: var(--good); border-color: rgba(34,197,94,.35); }
-.navBar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; border-radius: 20px; padding: 8px; margin-bottom: 16px; }
+.navBar { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; border-radius: 20px; padding: 8px; margin-bottom: 16px; }
 .navButton { border: 1px solid transparent; border-radius: 14px; padding: 14px 16px; background: transparent; color: var(--muted); font-weight: 900; }
 .navButton.active, .navButton:hover { background: var(--panel-2); color: var(--text); border-color: var(--primary); }
 .statsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.attentionStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+.attentionStat { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(15,23,42,.55); color: var(--text); text-align: left; display: grid; gap: 8px; }
+.attentionStat span { color: var(--muted); font-size: .8rem; font-weight: 800; }
+.attentionStat strong { font-size: 1.7rem; }
+.attentionStat.hasItems { border-color: rgba(245,158,11,.45); background: rgba(245,158,11,.08); }
+.attentionGroups { display: grid; gap: 14px; }
+.attentionGroup { border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: rgba(15,23,42,.45); scroll-margin-top: 16px; }
+.attentionGroup.isClear { opacity: .72; }
+.attentionGroupHeader { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+.attentionGroupHeader h3 { margin: 0 0 6px; }
+.attentionGroupHeader p { color: var(--muted); margin: 0; }
+.attentionCount, .clearBadge { border-radius: 999px; padding: 6px 10px; font-weight: 900; white-space: nowrap; }
+.attentionCount { background: rgba(245,158,11,.16); color: var(--warning); border: 1px solid rgba(245,158,11,.35); }
+.clearBadge { background: rgba(34,197,94,.12); color: var(--good); border: 1px solid rgba(34,197,94,.28); }
+.attentionItemList { display: grid; gap: 10px; }
+.attentionItem { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; border: 1px solid rgba(38,54,85,.78); border-radius: 14px; padding: 12px; background: rgba(11,18,34,.65); color: var(--text); text-align: left; }
+.attentionItem p { color: var(--muted); margin: 5px 0 0; }
+.attentionItem span { color: var(--primary); font-weight: 800; text-align: right; }
 .profitGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .expenseBreakdown { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stat { border-radius: 18px; padding: 16px; }
@@ -160,7 +178,7 @@ textarea { min-height: 90px; resize: vertical; }
 .modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow: auto; }
 
 @media (max-width: 1000px) {
-  .statsGrid, .profitGrid, .expenseBreakdown { grid-template-columns: repeat(2, 1fr); }
+  .statsGrid, .profitGrid, .expenseBreakdown, .attentionStats { grid-template-columns: repeat(2, 1fr); }
   .formGrid, .simpleForm, .expenseForm { grid-template-columns: repeat(2, 1fr); }
   .cardRow, .expenseRow { grid-template-columns: 1fr; }
   .rowMoney { justify-items: start; }
@@ -174,6 +192,8 @@ textarea { min-height: 90px; resize: vertical; }
   .signOutButton { position: static; margin-top: 8px; }
   .heroActions { align-items: stretch; }
   .navBar { grid-template-columns: 1fr 1fr; }
-  .statsGrid, .profitGrid, .expenseBreakdown, .formGrid, .simpleForm, .expenseForm { grid-template-columns: 1fr; }
+  .statsGrid, .profitGrid, .expenseBreakdown, .attentionStats, .formGrid, .simpleForm, .expenseForm { grid-template-columns: 1fr; }
+  .attentionItem { grid-template-columns: 1fr; }
+  .attentionItem span { text-align: left; }
   .filters, .customDateRange { flex-direction: column; display: flex; }
 }
