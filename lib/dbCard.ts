@@ -12,6 +12,9 @@ type CardRow = {
   status: CardRecord["status"] | string | null;
   listed_platform: string | null;
   listing_url: string | null;
+  asking_price?: number | string | null;
+  lowest_acceptable_price?: number | string | null;
+  listed_date?: string | null;
   front_photo_url: string | null;
   purchase_date: string | null;
   purchase_price: number | string | null;
@@ -39,6 +42,11 @@ type ExpenseRow = {
 const num = (value: number | string | null | undefined) => Number(value ?? 0) || 0;
 const text = (value: string | null | undefined) => value ?? "";
 const dateOrNull = (value: string) => value || null;
+const listingPricingFields = (card: CardRecord) => ({
+  asking_price: card.askingPrice,
+  lowest_acceptable_price: card.lowestAcceptablePrice,
+  listed_date: dateOrNull(card.listedDate),
+});
 
 const normalizeStatus = (status: string | null | undefined): CardRecord["status"] => {
   if (status === "Sold" || status === "Listed" || status === "Not Listed") return status;
@@ -62,6 +70,9 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   status: normalizeStatus(row.status),
   listedPlatform: text(row.listed_platform),
   listingUrl: text(row.listing_url),
+  askingPrice: num(row.asking_price),
+  lowestAcceptablePrice: num(row.lowest_acceptable_price),
+  listedDate: text(row.listed_date),
   frontPhotoUrl: text(row.front_photo_url),
   purchaseDate: text(row.purchase_date),
   purchasePrice: num(row.purchase_price),
@@ -73,7 +84,7 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   updatedAt: row.updated_at ?? new Date().toISOString(),
 });
 
-export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null) => ({
+export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true) => ({
   user_id: userId,
   ...(workspaceId ? { workspace_id: workspaceId } : {}),
   name: card.name,
@@ -84,6 +95,7 @@ export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: str
   status: card.status,
   listed_platform: card.listedPlatform,
   listing_url: card.listingUrl,
+  ...(includeListingPricing ? listingPricingFields(card) : {}),
   front_photo_url: card.frontPhotoUrl,
   purchase_date: dateOrNull(card.purchaseDate),
   purchase_price: card.purchasePrice,
@@ -93,7 +105,7 @@ export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: str
   notes: card.notes,
 });
 
-export const cardToUpdate = (card: CardRecord) => ({
+export const cardToUpdate = (card: CardRecord, includeListingPricing = true) => ({
   name: card.name,
   category: card.category,
   year: card.year,
@@ -102,6 +114,7 @@ export const cardToUpdate = (card: CardRecord) => ({
   status: card.status,
   listed_platform: card.listedPlatform,
   listing_url: card.listingUrl,
+  ...(includeListingPricing ? listingPricingFields(card) : {}),
   front_photo_url: card.frontPhotoUrl,
   purchase_date: dateOrNull(card.purchaseDate),
   purchase_price: card.purchasePrice,

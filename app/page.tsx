@@ -2,7 +2,7 @@
 
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, cardProfit, cardRoi, emptyCard, emptyExpense, money, percent } from "@/lib/card";
+import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, cardProfit, cardRoi, emptyCard, emptyExpense, listedPotentialProfit, money, percent } from "@/lib/card";
 import { cardsToCsv, expensesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard, rowToExpense } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -65,12 +65,35 @@ const daysSince = (isoDate: string) => {
   const today = new Date(`${todayIso()}T00:00:00`).getTime();
   return Math.max(0, Math.floor((today - time) / 86_400_000));
 };
-const listedAgeDate = (card: CardRecord) => {
-  const cardWithListedDate = card as CardRecord & { listedDate?: string };
-  return cardWithListedDate.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate;
-};
+const listedAgeDate = (card: CardRecord) => card.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate;
+const listedDays = (card: CardRecord) => daysSince(listedAgeDate(card));
 const dateValue = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() || 0 : 0);
 const uniqueSorted = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
+  ...emptyCard(),
+  ...card,
+  id: card.id || crypto.randomUUID(),
+  name: card.name || "",
+  category: card.category || "Sports",
+  status: card.status || "Not Listed",
+  askingPrice: Number(card.askingPrice ?? 0) || 0,
+  lowestAcceptablePrice: Number(card.lowestAcceptablePrice ?? 0) || 0,
+  listedDate: card.listedDate || "",
+  purchasePrice: Number(card.purchasePrice ?? 0) || 0,
+  soldPrice: Number(card.soldPrice ?? 0) || 0,
+  createdAt: card.createdAt || new Date().toISOString(),
+  updatedAt: card.updatedAt || new Date().toISOString(),
+});
+const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord => ({
+  ...card,
+  status,
+  listedDate: status === "Listed" ? card.listedDate || todayIso() : card.listedDate,
+  saleDate: status === "Sold" ? card.saleDate || todayIso() : "",
+  soldPrice: status === "Sold" ? card.soldPrice : 0,
+  salePlatform: status === "Sold" ? card.salePlatform : "",
+  updatedAt: new Date().toISOString(),
+});
+const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date|schema cache|column/i.test(message);
 
 
 const sampleCards = (): CardRecord[] => [
@@ -85,6 +108,9 @@ const sampleCards = (): CardRecord[] => [
     status: "Listed",
     listedPlatform: "eBay",
     listingUrl: "https://example.com/listing",
+    askingPrice: 75,
+    lowestAcceptablePrice: 60,
+    listedDate: new Date().toISOString().slice(0, 10),
     purchasePrice: 40,
     notes: "Sample listed card.",
   },
@@ -179,7 +205,7 @@ export default function Home() {
       setWorkspaceId(null);
       const rawCards = window.localStorage.getItem(CARD_STORAGE_KEY);
       const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
-      setCards(rawCards ? JSON.parse(rawCards) : sampleCards());
+      setCards(rawCards ? JSON.parse(rawCards).map(normalizeStoredCard) : sampleCards());
       setExpenses(rawExpenses ? JSON.parse(rawExpenses) : []);
       setLoading(false);
       return;
@@ -514,22 +540,33 @@ export default function Home() {
     setError("");
     setNotice("");
 
+    const cardToSave = activeCard.status === "Listed" ? prepareCardForStatus(activeCard, "Listed") : activeCard;
+
     if (usingSupabase && supabase && session?.user.id) {
-      const { data, error: insertError } = await supabase
+      let insertResult = await supabase
         .from("cards")
-        .insert(cardToInsert(activeCard, session.user.id, workspaceId))
+        .insert(cardToInsert(cardToSave, session.user.id, workspaceId))
         .select("*")
         .single();
+      if (insertResult.error && isListingPricingColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, false))
+          .select("*")
+          .single();
+        if (!insertResult.error) setNotice("Inventory added. Finish account storage setup so listing price/date fields save for both users.");
+      }
+      const { data, error: insertError } = insertResult;
       if (insertError) {
         setError(insertError.message);
         return;
       }
       setCards((current) => [rowToCard(data), ...current]);
     } else {
-      setCards((current) => [{ ...activeCard, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...current]);
+      setCards((current) => [{ ...cardToSave, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...current]);
     }
 
-    setNotice("Inventory added.");
+    setNotice((current) => current || "Inventory added.");
     setActiveCard(emptyCard());
     setTab("inventory");
   };
@@ -542,7 +579,17 @@ export default function Home() {
         .update(cardToUpdate(card))
         .eq("id", card.id);
       updateQuery = workspaceId ? updateQuery.eq("workspace_id", workspaceId) : updateQuery.eq("user_id", session.user.id);
-      const { data, error: updateError } = await updateQuery.select("*").single();
+      let updateResult = await updateQuery.select("*").single();
+      if (updateResult.error && isListingPricingColumnError(updateResult.error.message)) {
+        let legacyUpdateQuery = supabase
+          .from("cards")
+          .update(cardToUpdate(card, false))
+          .eq("id", card.id);
+        legacyUpdateQuery = workspaceId ? legacyUpdateQuery.eq("workspace_id", workspaceId) : legacyUpdateQuery.eq("user_id", session.user.id);
+        updateResult = await legacyUpdateQuery.select("*").single();
+        if (!updateResult.error) setNotice("Card updated. Finish account storage setup so listing price/date fields save for both users.");
+      }
+      const { data, error: updateError } = updateResult;
       if (updateError) {
         setError(updateError.message);
         return false;
@@ -569,14 +616,7 @@ export default function Home() {
   };
 
   const changeCardStatus = async (card: CardRecord, status: CardStatus) => {
-    const nextCard = {
-      ...card,
-      status,
-      saleDate: status === "Sold" ? card.saleDate || new Date().toISOString().slice(0, 10) : "",
-      soldPrice: status === "Sold" ? card.soldPrice : 0,
-      salePlatform: status === "Sold" ? card.salePlatform : "",
-      updatedAt: new Date().toISOString(),
-    };
+    const nextCard = prepareCardForStatus(card, status);
 
     if (status === "Sold" && !card.soldPrice) {
       setSellingCard(nextCard);
@@ -587,8 +627,8 @@ export default function Home() {
     if (ok) setNotice(`${card.name} changed to ${status}.`);
   };
 
-  const updateListingInfo = async (card: CardRecord, updates: Partial<Pick<CardRecord, "listedPlatform" | "listingUrl">>) => {
-    const nextCard = { ...card, ...updates, updatedAt: new Date().toISOString() };
+  const updateListingInfo = async (card: CardRecord, updates: Partial<Pick<CardRecord, "listedPlatform" | "listingUrl" | "askingPrice" | "lowestAcceptablePrice" | "listedDate">>) => {
+    const nextCard = { ...card, ...updates, status: "Listed" as const, listedDate: updates.listedDate ?? (card.listedDate || todayIso()), updatedAt: new Date().toISOString() };
     const ok = await updateCard(nextCard);
     if (ok) setNotice(`Updated listing info for ${card.name}.`);
   };
@@ -731,9 +771,19 @@ export default function Home() {
             <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => setActiveCard({ ...activeCard, cardNumber: v })} />
             <Field label="Purchase price" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
             <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
-            <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard({ ...activeCard, status: v as CardStatus })} />
-            <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status })} placeholder="eBay, Whatnot, TCGplayer..." />
+            <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard(prepareCardForStatus(activeCard, v as CardStatus))} />
+            <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status, listedDate: v ? activeCard.listedDate || todayIso() : activeCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
             <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => setActiveCard({ ...activeCard, listingUrl: v })} />
+            {activeCard.status === "Listed" && (
+              <>
+                <Field label="Asking price" type="number" value={String(activeCard.askingPrice)} onChange={(v) => setActiveCard({ ...activeCard, askingPrice: Number(v || 0) })} />
+                <Field label="Lowest acceptable price" type="number" value={String(activeCard.lowestAcceptablePrice)} onChange={(v) => setActiveCard({ ...activeCard, lowestAcceptablePrice: Number(v || 0) })} />
+                <Field label="Listed date" type="date" value={activeCard.listedDate} onChange={(v) => setActiveCard({ ...activeCard, listedDate: v })} />
+                <div className="calc">
+                  <span>Potential profit: <strong className={listedPotentialProfit(activeCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(activeCard))}</strong></span>
+                </div>
+              </>
+            )}
             <PhotoUploadControl
               helpText="Take a new card photo, or choose one from your gallery."
               onPick={(file) => uploadFrontPhoto(file)}
@@ -865,7 +915,12 @@ export default function Home() {
                 <div>
                   <div className="rowTitle"><strong>{card.name}</strong><span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{card.status}</span></div>
                   <p>{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}</p>
-                  <p className="muted">{card.status === "Sold" ? `Sold on ${card.salePlatform || "unknown platform"} for ${money(card.soldPrice)}` : card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}` : "Not listed yet"}</p>
+                  <p className="muted">{card.status === "Sold" ? `Sold on ${card.salePlatform || "unknown platform"} for ${money(card.soldPrice)}` : card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}${listedDays(card) !== null ? ` for ${listedDays(card)} days` : ""}` : "Not listed yet"}</p>
+                  {card.status === "Listed" && (
+                    <p className="muted">
+                      Asking {money(card.askingPrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Lowest ${money(card.lowestAcceptablePrice)}` : ""}
+                    </p>
+                  )}
                   {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
                 </div>
                 <div className="rowMoney">
@@ -882,6 +937,8 @@ export default function Home() {
                     <>
                       <input aria-label={`Listed platform for ${card.name}`} placeholder="Listed where?" value={card.listedPlatform} onChange={(e) => updateListingInfo(card, { listedPlatform: e.target.value })} />
                       <input aria-label={`Listing URL for ${card.name}`} placeholder="Listing URL" value={card.listingUrl} onChange={(e) => updateListingInfo(card, { listingUrl: e.target.value })} />
+                      <input aria-label={`Asking price for ${card.name}`} placeholder="Asking price" type="number" step="0.01" value={String(card.askingPrice)} onChange={(e) => updateListingInfo(card, { askingPrice: Number(e.target.value || 0) })} />
+                      <input aria-label={`Listed date for ${card.name}`} type="date" value={card.listedDate} onChange={(e) => updateListingInfo(card, { listedDate: e.target.value })} />
                     </>
                   )}
                 </div>
@@ -1003,15 +1060,20 @@ export default function Home() {
               <Field label="Card #" value={editingCard.cardNumber} onChange={(v) => setEditingCard({ ...editingCard, cardNumber: v })} />
               <Field label="Purchase price" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
               <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
-              <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard({
-                ...editingCard,
-                status: v as CardStatus,
-                saleDate: v === "Sold" ? editingCard.saleDate || new Date().toISOString().slice(0, 10) : "",
-                soldPrice: v === "Sold" ? editingCard.soldPrice : 0,
-                salePlatform: v === "Sold" ? editingCard.salePlatform : "",
-              })} />
-              <Field label="Listed where?" value={editingCard.listedPlatform} onChange={(v) => setEditingCard({ ...editingCard, listedPlatform: v, status: v ? "Listed" : editingCard.status })} placeholder="eBay, Whatnot, TCGplayer..." />
+              <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard(prepareCardForStatus(editingCard, v as CardStatus))} />
+              <Field label="Listed where?" value={editingCard.listedPlatform} onChange={(v) => setEditingCard({ ...editingCard, listedPlatform: v, status: v ? "Listed" : editingCard.status, listedDate: v ? editingCard.listedDate || todayIso() : editingCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
               <Field label="Listing URL" value={editingCard.listingUrl} onChange={(v) => setEditingCard({ ...editingCard, listingUrl: v })} />
+              {editingCard.status === "Listed" && (
+                <>
+                  <Field label="Asking price" type="number" value={String(editingCard.askingPrice)} onChange={(v) => setEditingCard({ ...editingCard, askingPrice: Number(v || 0) })} />
+                  <Field label="Lowest acceptable price" type="number" value={String(editingCard.lowestAcceptablePrice)} onChange={(v) => setEditingCard({ ...editingCard, lowestAcceptablePrice: Number(v || 0) })} />
+                  <Field label="Listed date" type="date" value={editingCard.listedDate} onChange={(v) => setEditingCard({ ...editingCard, listedDate: v })} />
+                  <div className="calc">
+                    <span>Days listed: <strong>{listedDays(editingCard) ?? 0}</strong></span>
+                    <span>Potential profit: <strong className={listedPotentialProfit(editingCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(editingCard))}</strong></span>
+                  </div>
+                </>
+              )}
               {editingCard.status === "Sold" && (
                 <>
                   <Field label="Sold for" type="number" value={String(editingCard.soldPrice)} onChange={(v) => setEditingCard({ ...editingCard, soldPrice: Number(v || 0) })} />

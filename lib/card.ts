@@ -10,6 +10,9 @@ export type CardRecord = {
   status: CardStatus;
   listedPlatform: string;
   listingUrl: string;
+  askingPrice: number;
+  lowestAcceptablePrice: number;
+  listedDate: string;
   frontPhotoUrl: string;
   purchaseDate: string;
   purchasePrice: number;
@@ -46,6 +49,9 @@ export const emptyCard = (): CardRecord => {
     status: "Not Listed",
     listedPlatform: "",
     listingUrl: "",
+    askingPrice: 0,
+    lowestAcceptablePrice: 0,
+    listedDate: "",
     frontPhotoUrl: "",
     purchaseDate: new Date().toISOString().slice(0, 10),
     purchasePrice: 0,
@@ -78,6 +84,8 @@ export const money = (value: number) =>
 export const percent = (value: number) => `${(Number.isFinite(value) ? value : 0).toFixed(1)}%`;
 
 export const cardProfit = (card: CardRecord) => card.soldPrice - card.purchasePrice;
+
+export const listedPotentialProfit = (card: CardRecord) => card.askingPrice - card.purchasePrice;
 
 export const cardRoi = (card: CardRecord) => {
   if (!card.purchasePrice) return 0;

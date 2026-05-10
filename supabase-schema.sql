@@ -25,6 +25,8 @@ create table if not exists public.cards (
   listed_platform text default '',
   listing_url text default '',
   asking_price numeric(12,2) default 0,
+  lowest_acceptable_price numeric(12,2) default 0,
+  listed_date date,
   sale_date date,
   sale_platform text default '',
   sold_price numeric(12,2) default 0,

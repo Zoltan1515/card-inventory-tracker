@@ -1,4 +1,5 @@
 import type { CardRecord, ExpenseRecord } from "./card";
+import { listedPotentialProfit } from "./card";
 
 const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["name", "Name"],
@@ -9,6 +10,9 @@ const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["status", "Status"],
   ["listedPlatform", "Listed Platform"],
   ["listingUrl", "Listing URL"],
+  ["askingPrice", "Asking Price"],
+  ["lowestAcceptablePrice", "Lowest Acceptable Price"],
+  ["listedDate", "Listed Date"],
   ["frontPhotoUrl", "Front Photo URL"],
   ["purchaseDate", "Purchase Date"],
   ["purchasePrice", "Purchase Price"],
@@ -32,9 +36,23 @@ const escapeCsv = (value: unknown) => {
   return text;
 };
 
+const daysSince = (isoDate: string) => {
+  if (!isoDate) return "";
+  const time = new Date(`${isoDate}T00:00:00`).getTime();
+  if (Number.isNaN(time)) return "";
+  const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00").getTime();
+  return String(Math.max(0, Math.floor((today - time) / 86_400_000)));
+};
+
+const cardExtraHeaders = ["Days Listed", "Potential Profit Before Expenses"];
+
 export const cardsToCsv = (cards: CardRecord[]) => {
-  const head = cardHeaders.map(([, label]) => escapeCsv(label)).join(",");
-  const rows = cards.map((card) => cardHeaders.map(([key]) => escapeCsv(card[key])).join(","));
+  const head = [...cardHeaders.map(([, label]) => label), ...cardExtraHeaders].map(escapeCsv).join(",");
+  const rows = cards.map((card) => {
+    const base = cardHeaders.map(([key]) => escapeCsv(card[key]));
+    const extras = [daysSince(card.listedDate), listedPotentialProfit(card)].map(escapeCsv);
+    return [...base, ...extras].join(",");
+  });
   return [head, ...rows].join("\n");
 };
 
