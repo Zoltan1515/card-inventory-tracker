@@ -7,7 +7,7 @@ import { cardsToCsv, expensesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard, rowToExpense } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-type Tab = "add" | "attention" | "inventory" | "expenses" | "profit";
+type Tab = "add" | "attention" | "listingReview" | "inventory" | "expenses" | "profit";
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
@@ -33,6 +33,12 @@ type AttentionGroup = {
   count: number;
   description: string;
   items: AttentionItem[];
+};
+type ListedReviewItem = {
+  card: CardRecord;
+  age: number;
+  referenceDate: string;
+  tone: "current" | "warning" | "urgent";
 };
 
 
@@ -73,6 +79,11 @@ const daysSince = (isoDate: string) => {
 };
 const listedAgeDate = (card: CardRecord) => card.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate;
 const listedDays = (card: CardRecord) => daysSince(listedAgeDate(card));
+const listingReviewTone = (age: number): ListedReviewItem["tone"] => {
+  if (age >= 30) return "urgent";
+  if (age >= 15) return "warning";
+  return "current";
+};
 const dateValue = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() || 0 : 0);
 const uniqueSorted = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
@@ -388,53 +399,6 @@ export default function Home() {
         action: "Edit card or mark as listed",
       }));
 
-    const listedMissingUrls = cards
-      .filter((card) => card.status === "Listed" && !card.listingUrl.trim())
-      .map((card) => ({
-        id: `listing-url-${card.id}`,
-        recordId: card.id,
-        kind: "card" as const,
-        title: card.name || "Unnamed card",
-        detail: `Listed on ${card.listedPlatform || "unknown platform"}`,
-        action: "Edit card and add the listing URL",
-      }));
-
-    const listedOverThirtyDays = cards
-      .filter((card) => card.status === "Listed")
-      .map((card) => ({ card, referenceDate: listedAgeDate(card) }))
-      .map(({ card, referenceDate }) => ({ card, referenceDate, age: daysSince(referenceDate) }))
-      .filter((item): item is { card: CardRecord; referenceDate: string; age: number } => item.age !== null && item.age > 30)
-      .map(({ card, referenceDate, age }) => ({
-        id: `listed-age-${card.id}`,
-        recordId: card.id,
-        kind: "card" as const,
-        title: card.name || "Unnamed card",
-        detail: `${age} days since listed/status date ${referenceDate}${card.listedPlatform ? ` • ${card.listedPlatform}` : ""}`,
-        action: "Review price or listing",
-      }));
-
-    const soldMissingSaleInfo = cards
-      .filter((card) => card.status === "Sold" && (!card.soldPrice || !card.saleDate))
-      .map((card) => ({
-        id: `sale-info-${card.id}`,
-        recordId: card.id,
-        kind: "card" as const,
-        title: card.name || "Unnamed card",
-        detail: `${!card.soldPrice ? "Missing sold price" : "Sold price saved"} • ${!card.saleDate ? "Missing sale date" : card.saleDate}`,
-        action: "Edit card and complete sale details",
-      }));
-
-    const incompleteExpenses = expenses
-      .filter((expense) => !expense.category || !expense.amount || !expense.expenseDate)
-      .map((expense) => ({
-        id: `expense-${expense.id}`,
-        recordId: expense.id,
-        kind: "expense" as const,
-        title: expense.description || expense.vendor || "Expense record",
-        detail: `${!expense.category ? "Missing type" : expense.category} • ${!expense.amount ? "Missing amount" : money(expense.amount)} • ${!expense.expenseDate ? "Missing date" : expense.expenseDate}`,
-        action: "Edit expense details",
-      }));
-
     return [
       {
         key: "missing-photos",
@@ -450,36 +414,21 @@ export default function Home() {
         description: "Inventory that still needs to be listed or moved forward.",
         items: unlistedCards,
       },
-      {
-        key: "missing-listing-url",
-        title: "Listed cards missing URLs",
-        count: listedMissingUrls.length,
-        description: "Add listing links so both users can quickly open live listings.",
-        items: listedMissingUrls,
-      },
-      {
-        key: "listed-over-30",
-        title: "Listed over 30 days",
-        count: listedOverThirtyDays.length,
-        description: "Review older listed cards for pricing, photos, or platform changes.",
-        items: listedOverThirtyDays,
-      },
-      {
-        key: "missing-sale-info",
-        title: "Sold cards missing sale info",
-        count: soldMissingSaleInfo.length,
-        description: "Complete sale price and date so profit stays accurate.",
-        items: soldMissingSaleInfo,
-      },
-      {
-        key: "incomplete-expenses",
-        title: "Incomplete expenses",
-        count: incompleteExpenses.length,
-        description: "Fix expense records before exporting reports for bookkeeping.",
-        items: incompleteExpenses,
-      },
     ];
   }, [cards, expenses]);
+
+  const listingReviewItems = useMemo<ListedReviewItem[]>(() => cards
+    .filter((card) => card.status === "Listed")
+    .map((card) => ({ card, referenceDate: listedAgeDate(card) }))
+    .map(({ card, referenceDate }) => ({ card, referenceDate, age: daysSince(referenceDate) }))
+    .filter((item): item is { card: CardRecord; referenceDate: string; age: number } => item.age !== null)
+    .map(({ card, referenceDate, age }) => ({ card, referenceDate, age, tone: listingReviewTone(age) }))
+    .sort((a, b) => b.age - a.age), [cards]);
+  const listingReviewCounts = {
+    current: listingReviewItems.filter((item) => item.tone === "current").length,
+    warning: listingReviewItems.filter((item) => item.tone === "warning").length,
+    urgent: listingReviewItems.filter((item) => item.tone === "urgent").length,
+  };
 
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
 
@@ -540,13 +489,37 @@ export default function Home() {
     setPhotoUploading(false);
   };
 
+  const validateCardBusinessRules = (card: CardRecord) => {
+    if (card.status === "Listed" && !(Number(card.askingPrice) > 0)) return "Add an asking price before marking this card as Listed.";
+    if (card.status === "Listed" && !card.listedDate) return "Add a listed date before marking this card as Listed.";
+    if (card.status === "Sold") {
+      if (!(Number(card.soldPrice) > 0)) return "Add the sold price before marking this card as Sold.";
+      if (!card.saleDate) return "Add the sale date before marking this card as Sold.";
+      if (!card.salePlatform.trim()) return "Add where the card sold before marking it as Sold.";
+    }
+    return "";
+  };
+
+  const validateExpenseBusinessRules = (expense: ExpenseRecord) => {
+    if (!expense.category) return "Choose an expense type before saving.";
+    if (!(Number(expense.amount) > 0)) return "Add an expense amount before saving.";
+    if (!expense.expenseDate) return "Add an expense date before saving.";
+    if (!expense.vendor.trim() && !expense.description.trim()) return "Add a vendor/source or description before saving the expense.";
+    return "";
+  };
+
   const saveCard = async (event: FormEvent) => {
     event.preventDefault();
     if (!activeCard.name.trim()) return;
     setError("");
     setNotice("");
 
-    const cardToSave = activeCard.status === "Listed" ? prepareCardForStatus(activeCard, "Listed") : activeCard;
+    const cardToSave = activeCard.status === "Listed" || activeCard.status === "Sold" ? prepareCardForStatus(activeCard, activeCard.status) : activeCard;
+    const validationError = validateCardBusinessRules(cardToSave);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     if (usingSupabase && supabase && session?.user.id) {
       let insertResult = await supabase
@@ -624,9 +597,22 @@ export default function Home() {
   const changeCardStatus = async (card: CardRecord, status: CardStatus) => {
     const nextCard = prepareCardForStatus(card, status);
 
-    if (status === "Sold" && !card.soldPrice) {
-      setSellingCard(nextCard);
-      return;
+    if (status === "Listed") {
+      const validationError = validateCardBusinessRules(nextCard);
+      if (validationError) {
+        setError(validationError);
+        setEditingCard(nextCard);
+        return;
+      }
+    }
+
+    if (status === "Sold") {
+      const validationError = validateCardBusinessRules(nextCard);
+      if (validationError) {
+        setError(validationError);
+        setSellingCard(nextCard);
+        return;
+      }
     }
 
     const ok = await updateCard(nextCard);
@@ -635,6 +621,11 @@ export default function Home() {
 
   const updateListingInfo = async (card: CardRecord, updates: Partial<Pick<CardRecord, "listedPlatform" | "listingUrl" | "askingPrice" | "lowestAcceptablePrice" | "listedDate">>) => {
     const nextCard = { ...card, ...updates, status: "Listed" as const, listedDate: updates.listedDate ?? (card.listedDate || todayIso()), updatedAt: new Date().toISOString() };
+    const validationError = validateCardBusinessRules(nextCard);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     const ok = await updateCard(nextCard);
     if (ok) setNotice(`Updated listing info for ${card.name}.`);
   };
@@ -643,6 +634,11 @@ export default function Home() {
     event.preventDefault();
     if (!editingCard?.name.trim()) return;
     const nextCard = { ...editingCard, updatedAt: new Date().toISOString() };
+    const validationError = validateCardBusinessRules(nextCard);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     const ok = await updateCard(nextCard);
     if (ok) {
       setNotice(`Updated ${nextCard.name}.`);
@@ -656,9 +652,13 @@ export default function Home() {
     const soldCard = {
       ...sellingCard,
       status: "Sold" as const,
-      saleDate: sellingCard.saleDate || new Date().toISOString().slice(0, 10),
       updatedAt: new Date().toISOString(),
     };
+    const validationError = validateCardBusinessRules(soldCard);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     const ok = await updateCard(soldCard);
     if (ok) {
       setNotice(`Sold ${soldCard.name} for ${money(soldCard.soldPrice)}.`);
@@ -669,9 +669,13 @@ export default function Home() {
 
   const saveExpense = async (event: FormEvent) => {
     event.preventDefault();
-    if (!activeExpense.amount) return;
     setError("");
     setNotice("");
+    const validationError = validateExpenseBusinessRules(activeExpense);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     if (usingSupabase && supabase && session?.user.id) {
       if (editingExpenseId) {
@@ -753,6 +757,7 @@ export default function Home() {
       <nav className="navBar" aria-label="Main navigation">
         <NavButton active={tab === "add"} onClick={() => setTab("add")}>Add Inventory</NavButton>
         <NavButton active={tab === "attention"} onClick={() => setTab("attention")}>Needs Attention{totalAttentionItems ? ` (${totalAttentionItems})` : ""}</NavButton>
+        <NavButton active={tab === "listingReview"} onClick={() => setTab("listingReview")}>Listing Review{listingReviewCounts.warning + listingReviewCounts.urgent ? ` (${listingReviewCounts.warning + listingReviewCounts.urgent})` : ""}</NavButton>
         <NavButton active={tab === "inventory"} onClick={() => setTab("inventory")}>Inventory</NavButton>
         <NavButton active={tab === "expenses"} onClick={() => setTab("expenses")}>Expenses</NavButton>
         <NavButton active={tab === "profit"} onClick={() => setTab("profit")}>Profit</NavButton>
@@ -783,12 +788,19 @@ export default function Home() {
             <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => setActiveCard({ ...activeCard, listingUrl: v })} />
             {activeCard.status === "Listed" && (
               <>
-                <Field label="Asking price" type="number" value={String(activeCard.askingPrice)} onChange={(v) => setActiveCard({ ...activeCard, askingPrice: Number(v || 0) })} />
+                <Field label="Asking price" type="number" value={String(activeCard.askingPrice)} onChange={(v) => setActiveCard({ ...activeCard, askingPrice: Number(v || 0) })} required />
                 <Field label="Minimum sale price" type="number" value={String(activeCard.lowestAcceptablePrice)} onChange={(v) => setActiveCard({ ...activeCard, lowestAcceptablePrice: Number(v || 0) })} />
-                <Field label="Listed date" type="date" value={activeCard.listedDate} onChange={(v) => setActiveCard({ ...activeCard, listedDate: v })} />
+                <Field label="Listed date" type="date" value={activeCard.listedDate} onChange={(v) => setActiveCard({ ...activeCard, listedDate: v })} required />
                 <div className="calc">
                   <span>Potential profit: <strong className={listedPotentialProfit(activeCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(activeCard))}</strong></span>
                 </div>
+              </>
+            )}
+            {activeCard.status === "Sold" && (
+              <>
+                <Field label="Sold for" type="number" value={String(activeCard.soldPrice)} onChange={(v) => setActiveCard({ ...activeCard, soldPrice: Number(v || 0) })} required />
+                <Field label="Sale date" type="date" value={activeCard.saleDate} onChange={(v) => setActiveCard({ ...activeCard, saleDate: v })} required />
+                <Field label="Sold where?" value={activeCard.salePlatform} onChange={(v) => setActiveCard({ ...activeCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               </>
             )}
             <PhotoUploadControl
@@ -837,7 +849,7 @@ export default function Home() {
           </section>
 
           {totalAttentionItems === 0 ? (
-            <p className="empty">No action items right now. New missing photos, unlisted cards, old listings, sale gaps, or incomplete expenses will show here.</p>
+            <p className="empty">No action items right now. Missing photos or unlisted cards will show here.</p>
           ) : (
             <div className="attentionGroups">
               {attentionGroups.map((group) => (
@@ -845,6 +857,47 @@ export default function Home() {
               ))}
             </div>
           )}
+        </section>
+      )}
+
+      {tab === "listingReview" && (
+        <section className="panel">
+          <div className="panelHeader inventoryHeader">
+            <div>
+              <p className="eyebrow">Listing Review</p>
+              <h2>{listingReviewItems.length ? `${listingReviewItems.length} listed cards` : "No listed cards yet"}</h2>
+              <p className="muted">Cards listed 15–29 days are highlighted for review. Cards listed 30+ days are urgent.</p>
+            </div>
+            <button className="secondary" type="button" onClick={() => setTab("inventory")}>Open inventory</button>
+          </div>
+          <section className="statsGrid listingReviewStats" aria-label="Listing review summary">
+            <Stat label="Current listings (0–14 days)" value={String(listingReviewCounts.current)} />
+            <Stat label="Review soon (15–29 days)" value={String(listingReviewCounts.warning)} tone={listingReviewCounts.warning ? "warning" : undefined} />
+            <Stat label="Urgent review (30+ days)" value={String(listingReviewCounts.urgent)} tone={listingReviewCounts.urgent ? "negative" : undefined} />
+          </section>
+          <div className="cardsList listingReviewList">
+            {listingReviewItems.map(({ card, age, referenceDate, tone }) => (
+              <article className={`cardRow compactRow listingReviewRow ${tone}`} key={card.id}>
+                <div>
+                  <div className="rowTitle">
+                    <strong>{card.name || "Unnamed card"}</strong>
+                    <span className={`listingAgeBadge ${tone}`}>{age} days listed</span>
+                  </div>
+                  <p className="muted">
+                    Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{card.listedPlatform ? ` • ${card.listedPlatform}` : ""}
+                  </p>
+                  <p className="muted">
+                    Asking {money(card.askingPrice)} • Cost {money(card.purchasePrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
+                  </p>
+                  {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
+                </div>
+                <div className="rowActions">
+                  <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit card</button>
+                </div>
+              </article>
+            ))}
+            {!listingReviewItems.length && <p className="empty">No cards are currently marked Listed.</p>}
+          </div>
         </section>
       )}
 
@@ -988,9 +1041,9 @@ export default function Home() {
           </section>
 
           <form className="formGrid expenseForm" id="expense-form" onSubmit={saveExpense}>
-            <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} />
+            <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
             <Field label="Amount" type="number" value={String(activeExpense.amount)} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} required />
-            <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} />
+            <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} required />
             <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
             <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
             <button className="primary" type="submit">{editingExpenseId ? "Save expense" : "Add expense"}</button>
@@ -1073,9 +1126,9 @@ export default function Home() {
               <Field label="Listing URL" value={editingCard.listingUrl} onChange={(v) => setEditingCard({ ...editingCard, listingUrl: v })} />
               {editingCard.status === "Listed" && (
                 <>
-                  <Field label="Asking price" type="number" value={String(editingCard.askingPrice)} onChange={(v) => setEditingCard({ ...editingCard, askingPrice: Number(v || 0) })} />
+                  <Field label="Asking price" type="number" value={String(editingCard.askingPrice)} onChange={(v) => setEditingCard({ ...editingCard, askingPrice: Number(v || 0) })} required />
                   <Field label="Minimum sale price" type="number" value={String(editingCard.lowestAcceptablePrice)} onChange={(v) => setEditingCard({ ...editingCard, lowestAcceptablePrice: Number(v || 0) })} />
-                  <Field label="Listed date" type="date" value={editingCard.listedDate} onChange={(v) => setEditingCard({ ...editingCard, listedDate: v })} />
+                  <Field label="Listed date" type="date" value={editingCard.listedDate} onChange={(v) => setEditingCard({ ...editingCard, listedDate: v })} required />
                   <div className="calc">
                     <span>Days listed: <strong>{listedDays(editingCard) ?? 0}</strong></span>
                     <span>Potential profit: <strong className={listedPotentialProfit(editingCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(editingCard))}</strong></span>
@@ -1084,9 +1137,9 @@ export default function Home() {
               )}
               {editingCard.status === "Sold" && (
                 <>
-                  <Field label="Sold for" type="number" value={String(editingCard.soldPrice)} onChange={(v) => setEditingCard({ ...editingCard, soldPrice: Number(v || 0) })} />
-                  <Field label="Sale date" type="date" value={editingCard.saleDate} onChange={(v) => setEditingCard({ ...editingCard, saleDate: v })} />
-                  <Field label="Sold where?" value={editingCard.salePlatform} onChange={(v) => setEditingCard({ ...editingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." />
+                  <Field label="Sold for" type="number" value={String(editingCard.soldPrice)} onChange={(v) => setEditingCard({ ...editingCard, soldPrice: Number(v || 0) })} required />
+                  <Field label="Sale date" type="date" value={editingCard.saleDate} onChange={(v) => setEditingCard({ ...editingCard, saleDate: v })} required />
+                  <Field label="Sold where?" value={editingCard.salePlatform} onChange={(v) => setEditingCard({ ...editingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
                 </>
               )}
               <PhotoUploadControl
@@ -1118,8 +1171,8 @@ export default function Home() {
             </div>
             <div className="formGrid simpleForm">
               <Field label="Sold for" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
-              <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} />
-              <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." />
+              <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
+              <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               <div className="calc full">
                 <span>Purchase price: <strong>{money(sellingCard.purchasePrice)}</strong></span>
                 <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
@@ -1306,7 +1359,7 @@ function DateFilterControls({
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" }) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" | "warning" }) {
   return <div className="stat"><span>{label}</span><strong className={tone}>{value}</strong></div>;
 }
 
@@ -1390,6 +1443,6 @@ function DateField({ label, value, onChange, required }: { label: string; value:
   );
 }
 
-function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) {
-  return <label>{label}<select value={value} onChange={(e) => onChange(e.target.value)}>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
+function Select({ label, value, options, onChange, required, placeholder }: { label: string; value: string; options: string[]; onChange: (value: string) => void; required?: boolean; placeholder?: string }) {
+  return <label>{label}<select required={required} value={value} onChange={(e) => onChange(e.target.value)}>{placeholder && <option value="">{placeholder}</option>}{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
 }
