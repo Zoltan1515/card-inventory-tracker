@@ -784,7 +784,7 @@ export default function Home() {
             {activeCard.status === "Listed" && (
               <>
                 <Field label="Asking price" type="number" value={String(activeCard.askingPrice)} onChange={(v) => setActiveCard({ ...activeCard, askingPrice: Number(v || 0) })} />
-                <Field label="Lowest acceptable price" type="number" value={String(activeCard.lowestAcceptablePrice)} onChange={(v) => setActiveCard({ ...activeCard, lowestAcceptablePrice: Number(v || 0) })} />
+                <Field label="Minimum sale price" type="number" value={String(activeCard.lowestAcceptablePrice)} onChange={(v) => setActiveCard({ ...activeCard, lowestAcceptablePrice: Number(v || 0) })} />
                 <Field label="Listed date" type="date" value={activeCard.listedDate} onChange={(v) => setActiveCard({ ...activeCard, listedDate: v })} />
                 <div className="calc">
                   <span>Potential profit: <strong className={listedPotentialProfit(activeCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(activeCard))}</strong></span>
@@ -925,7 +925,7 @@ export default function Home() {
                   <p className="muted">{card.status === "Sold" ? `Sold on ${card.salePlatform || "unknown platform"} for ${money(card.soldPrice)}` : card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}${listedDays(card) !== null ? ` for ${listedDays(card)} days` : ""}` : "Not listed yet"}</p>
                   {card.status === "Listed" && (
                     <p className="muted">
-                      Asking {money(card.askingPrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Lowest ${money(card.lowestAcceptablePrice)}` : ""}
+                      Asking {money(card.askingPrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
                     </p>
                   )}
                   {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
@@ -945,6 +945,7 @@ export default function Home() {
                       <input aria-label={`Listed platform for ${card.name}`} placeholder="Listed where?" value={card.listedPlatform} onChange={(e) => updateListingInfo(card, { listedPlatform: e.target.value })} />
                       <input aria-label={`Listing URL for ${card.name}`} placeholder="Listing URL" value={card.listingUrl} onChange={(e) => updateListingInfo(card, { listingUrl: e.target.value })} />
                       <input aria-label={`Asking price for ${card.name}`} placeholder="Asking price" type="number" step="0.01" value={String(card.askingPrice)} onChange={(e) => updateListingInfo(card, { askingPrice: Number(e.target.value || 0) })} />
+                      <input aria-label={`Minimum sale price for ${card.name}`} placeholder="Minimum sale price" type="number" step="0.01" value={String(card.lowestAcceptablePrice)} onChange={(e) => updateListingInfo(card, { lowestAcceptablePrice: Number(e.target.value || 0) })} />
                       <input aria-label={`Listed date for ${card.name}`} type="date" value={card.listedDate} onChange={(e) => updateListingInfo(card, { listedDate: e.target.value })} />
                     </>
                   )}
@@ -1073,7 +1074,7 @@ export default function Home() {
               {editingCard.status === "Listed" && (
                 <>
                   <Field label="Asking price" type="number" value={String(editingCard.askingPrice)} onChange={(v) => setEditingCard({ ...editingCard, askingPrice: Number(v || 0) })} />
-                  <Field label="Lowest acceptable price" type="number" value={String(editingCard.lowestAcceptablePrice)} onChange={(v) => setEditingCard({ ...editingCard, lowestAcceptablePrice: Number(v || 0) })} />
+                  <Field label="Minimum sale price" type="number" value={String(editingCard.lowestAcceptablePrice)} onChange={(v) => setEditingCard({ ...editingCard, lowestAcceptablePrice: Number(v || 0) })} />
                   <Field label="Listed date" type="date" value={editingCard.listedDate} onChange={(v) => setEditingCard({ ...editingCard, listedDate: v })} />
                   <div className="calc">
                     <span>Days listed: <strong>{listedDays(editingCard) ?? 0}</strong></span>
