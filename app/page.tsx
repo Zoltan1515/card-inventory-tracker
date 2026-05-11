@@ -936,6 +936,22 @@ export default function Home() {
         {session && <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button>}
       </header>
 
+      {session && (
+        <section className="accountProfitBar" aria-label="Current account and total profit">
+          <div className="signedInIdentity">
+            <span>Signed in</span>
+            <strong>{session.user.email || "Account"}</strong>
+          </div>
+          <button className="profitShortcut" type="button" onClick={() => setTab("profit")} aria-label={`View total profit ${money(totals.profit)}`}>
+            <span className="dollarMark">$</span>
+            <span>
+              <small>Total profit</small>
+              <strong className={totals.profit >= 0 ? "positive" : "negative"}>{money(totals.profit)}</strong>
+            </span>
+          </button>
+        </section>
+      )}
+
       <nav className="navBar" aria-label="Main navigation">
         <NavButton active={tab === "add"} onClick={() => setTab("add")}>Add Inventory</NavButton>
         <NavButton active={tab === "attention"} onClick={() => setTab("attention")}>Needs Attention{totalAttentionItems ? ` (${totalAttentionItems})` : ""}</NavButton>
