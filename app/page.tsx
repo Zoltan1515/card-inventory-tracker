@@ -2,12 +2,12 @@
 
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, cardProfit, cardRoi, emptyCard, emptyExpense, listedPotentialProfit, money, percent } from "@/lib/card";
+import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, GradingSubmission, cardProfit, cardRoi, emptyCard, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, percent } from "@/lib/card";
 import { cardsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
-import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard, rowToExpense } from "@/lib/dbCard";
+import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-type Tab = "add" | "attention" | "listingReview" | "inventory" | "expenses" | "profit";
+type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit";
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
@@ -44,6 +44,7 @@ type ListedReviewItem = {
 
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
+const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -101,6 +102,20 @@ const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   createdAt: card.createdAt || new Date().toISOString(),
   updatedAt: card.updatedAt || new Date().toISOString(),
 });
+const normalizeStoredGradingSubmission = (submission: Partial<GradingSubmission>): GradingSubmission => ({
+  ...emptyGradingSubmission(),
+  ...submission,
+  id: submission.id || crypto.randomUUID(),
+  company: submission.company || "",
+  sentDate: submission.sentDate || todayIso(),
+  returnedDate: submission.returnedDate || "",
+  status: submission.status === "Returned" ? "Returned" : "At Grading",
+  reference: submission.reference || "",
+  notes: submission.notes || "",
+  cardIds: Array.isArray(submission.cardIds) ? submission.cardIds : [],
+  createdAt: submission.createdAt || new Date().toISOString(),
+  updatedAt: submission.updatedAt || new Date().toISOString(),
+});
 const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord => ({
   ...card,
   status,
@@ -151,11 +166,18 @@ const sampleCards = (): CardRecord[] => [
 export default function Home() {
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [gradingSubmissions, setGradingSubmissions] = useState<GradingSubmission[]>([]);
   const [activeCard, setActiveCard] = useState<CardRecord>(emptyCard());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
+  const [gradingDraft, setGradingDraft] = useState<GradingSubmission>(emptyGradingSubmission());
+  const [showGradingForm, setShowGradingForm] = useState(false);
+  const [openGradingSubmissionId, setOpenGradingSubmissionId] = useState<string | null>(null);
+  const [returningSubmission, setReturningSubmission] = useState<GradingSubmission | null>(null);
+  const [returnDate, setReturnDate] = useState(todayIso());
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
@@ -199,10 +221,12 @@ export default function Home() {
 
       const cardQuery = supabase.from("cards").select("*").order("created_at", { ascending: false });
       const expenseQuery = supabase.from("expenses").select("*").order("expense_date", { ascending: false });
+      const gradingQuery = supabase.from("grading_submissions").select("*").order("sent_date", { ascending: false });
 
-      const [cardsResult, expensesResult] = await Promise.all([
+      const [cardsResult, expensesResult, gradingResult] = await Promise.all([
         activeWorkspaceId ? cardQuery.eq("workspace_id", activeWorkspaceId) : cardQuery.eq("user_id", userId),
         activeWorkspaceId ? expenseQuery.eq("workspace_id", activeWorkspaceId) : expenseQuery.eq("user_id", userId),
+        activeWorkspaceId ? gradingQuery.eq("workspace_id", activeWorkspaceId) : gradingQuery.eq("user_id", userId),
       ]);
 
       if (cardsResult.error) setError(cardsResult.error.message);
@@ -210,6 +234,17 @@ export default function Home() {
 
       if (expensesResult.error) setError(`Expenses table needs setup: ${expensesResult.error.message}`);
       else setExpenses((expensesResult.data ?? []).map(rowToExpense));
+
+      if (gradingResult.error) {
+        setGradingSubmissions([]);
+      } else {
+        const submissionIds = (gradingResult.data ?? []).map((submission) => submission.id);
+        const linkResult = submissionIds.length
+          ? await supabase.from("grading_submission_cards").select("submission_id, card_id").in("submission_id", submissionIds)
+          : { data: [], error: null };
+        if (linkResult.error) setGradingSubmissions((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row)));
+        else setGradingSubmissions((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row, linkResult.data ?? [])));
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load your account data. Please refresh and try again.");
     } finally {
@@ -222,8 +257,10 @@ export default function Home() {
       setWorkspaceId(null);
       const rawCards = window.localStorage.getItem(CARD_STORAGE_KEY);
       const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
+      const rawGrading = window.localStorage.getItem(GRADING_STORAGE_KEY);
       setCards(rawCards ? JSON.parse(rawCards).map(normalizeStoredCard) : sampleCards());
       setExpenses(rawExpenses ? JSON.parse(rawExpenses) : []);
+      setGradingSubmissions(rawGrading ? JSON.parse(rawGrading).map(normalizeStoredGradingSubmission) : []);
       setLoading(false);
       return;
     }
@@ -249,6 +286,7 @@ export default function Home() {
         setWorkspaceId(null);
         setCards([]);
         setExpenses([]);
+        setGradingSubmissions([]);
         setLoading(false);
       }
     });
@@ -257,11 +295,12 @@ export default function Home() {
   }, [usingSupabase]);
 
   useEffect(() => {
+    if (!loading) window.localStorage.setItem(GRADING_STORAGE_KEY, JSON.stringify(gradingSubmissions));
     if (!usingSupabase && !loading) {
       window.localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards));
       window.localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(expenses));
     }
-  }, [cards, expenses, loading, usingSupabase]);
+  }, [cards, expenses, gradingSubmissions, loading, usingSupabase]);
 
   const inventoryCategories = useMemo(() => uniqueSorted(cards.map((card) => card.category)), [cards]);
   const inventoryPlatforms = useMemo(() => uniqueSorted(cards.map((card) => card.listedPlatform)), [cards]);
@@ -430,6 +469,16 @@ export default function Home() {
     warning: listingReviewItems.filter((item) => item.tone === "warning").length,
     urgent: listingReviewItems.filter((item) => item.tone === "urgent").length,
   };
+
+  const cardById = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
+  const openGradingSubmissions = useMemo(() => gradingSubmissions.filter((submission) => submission.status === "At Grading"), [gradingSubmissions]);
+  const gradingSubmissionCards = (submission: GradingSubmission) => submission.cardIds.map((cardId) => cardById.get(cardId)).filter((card): card is CardRecord => Boolean(card));
+  const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + card.purchasePrice, 0);
+  const activeGradingCardIds = useMemo(() => new Set(openGradingSubmissions.flatMap((submission) => submission.cardIds)), [openGradingSubmissions]);
+  const openGradingCardCount = Array.from(activeGradingCardIds).filter((cardId) => cardById.has(cardId)).length;
+  const openGradingPurchaseValue = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId)?.purchasePrice ?? 0), 0);
+  const selectedCards = selectedCardIds.map((cardId) => cardById.get(cardId)).filter((card): card is CardRecord => Boolean(card));
+  const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
 
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
 
@@ -729,6 +778,121 @@ export default function Home() {
     setExpenses((current) => current.filter((expense) => expense.id !== id));
   };
 
+  const toggleSelectedCard = (cardId: string) => {
+    if (activeGradingCardIds.has(cardId)) return;
+    setSelectedCardIds((current) => current.includes(cardId) ? current.filter((id) => id !== cardId) : [...current, cardId]);
+  };
+
+  const selectAllFilteredCards = () => setSelectedCardIds(filteredCards.filter((card) => !activeGradingCardIds.has(card.id)).map((card) => card.id));
+  const clearSelectedCards = () => setSelectedCardIds([]);
+
+  const beginGradingSubmission = () => {
+    setError("");
+    if (!selectedCardIds.length) {
+      setError("Select at least one card before creating a grading submission.");
+      return;
+    }
+    setGradingDraft({ ...emptyGradingSubmission(), cardIds: selectedCardIds });
+    setShowGradingForm(true);
+  };
+
+  const saveGradingSubmission = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    const submission: GradingSubmission = {
+      ...gradingDraft,
+      company: gradingDraft.company.trim(),
+      reference: gradingDraft.reference.trim(),
+      notes: gradingDraft.notes.trim(),
+      cardIds: selectedCardIds,
+      status: "At Grading",
+      returnedDate: "",
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (!submission.company) {
+      setError("Choose the grading company before saving the submission.");
+      return;
+    }
+    if (!submission.sentDate) {
+      setError("Add the date the cards were sent to grading.");
+      return;
+    }
+    if (!submission.cardIds.length) {
+      setError("Select at least one card before saving the grading submission.");
+      return;
+    }
+
+    if (usingSupabase && supabase && session?.user.id) {
+      const { data, error: insertError } = await supabase
+        .from("grading_submissions")
+        .insert(gradingSubmissionToInsert(submission, session.user.id, workspaceId))
+        .select("*")
+        .single();
+      if (insertError) {
+        setNotice("Grading submission saved locally for now. Run the pending grading SQL migration so it saves to account storage.");
+        setGradingSubmissions((current) => [submission, ...current]);
+        setSelectedCardIds([]);
+        setShowGradingForm(false);
+        setTab("grading");
+        return;
+      }
+
+      const linkRows = gradingSubmissionCardRows(submission);
+      const linkResult = linkRows.length ? await supabase.from("grading_submission_cards").insert(linkRows) : { error: null };
+      if (linkResult.error) {
+        await supabase.from("grading_submissions").delete().eq("id", submission.id);
+        setError(linkResult.error.message);
+        return;
+      }
+      setGradingSubmissions((current) => [rowToGradingSubmission(data, linkRows), ...current]);
+    } else {
+      setGradingSubmissions((current) => [submission, ...current]);
+    }
+
+    setNotice(`Sent ${submission.cardIds.length} cards to ${submission.company} for grading.`);
+    setSelectedCardIds([]);
+    setShowGradingForm(false);
+    setTab("grading");
+  };
+
+  const markGradingReturned = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!returningSubmission) return;
+    if (!returnDate) {
+      setError("Add the return date before marking the submission returned.");
+      return;
+    }
+    const returnedSubmission: GradingSubmission = {
+      ...returningSubmission,
+      status: "Returned",
+      returnedDate: returnDate,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (usingSupabase && supabase && session?.user.id) {
+      const { data, error: updateError } = await supabase
+        .from("grading_submissions")
+        .update(gradingSubmissionToUpdate(returnedSubmission))
+        .eq("id", returnedSubmission.id)
+        .select("*")
+        .single();
+      if (updateError) {
+        setNotice("Marked returned locally for now. Run the pending grading SQL migration so returns save to account storage.");
+        setGradingSubmissions((current) => current.map((submission) => submission.id === returnedSubmission.id ? returnedSubmission : submission));
+        setReturningSubmission(null);
+        return;
+      }
+      setGradingSubmissions((current) => current.map((submission) => submission.id === returnedSubmission.id ? rowToGradingSubmission(data, gradingSubmissionCardRows(returnedSubmission)) : submission));
+    } else {
+      setGradingSubmissions((current) => current.map((submission) => submission.id === returnedSubmission.id ? returnedSubmission : submission));
+    }
+
+    setNotice(`${returnedSubmission.company} grading submission marked returned.`);
+    setReturningSubmission(null);
+  };
+
   const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
   const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -776,6 +940,7 @@ export default function Home() {
         <NavButton active={tab === "add"} onClick={() => setTab("add")}>Add Inventory</NavButton>
         <NavButton active={tab === "attention"} onClick={() => setTab("attention")}>Needs Attention{totalAttentionItems ? ` (${totalAttentionItems})` : ""}</NavButton>
         <NavButton active={tab === "listingReview"} onClick={() => setTab("listingReview")}>Listing Review{listingReviewCounts.warning + listingReviewCounts.urgent ? ` (${listingReviewCounts.warning + listingReviewCounts.urgent})` : ""}</NavButton>
+        <NavButton active={tab === "grading"} onClick={() => setTab("grading")}>Grading{openGradingCardCount ? ` (${openGradingCardCount})` : ""}</NavButton>
         <NavButton active={tab === "inventory"} onClick={() => setTab("inventory")}>Inventory</NavButton>
         <NavButton active={tab === "expenses"} onClick={() => setTab("expenses")}>Expenses</NavButton>
         <NavButton active={tab === "profit"} onClick={() => setTab("profit")}>Profit</NavButton>
@@ -907,6 +1072,9 @@ export default function Home() {
                   <p className="muted">
                     Asking {money(card.askingPrice)} • Cost {money(card.purchasePrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
                   </p>
+                  {activeGradingCardIds.has(card.id) && (
+                    <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
+                  )}
                   {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
                 </div>
                 <div className="rowActions">
@@ -915,6 +1083,79 @@ export default function Home() {
               </article>
             ))}
             {!listingReviewItems.length && <p className="empty">No cards are currently marked Listed.</p>}
+          </div>
+        </section>
+      )}
+
+      {tab === "grading" && (
+        <section className="panel">
+          <div className="panelHeader inventoryHeader">
+            <div>
+              <p className="eyebrow">Grading</p>
+              <h2>Cards currently away at grading</h2>
+              <p className="muted">Track bulk submissions by company, date sent, cards inside, and return status.</p>
+            </div>
+            <button className="secondary" type="button" onClick={() => { setTab("inventory"); window.setTimeout(() => document.querySelector(".bulkGradingBar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }}>Select cards to send</button>
+          </div>
+
+          <section className="statsGrid gradingStats" aria-label="Grading totals">
+            <Stat label="Open grading orders" value={String(openGradingSubmissions.length)} />
+            <Stat label="Cards currently at grading" value={String(openGradingCardCount)} tone={openGradingCardCount ? "warning" : undefined} />
+            <Stat label="Purchase value at grading" value={money(openGradingPurchaseValue)} />
+            <Stat label="Total grading orders" value={String(gradingSubmissions.length)} />
+          </section>
+
+          <div className="gradingGrid">
+            <section className="gradingOrders">
+              <h3>Grading orders</h3>
+              <div className="cardsList">
+                {gradingSubmissions.map((submission) => {
+                  const submissionCards = gradingSubmissionCards(submission);
+                  const isOpen = openGradingSubmissionId === submission.id;
+                  return (
+                    <article className={submission.status === "Returned" ? "gradingOrder returned" : "gradingOrder"} key={submission.id}>
+                      <button className="gradingOrderSummary" type="button" onClick={() => setOpenGradingSubmissionId(isOpen ? null : submission.id)}>
+                        <div>
+                          <div className="rowTitle">
+                            <strong>{submission.reference || `${submission.company} submission`}</strong>
+                            <span className={`statusBadge ${submission.status === "Returned" ? "sold" : "notlisted"}`}>{submission.status}</span>
+                          </div>
+                          <p className="muted">{submission.company} • Sent {formatDateLabel(submission.sentDate)}{submission.returnedDate ? ` • Returned ${formatDateLabel(submission.returnedDate)}` : ""}</p>
+                        </div>
+                        <div className="rowMoney">
+                          <span>{money(gradingPurchaseValue(submission))}</span>
+                          <small>{submissionCards.length} cards</small>
+                        </div>
+                      </button>
+                      {isOpen && (
+                        <div className="gradingOrderDetail">
+                          {submission.notes && <p className="muted">{submission.notes}</p>}
+                          <div className="cardsList">
+                            {submissionCards.map((card) => (
+                              <article className="cardRow compactRow" key={card.id}>
+                                <div>
+                                  <strong>{card.name}</strong>
+                                  <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
+                                </div>
+                                <div className="rowMoney">
+                                  <span>{money(card.purchasePrice)}</span>
+                                  <small>purchase cost</small>
+                                </div>
+                              </article>
+                            ))}
+                            {!submissionCards.length && <p className="empty">No cards found for this submission.</p>}
+                          </div>
+                          <div className="rowActions">
+                            {submission.status !== "Returned" && <button className="primary" type="button" onClick={() => { setReturningSubmission(submission); setReturnDate(todayIso()); }}>Mark returned</button>}
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+                {!gradingSubmissions.length && <p className="empty">No grading submissions yet. Select cards in Inventory and send them to grading.</p>}
+              </div>
+            </section>
           </div>
         </section>
       )}
@@ -982,9 +1223,25 @@ export default function Home() {
             </div>
           </section>
 
+          <section className="bulkGradingBar" aria-label="Bulk grading actions">
+            <div>
+              <p className="eyebrow">Bulk grading</p>
+              <strong>{selectedCardIds.length} selected</strong>
+              {selectedCardIds.length > 0 && <p className="muted">Selected purchase value: {money(selectedPurchaseValue)}</p>}
+            </div>
+            <div className="rowActions">
+              <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.length}>Select all shown</button>
+              <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCardIds.length}>Clear selected</button>
+              <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCardIds.length}>Send selected to grading</button>
+            </div>
+          </section>
+
           <div className="cardsList">
             {filteredCards.map((card) => (
               <article className="cardRow" key={card.id}>
+                <label className="selectCardBox" aria-label={`Select ${card.name} for grading`}>
+                  <input type="checkbox" checked={selectedCardIds.includes(card.id)} disabled={activeGradingCardIds.has(card.id)} onChange={() => toggleSelectedCard(card.id)} />
+                </label>
                 {card.frontPhotoUrl ? (
                   <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} />
                 ) : (
@@ -1186,6 +1443,55 @@ export default function Home() {
               )}
               <label className="full textareaLabel">Notes<textarea value={editingCard.notes} onChange={(e) => setEditingCard({ ...editingCard, notes: e.target.value })} /></label>
               <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Save changes"}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showGradingForm && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Create grading submission">
+          <form className="modal panel" onSubmit={saveGradingSubmission}>
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Send to grading</p>
+                <h2>{selectedCardIds.length} selected cards</h2>
+                <p className="muted">Purchase value selected: {money(selectedPurchaseValue)}</p>
+              </div>
+              <button className="secondary" type="button" onClick={() => setShowGradingForm(false)}>Cancel</button>
+            </div>
+            <div className="formGrid simpleForm">
+              <Field label="Grading company" value={gradingDraft.company} onChange={(v) => setGradingDraft({ ...gradingDraft, company: v })} placeholder="PSA, SGC, BGS, CGC..." required />
+              <Field label="Date sent" type="date" value={gradingDraft.sentDate} onChange={(v) => setGradingDraft({ ...gradingDraft, sentDate: v })} required />
+              <Field label="Order / reference" value={gradingDraft.reference} onChange={(v) => setGradingDraft({ ...gradingDraft, reference: v })} placeholder="Optional submission name or order #" />
+              <label className="full textareaLabel">Notes<textarea value={gradingDraft.notes} onChange={(e) => setGradingDraft({ ...gradingDraft, notes: e.target.value })} placeholder="Optional notes about this grading order" /></label>
+              <div className="calc full">
+                <span>Cards in submission: <strong>{selectedCardIds.length}</strong></span>
+                <span>Total purchase value: <strong>{money(selectedPurchaseValue)}</strong></span>
+              </div>
+              <button className="primary full" type="submit">Create grading submission</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {returningSubmission && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Mark grading submission returned">
+          <form className="modal panel" onSubmit={markGradingReturned}>
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Mark returned</p>
+                <h2>{returningSubmission.reference || `${returningSubmission.company} submission`}</h2>
+              </div>
+              <button className="secondary" type="button" onClick={() => setReturningSubmission(null)}>Cancel</button>
+            </div>
+            <div className="formGrid simpleForm">
+              <Field label="Return date" type="date" value={returnDate} onChange={setReturnDate} required />
+              <div className="calc full">
+                <span>Company: <strong>{returningSubmission.company}</strong></span>
+                <span>Cards returning: <strong>{returningSubmission.cardIds.length}</strong></span>
+                <span>Sent date: <strong>{formatDateLabel(returningSubmission.sentDate)}</strong></span>
+              </div>
+              <button className="primary full" type="submit">Mark order returned</button>
             </div>
           </form>
         </div>
