@@ -3,7 +3,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, cardProfit, cardRoi, emptyCard, emptyExpense, listedPotentialProfit, money, percent } from "@/lib/card";
-import { cardsToCsv, expensesToCsv } from "@/lib/csv";
+import { cardsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, rowToCard, rowToExpense } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -363,6 +363,7 @@ export default function Home() {
       unlistedInventoryCost,
       listedInventoryCost,
       totalInventoryCost,
+      inventoryCostCards,
       expensesTotal,
       expenseBreakdown,
       profit,
@@ -728,9 +729,26 @@ export default function Home() {
     setExpenses((current) => current.filter((expense) => expense.id !== id));
   };
 
-  const exportCards = () => downloadCsv(cardsToCsv(cards), `card-inventory-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
   const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportAllInventory = () => downloadCsv(cardsToCsv(cards), `card-inventory-all-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportPeriodInventory = () => downloadCsv(cardsToCsv(totals.inventoryCostCards), `card-inventory-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportPeriodSales = () => downloadCsv(salesToCsv(totals.soldCards), `card-sales-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportProfitSummary = () => downloadCsv(profitSummaryToCsv({
+    periodLabel: selectedDateLabel,
+    revenue: totals.revenue,
+    totalInventoryCost: totals.totalInventoryCost,
+    expensesTotal: totals.expensesTotal,
+    profit: totals.profit,
+    unlistedInventoryCost: totals.unlistedInventoryCost,
+    listedInventoryCost: totals.listedInventoryCost,
+    soldInventoryCost: totals.soldInventoryCost,
+    soldCardsRevenue: totals.revenue,
+    soldCardsCount: totals.soldCount,
+    listedCardsCount: totals.listedCount,
+    unlistedCardsCount: totals.notListedCount,
+  }), `card-profit-summary-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
 
   const signOut = async () => {
     if (supabase) await supabase.auth.signOut();
@@ -908,7 +926,7 @@ export default function Home() {
               <p className="eyebrow">Inventory</p>
               <h2>Showing {filteredCards.length} of {cards.length} cards</h2>
             </div>
-            <button className="secondary" onClick={exportCards} type="button">Export inventory</button>
+            <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
           </div>
 
           <section className="inventoryFilterPanel" aria-label="Inventory search and filters">
@@ -1093,6 +1111,20 @@ export default function Home() {
             <Stat label="Listed inventory" value={money(totals.listedInventoryCost)} />
             <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
             <Stat label="Sold cards revenue" value={money(totals.revenue)} />
+          </section>
+
+          <section className="businessExports" aria-label="Business exports">
+            <div>
+              <p className="eyebrow">Business Exports</p>
+              <h3>Accountant-ready CSVs</h3>
+              <p className="muted">Period exports use the current Profit date filter: {selectedDateLabel}.</p>
+            </div>
+            <div className="exportActions">
+              <button className="secondary" onClick={exportProfitSummary} type="button">Export profit summary</button>
+              <button className="secondary" onClick={exportPeriodSales} type="button">Export sales for period ({totals.soldCards.length})</button>
+              <button className="secondary" onClick={exportPeriodInventory} type="button">Export inventory for period ({totals.inventoryCostCards.length})</button>
+              <button className="secondary" onClick={exportAllInventory} type="button">Export all inventory ({cards.length})</button>
+            </div>
           </section>
 
           <div className="profitSections">
