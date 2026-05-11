@@ -37,6 +37,21 @@ export type ExpenseRecord = {
   updatedAt: string;
 };
 
+export type GradingSubmissionStatus = "At Grading" | "Returned";
+
+export type GradingSubmission = {
+  id: string;
+  company: string;
+  sentDate: string;
+  returnedDate: string;
+  status: GradingSubmissionStatus;
+  reference: string;
+  notes: string;
+  cardIds: string[];
+  createdAt: string;
+  updatedAt: string;
+};
+
 export const emptyCard = (): CardRecord => {
   const now = new Date().toISOString();
   return {
@@ -73,6 +88,22 @@ export const emptyExpense = (): ExpenseRecord => {
     expenseDate: new Date().toISOString().slice(0, 10),
     description: "",
     vendor: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+};
+
+export const emptyGradingSubmission = (): GradingSubmission => {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    company: "",
+    sentDate: new Date().toISOString().slice(0, 10),
+    returnedDate: "",
+    status: "At Grading",
+    reference: "",
+    notes: "",
+    cardIds: [],
     createdAt: now,
     updatedAt: now,
   };

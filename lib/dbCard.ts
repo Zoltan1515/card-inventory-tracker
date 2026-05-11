@@ -1,4 +1,4 @@
-import type { CardRecord, ExpenseRecord } from "./card";
+import type { CardRecord, ExpenseRecord, GradingSubmission } from "./card";
 
 type CardRow = {
   id: string;
@@ -39,6 +39,25 @@ type ExpenseRow = {
   updated_at: string | null;
 };
 
+type GradingSubmissionRow = {
+  id: string;
+  user_id: string;
+  workspace_id?: string | null;
+  company: string | null;
+  sent_date: string | null;
+  returned_date: string | null;
+  status: GradingSubmission["status"] | string | null;
+  reference: string | null;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+type GradingSubmissionCardRow = {
+  submission_id: string;
+  card_id: string;
+};
+
 const num = (value: number | string | null | undefined) => Number(value ?? 0) || 0;
 const text = (value: string | null | undefined) => value ?? "";
 const dateOrNull = (value: string) => value || null;
@@ -58,6 +77,11 @@ const normalizeStatus = (status: string | null | undefined): CardRecord["status"
 const normalizeExpenseCategory = (category: string | null | undefined): ExpenseRecord["category"] => {
   if (category === "HST" || category === "Duties" || category === "Grading Fees" || category === "Shipping" || category === "Other") return category;
   return "Other";
+};
+
+const normalizeGradingStatus = (status: string | null | undefined): GradingSubmission["status"] => {
+  if (status === "Returned") return "Returned";
+  return "At Grading";
 };
 
 export const rowToCard = (row: CardRow): CardRecord => ({
@@ -152,3 +176,42 @@ export const expenseToUpdate = (expense: ExpenseRecord) => ({
   description: expense.description,
   vendor: expense.vendor,
 });
+export const rowToGradingSubmission = (row: GradingSubmissionRow, cardRows: GradingSubmissionCardRow[] = []): GradingSubmission => ({
+  id: row.id,
+  company: text(row.company),
+  sentDate: text(row.sent_date),
+  returnedDate: text(row.returned_date),
+  status: normalizeGradingStatus(row.status),
+  reference: text(row.reference),
+  notes: text(row.notes),
+  cardIds: cardRows.filter((item) => item.submission_id === row.id).map((item) => item.card_id),
+  createdAt: row.created_at ?? new Date().toISOString(),
+  updatedAt: row.updated_at ?? new Date().toISOString(),
+});
+
+export const gradingSubmissionToInsert = (submission: GradingSubmission, userId: string, workspaceId?: string | null) => ({
+  id: submission.id,
+  user_id: userId,
+  ...(workspaceId ? { workspace_id: workspaceId } : {}),
+  company: submission.company,
+  sent_date: dateOrNull(submission.sentDate),
+  returned_date: dateOrNull(submission.returnedDate),
+  status: submission.status,
+  reference: submission.reference,
+  notes: submission.notes,
+});
+
+export const gradingSubmissionToUpdate = (submission: GradingSubmission) => ({
+  company: submission.company,
+  sent_date: dateOrNull(submission.sentDate),
+  returned_date: dateOrNull(submission.returnedDate),
+  status: submission.status,
+  reference: submission.reference,
+  notes: submission.notes,
+  updated_at: new Date().toISOString(),
+});
+
+export const gradingSubmissionCardRows = (submission: GradingSubmission) => submission.cardIds.map((cardId) => ({
+  submission_id: submission.id,
+  card_id: cardId,
+}));
