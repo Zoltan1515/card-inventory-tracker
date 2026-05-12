@@ -232,6 +232,7 @@ textarea { min-height: 90px; resize: vertical; }
 .collectorEmail { display: block; margin: 16px 0 10px; font-size: clamp(1rem, 3.6vw, 1.35rem); overflow-wrap: anywhere; }
 .collectorSince { color: #c7d2fe; margin-bottom: 18px; }
 .heroStatsGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.compactHeroStats { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 430px; }
 .collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; }
 .collectorHeroCard .stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; }
 .collectorHeroCard .stat strong { color: var(--neon-green); font-size: 1rem; }
@@ -239,7 +240,9 @@ textarea { min-height: 90px; resize: vertical; }
 .slabLabel { background: rgba(238,247,255,.86); color: #081022; border-radius: 7px; padding: 5px; font-size: .62rem; font-weight: 1000; text-align: center; letter-spacing: .04em; }
 .slabArt { height: 150px; margin-top: 8px; border-radius: 12px; display: grid; place-items: center; background: conic-gradient(from 210deg, rgba(57,255,156,.85), rgba(103,232,249,.85), rgba(167,139,250,.85), rgba(57,255,156,.85)); box-shadow: inset 0 0 0 7px rgba(4,9,20,.55); }
 .slabArt span { font-size: 4rem; font-weight: 1000; color: rgba(2,6,23,.72); text-shadow: 0 0 14px rgba(255,255,255,.45); }
-.slabBase { text-align: center; color: rgba(238,247,255,.55); font-size: 1.4rem; letter-spacing: .18em; margin-top: 8px; }
+.slabBase { display: grid; gap: 3px; text-align: center; color: rgba(238,247,255,.65); margin-top: 8px; }
+.slabBase strong { color: rgba(238,247,255,.88); font-size: 1.1rem; letter-spacing: .08em; }
+.slabBase small { color: var(--muted); font-size: .62rem; line-height: 1.1; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .secondaryStatStrip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 16px; overflow: hidden; }
 .secondaryStatStrip button { display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: center; border: 0; border-right: 1px solid rgba(103,232,249,.12); background: transparent; color: var(--text); padding: 14px; text-align: left; }
 .secondaryStatStrip button:last-child { border-right: 0; }
@@ -286,6 +289,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .collectorEmail { font-size: .96rem; margin-top: 13px; }
   .collectorSince { font-size: .78rem; margin-bottom: 12px; }
   .heroStatsGrid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .compactHeroStats { grid-template-columns: repeat(2, 1fr); }
   .collectorHeroCard .stat { padding: 8px 6px; }
   .collectorHeroCard .stat span { font-size: .56rem; }
   .collectorHeroCard .stat strong { font-size: .82rem; }
@@ -293,7 +297,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .slabLabel { font-size: .48rem; padding: 4px; }
   .slabArt { height: 112px; border-radius: 10px; }
   .slabArt span { font-size: 2.8rem; }
-  .slabBase { font-size: .9rem; }
+  .slabBase strong { font-size: .82rem; }
+  .slabBase small { font-size: .54rem; }
   .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; }
   .secondaryStatStrip button { min-width: 116px; padding: 12px 10px; }
   .quickActionsPanel { padding: 14px; border-radius: 22px; }

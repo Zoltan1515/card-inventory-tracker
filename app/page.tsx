@@ -484,6 +484,10 @@ export default function Home() {
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
   const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
   const listedValue = totals.listedCards.reduce((sum, card) => sum + card.askingPrice, 0);
+  const mostExpensiveSoldCard = totals.soldCards.reduce<CardRecord | null>((best, card) => {
+    if (!best) return card;
+    return card.soldPrice > best.soldPrice ? card : best;
+  }, null);
   const dashboardActions: DashboardAction[] = [
     { tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card" },
     { tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
@@ -957,16 +961,29 @@ export default function Home() {
             <span className="loginBadge"><span /> Logged In</span>
             <strong className="collectorEmail">{session.user.email || "Account"}</strong>
             <p className="collectorSince">▣ Collector workspace</p>
-            <div className="heroStatsGrid">
+            <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Cards" value={String(cards.length)} />
-              <Stat label="Inventory Cost" value={money(totals.totalInventoryCost)} />
               <Stat label="Total Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
             </div>
           </div>
-          <div className="slabShowpiece" aria-hidden="true">
-            <div className="slabLabel">WCT • GEM</div>
-            <div className="slabArt"><span>W</span></div>
-            <div className="slabBase">WCT</div>
+          <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} sold for ${money(mostExpensiveSoldCard.soldPrice)}` : "Top sold card placeholder"}>
+            <div className="slabLabel">{mostExpensiveSoldCard ? "TOP SOLD" : "WCT • GEM"}</div>
+            <div className="slabArt">
+              <span>{mostExpensiveSoldCard ? mostExpensiveSoldCard.name.slice(0, 1).toUpperCase() : "W"}</span>
+            </div>
+            <div className="slabBase">
+              {mostExpensiveSoldCard ? (
+                <>
+                  <strong>{money(mostExpensiveSoldCard.soldPrice)}</strong>
+                  <small>{mostExpensiveSoldCard.name}</small>
+                </>
+              ) : (
+                <>
+                  <strong>WCT</strong>
+                  <small>Top sold card will appear here</small>
+                </>
+              )}
+            </div>
           </div>
         </section>
       )}
