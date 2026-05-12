@@ -937,17 +937,29 @@ export default function Home() {
       </header>
 
       {session && (
-        <section className="accountProfitBar" aria-label="Current account and total profit">
-          <div className="signedInIdentity">
+        <section className="accountProfitBar" aria-label="Current account and business summary">
+          <div className="signedInIdentity statusCard">
             <span>Signed in</span>
             <strong>{session.user.email || "Account"}</strong>
           </div>
-          <button className="profitShortcut" type="button" onClick={() => setTab("profit")} aria-label={`View total profit ${money(totals.profit)}`}>
+          <button className="profitShortcut statusCard" type="button" onClick={() => setTab("profit")} aria-label={`View total profit ${money(totals.profit)}`}>
             <span className="dollarMark">$</span>
             <span>
               <small>Total profit</small>
               <strong className={totals.profit >= 0 ? "positive" : "negative"}>{money(totals.profit)}</strong>
             </span>
+          </button>
+          <button className="miniStatusCard" type="button" onClick={() => setTab("inventory")}>
+            <span>Total cards</span>
+            <strong>{cards.length}</strong>
+          </button>
+          <button className="miniStatusCard" type="button" onClick={() => setTab("profit")}>
+            <span>Inventory cost</span>
+            <strong>{money(totals.totalInventoryCost)}</strong>
+          </button>
+          <button className="miniStatusCard" type="button" onClick={() => setTab("attention")}>
+            <span>Needs attention</span>
+            <strong>{totalAttentionItems}</strong>
           </button>
         </section>
       )}
