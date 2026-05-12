@@ -8,6 +8,7 @@ import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, gradingSu
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit";
+type DashboardAction = { tab: Tab; icon: string; label: string; subtitle?: string; badge?: number };
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
@@ -481,6 +482,17 @@ export default function Home() {
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
 
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
+  const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
+  const listedValue = totals.listedCards.reduce((sum, card) => sum + card.askingPrice, 0);
+  const dashboardActions: DashboardAction[] = [
+    { tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card" },
+    { tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
+    { tab: "listingReview", icon: "▣", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
+    { tab: "inventory", icon: "▤", label: "Inventory", subtitle: `${cards.length} cards` },
+    { tab: "grading", icon: "▥", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount },
+    { tab: "expenses", icon: "$", label: "Expenses", subtitle: money(totals.expensesTotal) },
+    { tab: "profit", icon: "↗", label: "Profit", subtitle: money(totals.profit) },
+  ];
 
   const openAttentionItem = (item: AttentionItem) => {
     if (item.kind === "card") {
@@ -930,37 +942,56 @@ export default function Home() {
   }
 
   return (
-    <main className="shell">
-      <header className="hero compactHero logoHero">
+    <main className="shell mobileDashboardShell">
+      <header className="mobileTopHeader" aria-label="Wicked Card Tracker dashboard header">
+        <button className="iconCircle" type="button" aria-label="Jump to quick actions" onClick={() => document.getElementById("quick-actions")?.scrollIntoView({ behavior: "smooth", block: "start" })}>☰</button>
         <Logo />
-        {session && <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button>}
+        <div className="topHeaderActions">
+          {session && <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button>}
+        </div>
       </header>
 
       {session && (
-        <section className="accountProfitBar" aria-label="Current account and total profit">
-          <div className="signedInIdentity">
-            <span>Signed in</span>
-            <strong>{session.user.email || "Account"}</strong>
+        <section className="collectorHeroCard" aria-label="Logged in account and portfolio summary">
+          <div className="collectorHeroContent">
+            <span className="loginBadge"><span /> Logged In</span>
+            <strong className="collectorEmail">{session.user.email || "Account"}</strong>
+            <p className="collectorSince">▣ Collector workspace</p>
+            <div className="heroStatsGrid">
+              <Stat label="Total Cards" value={String(cards.length)} />
+              <Stat label="Inventory Cost" value={money(totals.totalInventoryCost)} />
+              <Stat label="Total Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
+            </div>
           </div>
-          <button className="profitShortcut" type="button" onClick={() => setTab("profit")} aria-label={`View total profit ${money(totals.profit)}`}>
-            <span className="dollarMark">$</span>
-            <span>
-              <small>Total profit</small>
-              <strong className={totals.profit >= 0 ? "positive" : "negative"}>{money(totals.profit)}</strong>
-            </span>
-          </button>
+          <div className="slabShowpiece" aria-hidden="true">
+            <div className="slabLabel">WCT • GEM</div>
+            <div className="slabArt"><span>W</span></div>
+            <div className="slabBase">WCT</div>
+          </div>
         </section>
       )}
 
-      <nav className="navBar" aria-label="Main navigation">
-        <NavButton active={tab === "add"} onClick={() => setTab("add")}>Add Inventory</NavButton>
-        <NavButton active={tab === "attention"} onClick={() => setTab("attention")}>Needs Attention{totalAttentionItems ? ` (${totalAttentionItems})` : ""}</NavButton>
-        <NavButton active={tab === "listingReview"} onClick={() => setTab("listingReview")}>Listing Review{listingReviewCounts.warning + listingReviewCounts.urgent ? ` (${listingReviewCounts.warning + listingReviewCounts.urgent})` : ""}</NavButton>
-        <NavButton active={tab === "grading"} onClick={() => setTab("grading")}>Grading{openGradingCardCount ? ` (${openGradingCardCount})` : ""}</NavButton>
-        <NavButton active={tab === "inventory"} onClick={() => setTab("inventory")}>Inventory</NavButton>
-        <NavButton active={tab === "expenses"} onClick={() => setTab("expenses")}>Expenses</NavButton>
-        <NavButton active={tab === "profit"} onClick={() => setTab("profit")}>Profit</NavButton>
-      </nav>
+      {session && (
+        <section className="secondaryStatStrip" aria-label="Business stat strip">
+          <button type="button" onClick={() => setTab("profit")}><span>▱</span><small>Inventory Cost</small><strong>{money(totals.totalInventoryCost)}</strong></button>
+          <button type="button" onClick={() => setTab("expenses")}><span>▥</span><small>Expenses</small><strong>{money(totals.expensesTotal)}</strong></button>
+          <button type="button" onClick={() => setTab("listingReview")}><span>◇</span><small>Listed Value</small><strong>{money(listedValue)}</strong></button>
+          <button type="button" onClick={() => setTab("attention")}><span>☆</span><small>Needs Attention</small><strong>{totalAttentionItems}</strong></button>
+        </section>
+      )}
+
+      <section className="quickActionsPanel" id="quick-actions" aria-label="Quick actions">
+        <div className="quickActionsHeader">
+          <p className="eyebrow">Quick Actions</p>
+        </div>
+        <nav className="navBar quickActionGrid" aria-label="Main navigation">
+          {dashboardActions.map((action) => (
+            <NavButton active={tab === action.tab} badge={action.badge} icon={action.icon} key={action.tab} onClick={() => setTab(action.tab)} subtitle={action.subtitle}>
+              {action.label}
+            </NavButton>
+          ))}
+        </nav>
+      </section>
 
       {notice && <p className="notice">{notice}</p>}
       {error && <p className="errorBox">{error}</p>}
@@ -1536,6 +1567,14 @@ export default function Home() {
           </form>
         </div>
       )}
+
+      <nav className="bottomMobileNav" aria-label="Mobile dashboard navigation">
+        <button className={tab === "add" ? "active" : ""} type="button" onClick={() => setTab("add")}><span>⌂</span><small>Home</small></button>
+        <button className={tab === "inventory" ? "active" : ""} type="button" onClick={() => setTab("inventory")}><span>▤</span><small>Inventory</small></button>
+        <button className="centerAdd" type="button" onClick={() => setTab("add")}><span>+</span><small>Add</small></button>
+        <button className={tab === "attention" ? "active" : ""} type="button" onClick={() => setTab("attention")}><span>☆</span><small>Attention</small></button>
+        <button className={tab === "profit" ? "active" : ""} type="button" onClick={() => setTab("profit")}><span>•••</span><small>More</small></button>
+      </nav>
     </main>
   );
 }
@@ -1669,8 +1708,14 @@ function AuthPanel() {
   );
 }
 
-function NavButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return <button className={active ? "navButton active" : "navButton"} type="button" onClick={onClick}>{children}</button>;
+function NavButton({ active, onClick, children, icon, subtitle, badge }: { active: boolean; onClick: () => void; children: React.ReactNode; icon?: string; subtitle?: string; badge?: number }) {
+  return (
+    <button className={active ? "navButton active" : "navButton"} type="button" onClick={onClick}>
+      {icon && <span className="navIcon">{icon}</span>}
+      <span className="navText"><strong>{children}</strong>{subtitle && <small>{subtitle}</small>}</span>
+      {!!badge && <span className="navBadge">{badge}</span>}
+    </button>
+  );
 }
 
 function DateFilterControls({
