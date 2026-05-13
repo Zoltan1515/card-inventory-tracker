@@ -79,7 +79,11 @@ const listingPricingFields = (card: CardRecord) => ({
 });
 
 const normalizeStatus = (status: string | null | undefined): CardRecord["status"] => {
+  const normalized = status?.trim().toLowerCase();
   if (status === "Sold" || status === "Listed" || status === "Not Listed") return status;
+  if (normalized === "sold" || normalized === "shipped") return "Sold";
+  if (normalized === "listed") return "Listed";
+  if (normalized === "not listed" || normalized === "purchased" || normalized === "ready to list") return "Not Listed";
   if (status === "Purchased" || status === "Ready to List") return "Not Listed";
   if (status === "Shipped") return "Sold";
   return "Not Listed";

@@ -43,11 +43,19 @@ drop policy if exists "Workspace members can view shared cards" on public.cards;
 drop policy if exists "Workspace members can insert shared cards" on public.cards;
 drop policy if exists "Workspace members can update shared cards" on public.cards;
 drop policy if exists "Workspace members can delete shared cards" on public.cards;
+drop policy if exists "Users can view own legacy cards" on public.cards;
+drop policy if exists "Users can insert own legacy cards" on public.cards;
+drop policy if exists "Users can update own legacy cards" on public.cards;
+drop policy if exists "Users can delete own legacy cards" on public.cards;
 
 drop policy if exists "Workspace members can view shared expenses" on public.expenses;
 drop policy if exists "Workspace members can insert shared expenses" on public.expenses;
 drop policy if exists "Workspace members can update shared expenses" on public.expenses;
 drop policy if exists "Workspace members can delete shared expenses" on public.expenses;
+drop policy if exists "Users can view own legacy expenses" on public.expenses;
+drop policy if exists "Users can insert own legacy expenses" on public.expenses;
+drop policy if exists "Users can update own legacy expenses" on public.expenses;
+drop policy if exists "Users can delete own legacy expenses" on public.expenses;
 
 create policy "Workspace members can view workspaces"
   on public.workspaces for select
@@ -153,6 +161,24 @@ create policy "Workspace members can delete shared cards"
     )
   );
 
+-- Keep older one-user rows visible/editable until they are assigned to the shared workspace.
+create policy "Users can view own legacy cards"
+  on public.cards for select
+  using (workspace_id is null and auth.uid() = user_id);
+
+create policy "Users can insert own legacy cards"
+  on public.cards for insert
+  with check (workspace_id is null and auth.uid() = user_id);
+
+create policy "Users can update own legacy cards"
+  on public.cards for update
+  using (workspace_id is null and auth.uid() = user_id)
+  with check (workspace_id is null and auth.uid() = user_id);
+
+create policy "Users can delete own legacy cards"
+  on public.cards for delete
+  using (workspace_id is null and auth.uid() = user_id);
+
 create policy "Workspace members can view shared expenses"
   on public.expenses for select
   using (
@@ -205,6 +231,24 @@ create policy "Workspace members can delete shared expenses"
         and wm.user_id = auth.uid()
     )
   );
+
+-- Keep older one-user expense rows visible/editable until they are assigned to the shared workspace.
+create policy "Users can view own legacy expenses"
+  on public.expenses for select
+  using (workspace_id is null and auth.uid() = user_id);
+
+create policy "Users can insert own legacy expenses"
+  on public.expenses for insert
+  with check (workspace_id is null and auth.uid() = user_id);
+
+create policy "Users can update own legacy expenses"
+  on public.expenses for update
+  using (workspace_id is null and auth.uid() = user_id)
+  with check (workspace_id is null and auth.uid() = user_id);
+
+create policy "Users can delete own legacy expenses"
+  on public.expenses for delete
+  using (workspace_id is null and auth.uid() = user_id);
 
 -- Create one shared workspace for two existing auth users and move their current data into it.
 -- Replace these emails with the two login emails you want to share one inventory.

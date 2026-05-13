@@ -76,6 +76,30 @@ const mergeById = <T extends { id: string }>(primary: T[], fallback: T[]) => {
   primary.forEach((item) => rows.set(item.id, item));
   return Array.from(rows.values());
 };
+const localCards = () => {
+  try {
+    const rawCards = window.localStorage.getItem(CARD_STORAGE_KEY);
+    return rawCards ? JSON.parse(rawCards).map(normalizeStoredCard) as CardRecord[] : [];
+  } catch {
+    return [];
+  }
+};
+const localExpenses = () => {
+  try {
+    const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
+    return rawExpenses ? JSON.parse(rawExpenses).map(normalizeStoredExpense) as ExpenseRecord[] : [];
+  } catch {
+    return [];
+  }
+};
+const localGradingSubmissions = () => {
+  try {
+    const rawGrading = window.localStorage.getItem(GRADING_STORAGE_KEY);
+    return rawGrading ? JSON.parse(rawGrading).map(normalizeStoredGradingSubmission) as GradingSubmission[] : [];
+  } catch {
+    return [];
+  }
+};
 const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
   if (mode === "all") return "All time";
   if (mode === "month") return "This month";
@@ -272,11 +296,11 @@ export default function Home() {
 
       const cardRows = mergeById(workspaceCardsResult.data ?? [], userCardsResult.data ?? []);
       if (workspaceCardsResult.error && userCardsResult.error) setError(workspaceCardsResult.error.message || userCardsResult.error.message);
-      else setCards(cardRows.map(rowToCard));
+      else setCards(mergeById(cardRows.map(rowToCard), localCards()));
 
       const expenseRows = mergeById(workspaceExpensesResult.data ?? [], userExpensesResult.data ?? []);
       if (workspaceExpensesResult.error && userExpensesResult.error) setError(`Expenses table needs setup: ${workspaceExpensesResult.error.message || userExpensesResult.error.message}`);
-      else setExpenses(expenseRows.map(rowToExpense));
+      else setExpenses(mergeById(expenseRows.map(rowToExpense), localExpenses()));
 
       const gradingResult = {
         data: mergeById(workspaceGradingResult.data ?? [], userGradingResult.data ?? []),
@@ -290,8 +314,8 @@ export default function Home() {
         const linkResult = submissionIds.length
           ? await supabase.from("grading_submission_cards").select("submission_id, card_id").in("submission_id", submissionIds)
           : { data: [], error: null };
-        if (linkResult.error) setGradingSubmissions((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row)));
-        else setGradingSubmissions((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row, linkResult.data ?? [])));
+        if (linkResult.error) setGradingSubmissions(mergeById((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row)), localGradingSubmissions()));
+        else setGradingSubmissions(mergeById((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row, linkResult.data ?? [])), localGradingSubmissions()));
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load your account data. Please refresh and try again.");
@@ -303,12 +327,10 @@ export default function Home() {
   useEffect(() => {
     if (!usingSupabase || !supabase) {
       setWorkspaceId(null);
-      const rawCards = window.localStorage.getItem(CARD_STORAGE_KEY);
-      const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
-      const rawGrading = window.localStorage.getItem(GRADING_STORAGE_KEY);
-      setCards(rawCards ? JSON.parse(rawCards).map(normalizeStoredCard) : sampleCards());
-      setExpenses(rawExpenses ? JSON.parse(rawExpenses).map(normalizeStoredExpense) : []);
-      setGradingSubmissions(rawGrading ? JSON.parse(rawGrading).map(normalizeStoredGradingSubmission) : []);
+      const storedCards = localCards();
+      setCards(storedCards.length ? storedCards : sampleCards());
+      setExpenses(localExpenses());
+      setGradingSubmissions(localGradingSubmissions());
       setLoading(false);
       return;
     }
@@ -332,9 +354,9 @@ export default function Home() {
         void loadSupabaseData(nextSession.user.id);
       } else {
         setWorkspaceId(null);
-        setCards([]);
-        setExpenses([]);
-        setGradingSubmissions([]);
+        setCards(localCards());
+        setExpenses(localExpenses());
+        setGradingSubmissions(localGradingSubmissions());
         setLoading(false);
       }
     });
