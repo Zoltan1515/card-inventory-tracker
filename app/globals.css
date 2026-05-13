@@ -232,13 +232,20 @@ textarea { min-height: 90px; resize: vertical; }
 .collectorEmail { display: block; margin: 16px 0 10px; font-size: clamp(1rem, 3.6vw, 1.35rem); overflow-wrap: anywhere; }
 .collectorSince { color: #c7d2fe; margin-bottom: 18px; }
 .heroStatsGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.compactHeroStats { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 430px; }
+.compactHeroStats { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 640px; }
 .collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; }
 .collectorHeroCard .stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; }
 .collectorHeroCard .stat strong { color: var(--neon-green); font-size: 1rem; }
-.slabShowpiece { justify-self: end; align-self: center; width: min(170px, 100%); border: 1px solid rgba(103,232,249,.55); border-radius: 18px; padding: 10px; background: linear-gradient(145deg, rgba(226,232,240,.18), rgba(15,23,42,.2)); box-shadow: 0 0 28px rgba(103,232,249,.22), inset 0 0 24px rgba(255,255,255,.06); transform: perspective(700px) rotateY(-8deg); }
+.slabShowpiece { justify-self: end; align-self: center; width: min(210px, 100%); border: 1px solid rgba(103,232,249,.55); border-radius: 18px; padding: 10px; background: linear-gradient(145deg, rgba(226,232,240,.18), rgba(15,23,42,.2)); box-shadow: 0 0 28px rgba(103,232,249,.22), inset 0 0 24px rgba(255,255,255,.06); transform: perspective(700px) rotateY(-8deg); }
+.slabControls { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 7px; }
+.slabControls button, .slabControls input { min-height: 28px; border-radius: 8px; padding: 4px 6px; font-size: .58rem; font-weight: 900; }
+.slabControls button { border: 1px solid rgba(103,232,249,.28); background: rgba(4,9,20,.58); color: rgba(238,247,255,.74); }
+.slabControls button.active { border-color: rgba(57,255,156,.72); color: var(--neon-green); background: rgba(57,255,156,.14); }
+.slabControls input { grid-column: 1 / -1; width: 100%; color-scheme: dark; }
 .slabLabel { background: rgba(238,247,255,.86); color: #081022; border-radius: 7px; padding: 5px; font-size: .62rem; font-weight: 1000; text-align: center; letter-spacing: .04em; }
-.slabArt { height: 150px; margin-top: 8px; border-radius: 12px; display: grid; place-items: center; background: conic-gradient(from 210deg, rgba(57,255,156,.85), rgba(103,232,249,.85), rgba(167,139,250,.85), rgba(57,255,156,.85)); box-shadow: inset 0 0 0 7px rgba(4,9,20,.55); }
+.slabArt { height: 150px; margin-top: 8px; border-radius: 12px; display: grid; place-items: center; overflow: hidden; background: conic-gradient(from 210deg, rgba(57,255,156,.85), rgba(103,232,249,.85), rgba(167,139,250,.85), rgba(57,255,156,.85)); box-shadow: inset 0 0 0 7px rgba(4,9,20,.55); }
+.slabArt.hasPhoto { background: rgba(2,7,16,.8); box-shadow: inset 0 0 0 5px rgba(4,9,20,.62); }
+.slabArt img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .slabArt span { font-size: 4rem; font-weight: 1000; color: rgba(2,6,23,.72); text-shadow: 0 0 14px rgba(255,255,255,.45); }
 .slabBase { display: grid; gap: 3px; text-align: center; color: rgba(238,247,255,.65); margin-top: 8px; }
 .slabBase strong { color: rgba(238,247,255,.88); font-size: 1.1rem; letter-spacing: .08em; }
@@ -293,7 +300,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .collectorHeroCard .stat { padding: 8px 6px; }
   .collectorHeroCard .stat span { font-size: .56rem; }
   .collectorHeroCard .stat strong { font-size: .82rem; }
-  .slabShowpiece { width: 110px; padding: 7px; border-radius: 14px; }
+  .slabShowpiece { width: 136px; padding: 7px; border-radius: 14px; }
+  .slabControls { gap: 4px; margin-bottom: 5px; }
+  .slabControls button, .slabControls input { min-height: 24px; font-size: .48rem; padding: 3px 4px; }
   .slabLabel { font-size: .48rem; padding: 4px; }
   .slabArt { height: 112px; border-radius: 10px; }
   .slabArt span { font-size: 2.8rem; }

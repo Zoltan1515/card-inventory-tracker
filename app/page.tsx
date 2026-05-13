@@ -47,7 +47,7 @@ const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
 const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
-const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Other"];
+const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const currentMonthStart = () => `${todayIso().slice(0, 7)}-01`;
 const currentYearStart = () => `${todayIso().slice(0, 4)}-01-01`;
@@ -196,6 +196,8 @@ export default function Home() {
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
+  const [topSoldMode, setTopSoldMode] = useState<"all" | "month">("all");
+  const [topSoldMonth, setTopSoldMonth] = useState(todayIso().slice(0, 7));
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
 
@@ -523,10 +525,16 @@ export default function Home() {
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
   const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
   const listedValue = totals.listedCards.reduce((sum, card) => sum + card.askingPrice, 0);
-  const mostExpensiveSoldCard = totals.soldCards.reduce<CardRecord | null>((best, card) => {
+  const topSoldCandidates = useMemo(() => {
+    const soldCards = cards.filter((card) => card.status === "Sold" && card.soldPrice > 0);
+    if (topSoldMode === "month") return soldCards.filter((card) => card.saleDate.startsWith(topSoldMonth));
+    return soldCards;
+  }, [cards, topSoldMode, topSoldMonth]);
+  const mostExpensiveSoldCard = topSoldCandidates.reduce<CardRecord | null>((best, card) => {
     if (!best) return card;
     return card.soldPrice > best.soldPrice ? card : best;
   }, null);
+  const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
     { id: "add", tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card" },
     { id: "attention", tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
@@ -1003,26 +1011,36 @@ export default function Home() {
             <strong className="collectorEmail">{session.user.email || "Account"}</strong>
             <p className="collectorSince">▣ Collector workspace</p>
             <div className="heroStatsGrid compactHeroStats">
-              <Stat label="Total Cards" value={String(cards.length)} />
+              <Stat label="Total Unsold Cards" value={String(activeInventoryCards.length)} />
               <Stat label="Total Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
           </div>
           <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} sold for ${money(mostExpensiveSoldCard.soldPrice)}` : "Top sold card placeholder"}>
-            <div className="slabLabel">{mostExpensiveSoldCard ? "TOP SOLD" : "WCT • GEM"}</div>
-            <div className="slabArt">
-              <span>{mostExpensiveSoldCard ? mostExpensiveSoldCard.name.slice(0, 1).toUpperCase() : "W"}</span>
+            <div className="slabControls" aria-label="Top sold card period">
+              <button className={topSoldMode === "all" ? "active" : ""} type="button" onClick={() => setTopSoldMode("all")}>All time</button>
+              <button className={topSoldMode === "month" ? "active" : ""} type="button" onClick={() => setTopSoldMode("month")}>Month</button>
+              {topSoldMode === "month" && <input aria-label="Top sold month" type="month" value={topSoldMonth} onChange={(e) => setTopSoldMonth(e.target.value)} />}
+            </div>
+            <div className="slabLabel">TOP SOLD • {topSoldPeriodLabel}</div>
+            <div className={`slabArt ${mostExpensiveSoldCard?.frontPhotoUrl ? "hasPhoto" : ""}`}>
+              {mostExpensiveSoldCard?.frontPhotoUrl ? (
+                <img src={mostExpensiveSoldCard.frontPhotoUrl} alt={`Front of ${mostExpensiveSoldCard.name}`} />
+              ) : (
+                <span>{mostExpensiveSoldCard ? mostExpensiveSoldCard.name.slice(0, 1).toUpperCase() : "W"}</span>
+              )}
             </div>
             <div className="slabBase">
               {mostExpensiveSoldCard ? (
                 <>
                   <strong>{money(mostExpensiveSoldCard.soldPrice)}</strong>
                   <small>{mostExpensiveSoldCard.name}</small>
+                  <small>Sold {formatDateLabel(mostExpensiveSoldCard.saleDate) || "date not set"}</small>
                 </>
               ) : (
                 <>
                   <strong>WCT</strong>
-                  <small>Top sold card will appear here</small>
+                  <small>No sold cards for {topSoldPeriodLabel.toLowerCase()}.</small>
                 </>
               )}
             </div>
@@ -1430,7 +1448,11 @@ export default function Home() {
           <div className="expenseList">
             {totals.filteredExpenses.map((expense) => (
               <article className="expenseRow" key={expense.id}>
-                <div><strong>{expense.category}</strong><p>{expense.description || expense.vendor || "No description"}</p></div>
+                <div className="expenseDetails">
+                  <div className="rowTitle"><strong>{expense.category}</strong></div>
+                  <p>{expense.description || "No description"}</p>
+                  <p className="muted">Vendor/source: {expense.vendor || "Not entered"}</p>
+                </div>
                 <span>{expense.expenseDate}</span>
                 <strong>{money(expense.amount)}</strong>
                 <div className="rowActions">

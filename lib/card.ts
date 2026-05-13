@@ -24,7 +24,7 @@ export type CardRecord = {
   updatedAt: string;
 };
 
-export type ExpenseCategory = "HST" | "Duties" | "Grading Fees" | "Shipping" | "Other";
+export type ExpenseCategory = "HST" | "Duties" | "Grading Fees" | "Shipping" | "Card Show Table" | "Supplies" | "Gas" | "Airfare" | "Other";
 
 export type ExpenseRecord = {
   id: string;
