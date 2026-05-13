@@ -382,6 +382,11 @@ export default function Home() {
     setTab("inventory");
   };
 
+  const showAddInventoryForm = () => {
+    setTab("add");
+    window.setTimeout(() => document.getElementById("add-inventory-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
   const showSoldInventory = () => {
     clearInventoryFilters();
     setStatusFilter("Sold");
@@ -572,7 +577,7 @@ export default function Home() {
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
-    { id: "add", tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card" },
+    { id: "add", tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
     { id: "attention", tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
     { id: "listingReview", tab: "listingReview", icon: "▣", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
     { id: "inventory", tab: "inventory", icon: "▤", label: "Inventory", subtitle: `${activeInventoryCards.length} cards`, apply: showActiveInventory },
@@ -1220,14 +1225,14 @@ export default function Home() {
       {loading && <p className="notice">Loading…</p>}
 
       {tab === "add" && (
-        <section className="panel">
+        <section className="panel" id="add-inventory-panel">
           <div className="panelHeader">
             <div>
               <p className="eyebrow">Add Inventory</p>
               <h2>Add a card</h2>
             </div>
           </div>
-          <form className="formGrid simpleForm" onSubmit={saveCard}>
+          <form className="formGrid simpleForm" id="add-inventory-form" onSubmit={saveCard}>
             <Field label="Card/player name" value={activeCard.name} onChange={(v) => setActiveCard({ ...activeCard, name: v })} required />
             <Field label="Category" value={activeCard.category} onChange={(v) => setActiveCard({ ...activeCard, category: v })} placeholder="Sports, Pokemon, MTG..." />
             <Field label="Year" value={activeCard.year} onChange={(v) => setActiveCard({ ...activeCard, year: v })} />
@@ -1798,9 +1803,9 @@ export default function Home() {
       )}
 
       <nav className="bottomMobileNav" aria-label="Mobile dashboard navigation">
-        <button className={tab === "add" ? "active" : ""} type="button" onClick={() => setTab("add")}><span>⌂</span><small>Home</small></button>
+        <button className={tab === "add" ? "active" : ""} type="button" onClick={showAddInventoryForm}><span>⌂</span><small>Home</small></button>
         <button className={tab === "inventory" ? "active" : ""} type="button" onClick={() => setTab("inventory")}><span>▤</span><small>Inventory</small></button>
-        <button className="centerAdd" type="button" onClick={() => setTab("add")}><span>+</span><small>Add</small></button>
+        <button className="centerAdd" type="button" onClick={showAddInventoryForm}><span>+</span><small>Add</small></button>
         <button className={tab === "attention" ? "active" : ""} type="button" onClick={() => setTab("attention")}><span>☆</span><small>Attention</small></button>
         <button className={tab === "profit" ? "active" : ""} type="button" onClick={() => setTab("profit")}><span>•••</span><small>More</small></button>
       </nav>
