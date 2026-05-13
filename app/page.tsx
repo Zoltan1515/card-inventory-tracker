@@ -386,6 +386,7 @@ export default function Home() {
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + card.purchasePrice, 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
     const listedInventoryCost = listedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+    const totalInventoryValue = unlistedInventoryCost + listedInventoryCost;
     const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + card.purchasePrice, 0);
     const expenseBreakdown = expenseCategories.map((category) => {
       const categoryExpenses = filteredExpenses.filter((expense) => expense.category === category);
@@ -396,12 +397,13 @@ export default function Home() {
       };
     });
     const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
-    const profit = revenue - totalInventoryCost - expensesTotal;
+    const profit = revenue - soldInventoryCost - expensesTotal;
     return {
       revenue,
       soldInventoryCost,
       unlistedInventoryCost,
       listedInventoryCost,
+      totalInventoryValue,
       totalInventoryCost,
       inventoryCostCards,
       expensesTotal,
@@ -918,7 +920,8 @@ export default function Home() {
   const exportProfitSummary = () => downloadCsv(profitSummaryToCsv({
     periodLabel: selectedDateLabel,
     revenue: totals.revenue,
-    totalInventoryCost: totals.totalInventoryCost,
+    totalInventoryCost: totals.soldInventoryCost,
+    totalInventoryValue: totals.totalInventoryValue,
     expensesTotal: totals.expensesTotal,
     profit: totals.profit,
     unlistedInventoryCost: totals.unlistedInventoryCost,
@@ -990,7 +993,7 @@ export default function Home() {
 
       {session && (
         <section className="secondaryStatStrip" aria-label="Business stat strip">
-          <button type="button" onClick={() => setTab("profit")}><span>▱</span><small>Inventory Cost</small><strong>{money(totals.totalInventoryCost)}</strong></button>
+          <button type="button" onClick={() => setTab("profit")}><span>▱</span><small>Inventory Value</small><strong>{money(totals.totalInventoryValue)}</strong></button>
           <button type="button" onClick={() => setTab("expenses")}><span>▥</span><small>Expenses</small><strong>{money(totals.expensesTotal)}</strong></button>
           <button type="button" onClick={() => setTab("listingReview")}><span>◇</span><small>Listed Value</small><strong>{money(listedValue)}</strong></button>
           <button type="button" onClick={() => setTab("attention")}><span>☆</span><small>Needs Attention</small><strong>{totalAttentionItems}</strong></button>
@@ -1410,8 +1413,8 @@ export default function Home() {
           <div className="panelHeader">
             <div>
               <p className="eyebrow">Profit</p>
-              <h2>Revenue minus inventory cost and expenses</h2>
-              <p className="muted">Showing {selectedDateLabel.toLowerCase()}.</p>
+              <h2>Sold revenue minus sold inventory cost and expenses</h2>
+              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Profit only counts cards that are already sold; listed and unlisted cards stay in Total Inventory Value.</p>
             </div>
           </div>
           <DateFilterControls
@@ -1425,12 +1428,12 @@ export default function Home() {
           />
           <section className="statsGrid profitGrid" aria-label="Profit totals">
             <Stat label="Revenue from sold cards" value={money(totals.revenue)} />
-            <Stat label="Total inventory cost" value={money(totals.totalInventoryCost)} />
+            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
             <Stat label="Total expenses" value={money(totals.expensesTotal)} />
-            <Stat label="Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
+            <Stat label="Total profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
+            <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             <Stat label="Unlisted inventory" value={money(totals.unlistedInventoryCost)} />
             <Stat label="Listed inventory" value={money(totals.listedInventoryCost)} />
-            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
             <Stat label="Sold cards revenue" value={money(totals.revenue)} />
           </section>
 

@@ -5,6 +5,7 @@ export type ProfitSummaryCsvInput = {
   periodLabel: string;
   revenue: number;
   totalInventoryCost: number;
+  totalInventoryValue: number;
   expensesTotal: number;
   profit: number;
   unlistedInventoryCost: number;
@@ -103,9 +104,10 @@ export const profitSummaryToCsv = (summary: ProfitSummaryCsvInput) => csvRows([
   ["Metric", "Value"],
   ["Reporting Period", summary.periodLabel],
   ["Sold Revenue", summary.revenue],
-  ["Total Inventory Cost", summary.totalInventoryCost],
+  ["Inventory Cost Used In Profit", summary.totalInventoryCost],
   ["Total Expenses", summary.expensesTotal],
-  ["Profit", summary.profit],
+  ["Total Profit", summary.profit],
+  ["Total Inventory Value", summary.totalInventoryValue],
   ["Unlisted Inventory Cost", summary.unlistedInventoryCost],
   ["Listed Inventory Cost", summary.listedInventoryCost],
   ["Sold Inventory Cost", summary.soldInventoryCost],
