@@ -2,6 +2,7 @@ export type CardStatus = "Not Listed" | "Listed" | "Sold";
 
 export type CardRecord = {
   id: string;
+  workspaceId?: string;
   name: string;
   category: string;
   year: string;
@@ -34,6 +35,7 @@ export type ExpenseCategory = "HST" | "Duties" | "Grading Fees" | "Shipping" | "
 
 export type ExpenseRecord = {
   id: string;
+  workspaceId?: string;
   category: ExpenseCategory;
   amount: number;
   expenseDate: string;
@@ -49,6 +51,7 @@ export type GradingSubmissionStatus = "At Grading" | "Returned";
 
 export type GradingSubmission = {
   id: string;
+  workspaceId?: string;
   company: string;
   sentDate: string;
   returnedDate: string;

@@ -97,6 +97,7 @@ const normalizeGradingStatus = (status: string | null | undefined): GradingSubmi
 
 export const rowToCard = (row: CardRow): CardRecord => ({
   id: row.id,
+  workspaceId: row.workspace_id ?? undefined,
   name: row.name,
   category: text(row.category),
   year: text(row.year),
@@ -169,6 +170,7 @@ export const cardToUpdate = (card: CardRecord, includeListingPricing = true, inc
 
 export const rowToExpense = (row: ExpenseRow): ExpenseRecord => ({
   id: row.id,
+  workspaceId: row.workspace_id ?? undefined,
   category: normalizeExpenseCategory(row.category),
   amount: num(row.amount),
   expenseDate: text(row.expense_date),
@@ -201,6 +203,7 @@ export const expenseToUpdate = (expense: ExpenseRecord, includeAudit = true) => 
 });
 export const rowToGradingSubmission = (row: GradingSubmissionRow, cardRows: GradingSubmissionCardRow[] = []): GradingSubmission => ({
   id: row.id,
+  workspaceId: row.workspace_id ?? undefined,
   company: text(row.company),
   sentDate: text(row.sent_date),
   returnedDate: text(row.returned_date),

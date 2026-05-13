@@ -70,6 +70,12 @@ const formatDateTimeLabel = (value: string) => {
   return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 const actorLabel = (value: string, fallback = "Unknown user") => value || fallback;
+const mergeById = <T extends { id: string }>(primary: T[], fallback: T[]) => {
+  const rows = new Map<string, T>();
+  fallback.forEach((item) => rows.set(item.id, item));
+  primary.forEach((item) => rows.set(item.id, item));
+  return Array.from(rows.values());
+};
 const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
   if (mode === "all") return "All time";
   if (mode === "month") return "This month";
@@ -249,21 +255,33 @@ export default function Home() {
       const activeWorkspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
       setWorkspaceId(activeWorkspaceId);
 
-      const cardQuery = supabase.from("cards").select("*").order("created_at", { ascending: false });
-      const expenseQuery = supabase.from("expenses").select("*").order("expense_date", { ascending: false });
-      const gradingQuery = supabase.from("grading_submissions").select("*").order("sent_date", { ascending: false });
-
-      const [cardsResult, expensesResult, gradingResult] = await Promise.all([
-        activeWorkspaceId ? cardQuery.eq("workspace_id", activeWorkspaceId) : cardQuery.eq("user_id", userId),
-        activeWorkspaceId ? expenseQuery.eq("workspace_id", activeWorkspaceId) : expenseQuery.eq("user_id", userId),
-        activeWorkspaceId ? gradingQuery.eq("workspace_id", activeWorkspaceId) : gradingQuery.eq("user_id", userId),
+      const [workspaceCardsResult, userCardsResult, workspaceExpensesResult, userExpensesResult, workspaceGradingResult, userGradingResult] = await Promise.all([
+        activeWorkspaceId
+          ? supabase.from("cards").select("*").eq("workspace_id", activeWorkspaceId).order("created_at", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from("cards").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+        activeWorkspaceId
+          ? supabase.from("expenses").select("*").eq("workspace_id", activeWorkspaceId).order("expense_date", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from("expenses").select("*").eq("user_id", userId).order("expense_date", { ascending: false }),
+        activeWorkspaceId
+          ? supabase.from("grading_submissions").select("*").eq("workspace_id", activeWorkspaceId).order("sent_date", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from("grading_submissions").select("*").eq("user_id", userId).order("sent_date", { ascending: false }),
       ]);
 
-      if (cardsResult.error) setError(cardsResult.error.message);
-      else setCards((cardsResult.data ?? []).map(rowToCard));
+      const cardRows = mergeById(workspaceCardsResult.data ?? [], userCardsResult.data ?? []);
+      if (workspaceCardsResult.error && userCardsResult.error) setError(workspaceCardsResult.error.message || userCardsResult.error.message);
+      else setCards(cardRows.map(rowToCard));
 
-      if (expensesResult.error) setError(`Expenses table needs setup: ${expensesResult.error.message}`);
-      else setExpenses((expensesResult.data ?? []).map(rowToExpense));
+      const expenseRows = mergeById(workspaceExpensesResult.data ?? [], userExpensesResult.data ?? []);
+      if (workspaceExpensesResult.error && userExpensesResult.error) setError(`Expenses table needs setup: ${workspaceExpensesResult.error.message || userExpensesResult.error.message}`);
+      else setExpenses(expenseRows.map(rowToExpense));
+
+      const gradingResult = {
+        data: mergeById(workspaceGradingResult.data ?? [], userGradingResult.data ?? []),
+        error: workspaceGradingResult.error && userGradingResult.error ? workspaceGradingResult.error : null,
+      };
 
       if (gradingResult.error) {
         setGradingSubmissions([]);
@@ -730,14 +748,14 @@ export default function Home() {
         .from("cards")
         .update(cardToUpdate(card))
         .eq("id", card.id);
-      updateQuery = workspaceId ? updateQuery.eq("workspace_id", workspaceId) : updateQuery.eq("user_id", session.user.id);
+      updateQuery = card.workspaceId ? updateQuery.eq("workspace_id", card.workspaceId) : updateQuery.eq("user_id", session.user.id);
       let updateResult = await updateQuery.select("*").single();
       if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
         let legacyAuditQuery = supabase
           .from("cards")
           .update(cardToUpdate(card, true, false))
           .eq("id", card.id);
-        legacyAuditQuery = workspaceId ? legacyAuditQuery.eq("workspace_id", workspaceId) : legacyAuditQuery.eq("user_id", session.user.id);
+        legacyAuditQuery = card.workspaceId ? legacyAuditQuery.eq("workspace_id", card.workspaceId) : legacyAuditQuery.eq("user_id", session.user.id);
         updateResult = await legacyAuditQuery.select("*").single();
         if (!updateResult.error) setNotice("Card updated. Run the audit SQL migration so usernames save to account storage.");
       }
@@ -746,7 +764,7 @@ export default function Home() {
           .from("cards")
           .update(cardToUpdate(card, false, false))
           .eq("id", card.id);
-        legacyUpdateQuery = workspaceId ? legacyUpdateQuery.eq("workspace_id", workspaceId) : legacyUpdateQuery.eq("user_id", session.user.id);
+        legacyUpdateQuery = card.workspaceId ? legacyUpdateQuery.eq("workspace_id", card.workspaceId) : legacyUpdateQuery.eq("user_id", session.user.id);
         updateResult = await legacyUpdateQuery.select("*").single();
         if (!updateResult.error) setNotice("Card updated. Finish account storage setup so listing price/date fields save for both users.");
       }
@@ -770,7 +788,7 @@ export default function Home() {
     }
     if (usingSupabase && supabase && session?.user.id) {
       let deleteQuery = supabase.from("cards").delete().eq("id", card.id);
-      deleteQuery = workspaceId ? deleteQuery.eq("workspace_id", workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      deleteQuery = card.workspaceId ? deleteQuery.eq("workspace_id", card.workspaceId) : deleteQuery.eq("user_id", session.user.id);
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
@@ -900,14 +918,14 @@ export default function Home() {
           .from("expenses")
           .update(expenseToUpdate(expenseToSave))
           .eq("id", expenseToSave.id);
-        updateQuery = workspaceId ? updateQuery.eq("workspace_id", workspaceId) : updateQuery.eq("user_id", session.user.id);
+        updateQuery = expenseToSave.workspaceId ? updateQuery.eq("workspace_id", expenseToSave.workspaceId) : updateQuery.eq("user_id", session.user.id);
         let updateResult = await updateQuery.select("*").single();
         if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
           let legacyExpenseQuery = supabase
             .from("expenses")
             .update(expenseToUpdate(expenseToSave, false))
             .eq("id", expenseToSave.id);
-          legacyExpenseQuery = workspaceId ? legacyExpenseQuery.eq("workspace_id", workspaceId) : legacyExpenseQuery.eq("user_id", session.user.id);
+          legacyExpenseQuery = expenseToSave.workspaceId ? legacyExpenseQuery.eq("workspace_id", expenseToSave.workspaceId) : legacyExpenseQuery.eq("user_id", session.user.id);
           updateResult = await legacyExpenseQuery.select("*").single();
           if (!updateResult.error) setNotice("Expense updated. Run the audit SQL migration so usernames save to account storage.");
         }
@@ -950,18 +968,18 @@ export default function Home() {
     setEditingExpenseId(null);
   };
 
-  const deleteExpense = async (id: string) => {
+  const deleteExpense = async (expense: ExpenseRecord) => {
     setError("");
     if (usingSupabase && supabase && session?.user.id) {
-      let deleteQuery = supabase.from("expenses").delete().eq("id", id);
-      deleteQuery = workspaceId ? deleteQuery.eq("workspace_id", workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      let deleteQuery = supabase.from("expenses").delete().eq("id", expense.id);
+      deleteQuery = expense.workspaceId ? deleteQuery.eq("workspace_id", expense.workspaceId) : deleteQuery.eq("user_id", session.user.id);
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
         return;
       }
     }
-    setExpenses((current) => current.filter((expense) => expense.id !== id));
+    setExpenses((current) => current.filter((expenseRecord) => expenseRecord.id !== expense.id));
   };
 
   const toggleSelectedCard = (cardId: string) => {
@@ -1614,7 +1632,7 @@ export default function Home() {
                 <strong>{money(expense.amount)}</strong>
                 <div className="rowActions">
                   <button className="secondary" type="button" onClick={() => { setActiveExpense(expense); setEditingExpenseId(expense.id); }}>Edit</button>
-                  <button className="danger" type="button" onClick={() => deleteExpense(expense.id)}>Delete</button>
+                  <button className="danger" type="button" onClick={() => deleteExpense(expense)}>Delete</button>
                 </div>
               </article>
             ))}
