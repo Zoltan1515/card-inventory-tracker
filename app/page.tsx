@@ -546,8 +546,17 @@ export default function Home() {
   const activeGradingCardIds = useMemo(() => new Set(openGradingSubmissions.flatMap((submission) => submission.cardIds)), [openGradingSubmissions]);
   const openGradingCardCount = Array.from(activeGradingCardIds).filter((cardId) => cardById.has(cardId)).length;
   const openGradingPurchaseValue = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId)?.purchasePrice ?? 0), 0);
-  const selectedCards = selectedCardIds.map((cardId) => cardById.get(cardId)).filter((card): card is CardRecord => Boolean(card));
+  const selectedCards = selectedCardIds
+    .map((cardId) => cardById.get(cardId))
+    .filter((card): card is CardRecord => Boolean(card))
+    .filter((card) => card.status !== "Sold");
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+  const isSoldInventoryView = statusFilter === "Sold";
+
+  useEffect(() => {
+    if (!isSoldInventoryView) return;
+    setSelectedCardIds([]);
+  }, [isSoldInventoryView]);
 
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
   const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
@@ -951,20 +960,22 @@ export default function Home() {
   };
 
   const toggleSelectedCard = (cardId: string) => {
-    if (activeGradingCardIds.has(cardId)) return;
+    const card = cardById.get(cardId);
+    if (!card || card.status === "Sold" || activeGradingCardIds.has(cardId)) return;
     setSelectedCardIds((current) => current.includes(cardId) ? current.filter((id) => id !== cardId) : [...current, cardId]);
   };
 
-  const selectAllFilteredCards = () => setSelectedCardIds(filteredCards.filter((card) => !activeGradingCardIds.has(card.id)).map((card) => card.id));
+  const selectAllFilteredCards = () => setSelectedCardIds(filteredCards.filter((card) => card.status !== "Sold" && !activeGradingCardIds.has(card.id)).map((card) => card.id));
   const clearSelectedCards = () => setSelectedCardIds([]);
 
   const beginGradingSubmission = () => {
     setError("");
-    if (!selectedCardIds.length) {
-      setError("Select at least one card before creating a grading submission.");
+    if (!selectedCards.length) {
+      setError("Select at least one unsold card before creating a grading submission.");
       return;
     }
-    setGradingDraft({ ...emptyGradingSubmission(), cardIds: selectedCardIds });
+    const submissionCardIds = selectedCards.map((card) => card.id);
+    setGradingDraft({ ...emptyGradingSubmission(), cardIds: submissionCardIds });
     setShowGradingForm(true);
   };
 
@@ -978,7 +989,7 @@ export default function Home() {
       company: gradingDraft.company.trim(),
       reference: gradingDraft.reference.trim(),
       notes: gradingDraft.notes.trim(),
-      cardIds: selectedCardIds,
+      cardIds: selectedCards.map((card) => card.id),
       status: "At Grading",
       returnedDate: "",
       createdAt: gradingDraft.createdAt || now,
@@ -1479,25 +1490,29 @@ export default function Home() {
             </div>
           </section>
 
+          {!isSoldInventoryView && (
           <section className="bulkGradingBar" aria-label="Bulk grading actions">
             <div>
               <p className="eyebrow">Bulk grading</p>
-              <strong>{selectedCardIds.length} selected</strong>
-              {selectedCardIds.length > 0 && <p className="muted">Selected purchase value: {money(selectedPurchaseValue)}</p>}
+              <strong>{selectedCards.length} selected</strong>
+              {selectedCards.length > 0 && <p className="muted">Selected purchase value: {money(selectedPurchaseValue)}</p>}
             </div>
             <div className="rowActions">
-              <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.length}>Select all shown</button>
-              <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCardIds.length}>Clear selected</button>
-              <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCardIds.length}>Send selected to grading</button>
+              <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.some((card) => card.status !== "Sold")}>Select all shown</button>
+              <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCards.length}>Clear selected</button>
+              <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCards.length}>Send selected to grading</button>
             </div>
           </section>
+          )}
 
           <div className="cardsList">
             {filteredCards.map((card) => (
               <article className="cardRow" key={card.id}>
+                {!isSoldInventoryView && (
                 <label className="selectCardBox" aria-label={`Select ${card.name} for grading`}>
-                  <input type="checkbox" checked={selectedCardIds.includes(card.id)} disabled={activeGradingCardIds.has(card.id)} onChange={() => toggleSelectedCard(card.id)} />
+                  <input type="checkbox" checked={selectedCardIds.includes(card.id)} disabled={card.status === "Sold" || activeGradingCardIds.has(card.id)} onChange={() => toggleSelectedCard(card.id)} />
                 </label>
+                )}
                 {card.frontPhotoUrl ? (
                   <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} />
                 ) : (
@@ -1715,7 +1730,7 @@ export default function Home() {
             <div className="panelHeader">
               <div>
                 <p className="eyebrow">Send to grading</p>
-                <h2>{selectedCardIds.length} selected cards</h2>
+                <h2>{selectedCards.length} selected cards</h2>
                 <p className="muted">Purchase value selected: {money(selectedPurchaseValue)}</p>
               </div>
               <button className="secondary" type="button" onClick={() => setShowGradingForm(false)}>Cancel</button>
@@ -1726,7 +1741,7 @@ export default function Home() {
               <Field label="Order / reference" value={gradingDraft.reference} onChange={(v) => setGradingDraft({ ...gradingDraft, reference: v })} placeholder="Optional submission name or order #" />
               <label className="full textareaLabel">Notes<textarea value={gradingDraft.notes} onChange={(e) => setGradingDraft({ ...gradingDraft, notes: e.target.value })} placeholder="Optional notes about this grading order" /></label>
               <div className="calc full">
-                <span>Cards in submission: <strong>{selectedCardIds.length}</strong></span>
+                <span>Cards in submission: <strong>{selectedCards.length}</strong></span>
                 <span>Total purchase value: <strong>{money(selectedPurchaseValue)}</strong></span>
               </div>
               <button className="primary full" type="submit">Create grading submission</button>
