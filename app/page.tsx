@@ -523,7 +523,6 @@ export default function Home() {
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
   const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
   const listedValue = totals.listedCards.reduce((sum, card) => sum + card.askingPrice, 0);
-  const soldInventoryValue = soldInventoryCards.reduce((sum, card) => sum + card.purchasePrice, 0);
   const mostExpensiveSoldCard = totals.soldCards.reduce<CardRecord | null>((best, card) => {
     if (!best) return card;
     return card.soldPrice > best.soldPrice ? card : best;
@@ -533,7 +532,7 @@ export default function Home() {
     { id: "attention", tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
     { id: "listingReview", tab: "listingReview", icon: "▣", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
     { id: "inventory", tab: "inventory", icon: "▤", label: "Inventory", subtitle: `${activeInventoryCards.length} cards`, apply: showActiveInventory },
-    { id: "soldInventory", tab: "inventory", icon: "◆", label: "Sold Inventory", subtitle: `${soldInventoryCards.length} cards • ${money(soldInventoryValue)}`, apply: showSoldInventory },
+    { id: "soldInventory", tab: "inventory", icon: "◆", label: "Sold Inventory", subtitle: `${soldInventoryCards.length} cards`, apply: showSoldInventory },
     { id: "grading", tab: "grading", icon: "▥", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount },
     { id: "expenses", tab: "expenses", icon: "$", label: "Expenses", subtitle: money(totals.expensesTotal) },
     { id: "profit", tab: "profit", icon: "↗", label: "Profit", subtitle: money(totals.profit) },
