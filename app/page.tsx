@@ -8,7 +8,7 @@ import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, gradingSu
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit";
-type DashboardAction = { tab: Tab; icon: string; label: string; subtitle?: string; badge?: number };
+type DashboardAction = { id: string; tab: Tab; icon: string; label: string; subtitle?: string; badge?: number; apply?: () => void };
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
@@ -82,8 +82,8 @@ const daysSince = (isoDate: string) => {
 const listedAgeDate = (card: CardRecord) => card.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate;
 const listedDays = (card: CardRecord) => daysSince(listedAgeDate(card));
 const listingReviewTone = (age: number): ListedReviewItem["tone"] => {
-  if (age >= 30) return "urgent";
-  if (age >= 15) return "warning";
+  if (age >= 60) return "urgent";
+  if (age >= 30) return "warning";
   return "current";
 };
 const dateValue = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() || 0 : 0);
@@ -303,8 +303,10 @@ export default function Home() {
     }
   }, [cards, expenses, gradingSubmissions, loading, usingSupabase]);
 
-  const inventoryCategories = useMemo(() => uniqueSorted(cards.map((card) => card.category)), [cards]);
-  const inventoryPlatforms = useMemo(() => uniqueSorted(cards.map((card) => card.listedPlatform)), [cards]);
+  const activeInventoryCards = useMemo(() => cards.filter((card) => card.status !== "Sold"), [cards]);
+  const soldInventoryCards = useMemo(() => cards.filter((card) => card.status === "Sold"), [cards]);
+  const inventoryCategories = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.category)), [activeInventoryCards]);
+  const inventoryPlatforms = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.listedPlatform)), [activeInventoryCards]);
   const filtersAreActive = Boolean(
     query.trim() ||
     statusFilter !== "All" ||
@@ -325,9 +327,42 @@ export default function Home() {
     setInventorySort("newest-purchase");
   };
 
+  const applyNeedsAttentionFilter = (groupKey: string) => {
+    setQuery("");
+    setCategoryFilter("All");
+    setPlatformFilter("All");
+    setListingUrlFilter("All");
+    setInventorySort("newest-purchase");
+
+    if (groupKey === "missing-photos") {
+      setStatusFilter("All");
+      setPhotoFilter("Missing photo");
+      setNotice("Inventory filtered to cards missing photos.");
+    } else if (groupKey === "unlisted") {
+      setStatusFilter("Not Listed");
+      setPhotoFilter("All");
+      setNotice("Inventory filtered to bought but not listed cards.");
+    }
+
+    setTab("inventory");
+    window.setTimeout(() => document.querySelector(".inventoryFilterPanel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const showActiveInventory = () => {
+    clearInventoryFilters();
+    setTab("inventory");
+  };
+
+  const showSoldInventory = () => {
+    clearInventoryFilters();
+    setStatusFilter("Sold");
+    setTab("inventory");
+  };
+
   const filteredCards = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = cards.filter((card) => {
+    const inventorySource = statusFilter === "Sold" ? soldInventoryCards : activeInventoryCards;
+    const filtered = inventorySource.filter((card) => {
       const matchesStatus = statusFilter === "All" || card.status === statusFilter;
       const matchesCategory = categoryFilter === "All" || card.category === categoryFilter;
       const matchesPlatform = platformFilter === "All" || card.listedPlatform === platformFilter;
@@ -361,7 +396,9 @@ export default function Home() {
           return dateValue(b.purchaseDate) - dateValue(a.purchaseDate);
       }
     });
-  }, [cards, categoryFilter, inventorySort, listingUrlFilter, photoFilter, platformFilter, query, statusFilter]);
+  }, [activeInventoryCards, categoryFilter, inventorySort, listingUrlFilter, photoFilter, platformFilter, query, soldInventoryCards, statusFilter]);
+
+  const inventoryTotalForCurrentView = statusFilter === "Sold" ? soldInventoryCards.length : activeInventoryCards.length;
 
   const dateRange = useMemo(() => {
     if (dateFilterMode === "month") return { start: currentMonthStart(), end: todayIso() };
@@ -421,7 +458,7 @@ export default function Home() {
 
   const attentionGroups = useMemo<AttentionGroup[]>(() => {
     const cardsMissingPhotos = cards
-      .filter((card) => !card.frontPhotoUrl.trim())
+      .filter((card) => card.status !== "Sold" && !card.frontPhotoUrl.trim())
       .map((card) => ({
         id: `photo-${card.id}`,
         recordId: card.id,
@@ -445,7 +482,7 @@ export default function Home() {
     return [
       {
         key: "missing-photos",
-        title: "Cards missing photos",
+        title: "Cards without photos",
         count: cardsMissingPhotos.length,
         description: "Add front photos so cards are easier to recognize and list.",
         items: cardsMissingPhotos,
@@ -486,18 +523,20 @@ export default function Home() {
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
   const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
   const listedValue = totals.listedCards.reduce((sum, card) => sum + card.askingPrice, 0);
+  const soldInventoryValue = soldInventoryCards.reduce((sum, card) => sum + card.purchasePrice, 0);
   const mostExpensiveSoldCard = totals.soldCards.reduce<CardRecord | null>((best, card) => {
     if (!best) return card;
     return card.soldPrice > best.soldPrice ? card : best;
   }, null);
   const dashboardActions: DashboardAction[] = [
-    { tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card" },
-    { tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
-    { tab: "listingReview", icon: "▣", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
-    { tab: "inventory", icon: "▤", label: "Inventory", subtitle: `${cards.length} cards` },
-    { tab: "grading", icon: "▥", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount },
-    { tab: "expenses", icon: "$", label: "Expenses", subtitle: money(totals.expensesTotal) },
-    { tab: "profit", icon: "↗", label: "Profit", subtitle: money(totals.profit) },
+    { id: "add", tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card" },
+    { id: "attention", tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
+    { id: "listingReview", tab: "listingReview", icon: "▣", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
+    { id: "inventory", tab: "inventory", icon: "▤", label: "Inventory", subtitle: `${activeInventoryCards.length} cards`, apply: showActiveInventory },
+    { id: "soldInventory", tab: "inventory", icon: "◆", label: "Sold Inventory", subtitle: `${soldInventoryCards.length} cards • ${money(soldInventoryValue)}`, apply: showSoldInventory },
+    { id: "grading", tab: "grading", icon: "▥", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount },
+    { id: "expenses", tab: "expenses", icon: "$", label: "Expenses", subtitle: money(totals.expensesTotal) },
+    { id: "profit", tab: "profit", icon: "↗", label: "Profit", subtitle: money(totals.profit) },
   ];
 
   const openAttentionItem = (item: AttentionItem) => {
@@ -914,8 +953,8 @@ export default function Home() {
   const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
   const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
-  const exportAllInventory = () => downloadCsv(cardsToCsv(cards), `card-inventory-all-${new Date().toISOString().slice(0, 10)}.csv`);
-  const exportPeriodInventory = () => downloadCsv(cardsToCsv(totals.inventoryCostCards), `card-inventory-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportAllInventory = () => downloadCsv(cardsToCsv(activeInventoryCards), `card-inventory-all-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportPeriodInventory = () => downloadCsv(cardsToCsv([...totals.notListedCards, ...totals.listedCards]), `card-inventory-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportPeriodSales = () => downloadCsv(salesToCsv(totals.soldCards), `card-sales-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportProfitSummary = () => downloadCsv(profitSummaryToCsv({
     periodLabel: selectedDateLabel,
@@ -1007,7 +1046,7 @@ export default function Home() {
         </div>
         <nav className="navBar quickActionGrid" aria-label="Main navigation">
           {dashboardActions.map((action) => (
-            <NavButton active={tab === action.tab} badge={action.badge} icon={action.icon} key={action.tab} onClick={() => setTab(action.tab)} subtitle={action.subtitle}>
+            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} icon={action.icon} key={action.id} onClick={() => action.apply ? action.apply() : setTab(action.tab)} subtitle={action.subtitle}>
               {action.label}
             </NavButton>
           ))}
@@ -1078,7 +1117,7 @@ export default function Home() {
               <h2>{totalAttentionItems ? `${totalAttentionItems} things to review` : "Everything looks caught up"}</h2>
               <p className="muted">Quick list of cards and expenses that need the next business action.</p>
             </div>
-            <button className="secondary" type="button" onClick={() => setTab("inventory")}>Open inventory</button>
+            <button className="secondary" type="button" onClick={showActiveInventory}>Open inventory</button>
           </div>
 
           <section className="attentionStats" aria-label="Needs attention summary">
@@ -1087,10 +1126,7 @@ export default function Home() {
                 className={`attentionStat ${group.count ? "hasItems" : ""}`}
                 disabled={!group.count}
                 key={group.key}
-                onClick={() => {
-                  const element = document.getElementById(`attention-${group.key}`);
-                  element?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
+                onClick={() => applyNeedsAttentionFilter(group.key)}
                 type="button"
               >
                 <span>{group.title}</span>
@@ -1117,14 +1153,14 @@ export default function Home() {
             <div>
               <p className="eyebrow">Listing Review</p>
               <h2>{listingReviewItems.length ? `${listingReviewItems.length} listed cards` : "No listed cards yet"}</h2>
-              <p className="muted">Cards listed 15–29 days are highlighted for review. Cards listed 30+ days are urgent.</p>
+              <p className="muted">Cards listed 30–60 days are highlighted for review. Cards listed 60+ days are urgent.</p>
             </div>
-            <button className="secondary" type="button" onClick={() => setTab("inventory")}>Open inventory</button>
+            <button className="secondary" type="button" onClick={showActiveInventory}>Open inventory</button>
           </div>
           <section className="statsGrid listingReviewStats" aria-label="Listing review summary">
-            <Stat label="Current listings (0–14 days)" value={String(listingReviewCounts.current)} />
-            <Stat label="Review soon (15–29 days)" value={String(listingReviewCounts.warning)} tone={listingReviewCounts.warning ? "warning" : undefined} />
-            <Stat label="Urgent review (30+ days)" value={String(listingReviewCounts.urgent)} tone={listingReviewCounts.urgent ? "negative" : undefined} />
+            <Stat label="Current listings (0–30 days)" value={String(listingReviewCounts.current)} />
+            <Stat label="Review soon (30–60 days)" value={String(listingReviewCounts.warning)} tone={listingReviewCounts.warning ? "warning" : undefined} />
+            <Stat label="Urgent review (60+ days)" value={String(listingReviewCounts.urgent)} tone={listingReviewCounts.urgent ? "negative" : undefined} />
           </section>
           <div className="cardsList listingReviewList">
             {listingReviewItems.map(({ card, age, referenceDate, tone }) => (
@@ -1233,7 +1269,7 @@ export default function Home() {
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Inventory</p>
-              <h2>Showing {filteredCards.length} of {cards.length} cards</h2>
+              <h2>Showing {filteredCards.length} of {inventoryTotalForCurrentView} {statusFilter === "Sold" ? "sold" : "active inventory"} cards</h2>
             </div>
             <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
           </div>
@@ -1435,7 +1471,6 @@ export default function Home() {
             <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             <Stat label="Unlisted inventory" value={money(totals.unlistedInventoryCost)} />
             <Stat label="Listed inventory" value={money(totals.listedInventoryCost)} />
-            <Stat label="Sold cards revenue" value={money(totals.revenue)} />
           </section>
 
           <section className="businessExports" aria-label="Business exports">
@@ -1447,8 +1482,8 @@ export default function Home() {
             <div className="exportActions">
               <button className="secondary" onClick={exportProfitSummary} type="button">Export profit summary</button>
               <button className="secondary" onClick={exportPeriodSales} type="button">Export sales for period ({totals.soldCards.length})</button>
-              <button className="secondary" onClick={exportPeriodInventory} type="button">Export inventory for period ({totals.inventoryCostCards.length})</button>
-              <button className="secondary" onClick={exportAllInventory} type="button">Export all inventory ({cards.length})</button>
+              <button className="secondary" onClick={exportPeriodInventory} type="button">Export inventory for period ({totals.notListedCards.length + totals.listedCards.length})</button>
+              <button className="secondary" onClick={exportAllInventory} type="button">Export all inventory ({activeInventoryCards.length})</button>
             </div>
           </section>
 
