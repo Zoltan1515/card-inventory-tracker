@@ -63,6 +63,13 @@ const formatDateLabel = (date: string) => {
   if (Number.isNaN(parsed.getTime())) return date;
   return parsed.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 };
+const formatDateTimeLabel = (value: string) => {
+  if (!value) return "date not set";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+};
+const actorLabel = (value: string, fallback = "Unknown user") => value || fallback;
 const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
   if (mode === "all") return "All time";
   if (mode === "month") return "This month";
@@ -98,10 +105,25 @@ const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   askingPrice: Number(card.askingPrice ?? 0) || 0,
   lowestAcceptablePrice: Number(card.lowestAcceptablePrice ?? 0) || 0,
   listedDate: card.listedDate || "",
+  listedAt: card.listedAt || "",
+  listedBy: card.listedBy || "",
   purchasePrice: Number(card.purchasePrice ?? 0) || 0,
   soldPrice: Number(card.soldPrice ?? 0) || 0,
+  soldAt: card.soldAt || "",
+  soldBy: card.soldBy || "",
   createdAt: card.createdAt || new Date().toISOString(),
+  createdBy: card.createdBy || "",
   updatedAt: card.updatedAt || new Date().toISOString(),
+  updatedBy: card.updatedBy || "",
+});
+const normalizeStoredExpense = (expense: Partial<ExpenseRecord>): ExpenseRecord => ({
+  ...emptyExpense(),
+  ...expense,
+  amount: Number(expense.amount ?? 0) || 0,
+  createdAt: expense.createdAt || new Date().toISOString(),
+  createdBy: expense.createdBy || "",
+  updatedAt: expense.updatedAt || new Date().toISOString(),
+  updatedBy: expense.updatedBy || "",
 });
 const normalizeStoredGradingSubmission = (submission: Partial<GradingSubmission>): GradingSubmission => ({
   ...emptyGradingSubmission(),
@@ -115,7 +137,10 @@ const normalizeStoredGradingSubmission = (submission: Partial<GradingSubmission>
   notes: submission.notes || "",
   cardIds: Array.isArray(submission.cardIds) ? submission.cardIds : [],
   createdAt: submission.createdAt || new Date().toISOString(),
+  createdBy: submission.createdBy || "",
   updatedAt: submission.updatedAt || new Date().toISOString(),
+  updatedBy: submission.updatedBy || "",
+  returnedBy: submission.returnedBy || "",
 });
 const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord => ({
   ...card,
@@ -126,7 +151,8 @@ const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord 
   salePlatform: status === "Sold" ? card.salePlatform : "",
   updatedAt: new Date().toISOString(),
 });
-const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date|schema cache|column/i.test(message);
+const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date|listed_at|listed_by|schema cache|column/i.test(message);
+const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by|schema cache|column/i.test(message);
 
 
 const sampleCards = (): CardRecord[] => [
@@ -200,6 +226,7 @@ export default function Home() {
   const [topSoldMonth, setTopSoldMonth] = useState(todayIso().slice(0, 7));
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
+  const currentUsername = session?.user.email || "Local user";
 
   useEffect(() => {
     if (!notice) return;
@@ -262,7 +289,7 @@ export default function Home() {
       const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
       const rawGrading = window.localStorage.getItem(GRADING_STORAGE_KEY);
       setCards(rawCards ? JSON.parse(rawCards).map(normalizeStoredCard) : sampleCards());
-      setExpenses(rawExpenses ? JSON.parse(rawExpenses) : []);
+      setExpenses(rawExpenses ? JSON.parse(rawExpenses).map(normalizeStoredExpense) : []);
       setGradingSubmissions(rawGrading ? JSON.parse(rawGrading).map(normalizeStoredGradingSubmission) : []);
       setLoading(false);
       return;
@@ -628,7 +655,17 @@ export default function Home() {
     setError("");
     setNotice("");
 
-    const cardToSave = activeCard.status === "Listed" || activeCard.status === "Sold" ? prepareCardForStatus(activeCard, activeCard.status) : activeCard;
+    const now = new Date().toISOString();
+    const preparedCard = activeCard.status === "Listed" || activeCard.status === "Sold" ? prepareCardForStatus(activeCard, activeCard.status) : activeCard;
+    const cardToSave: CardRecord = {
+      ...preparedCard,
+      createdBy: preparedCard.createdBy || currentUsername,
+      updatedBy: currentUsername,
+      listedAt: preparedCard.status === "Listed" ? preparedCard.listedAt || now : preparedCard.listedAt,
+      listedBy: preparedCard.status === "Listed" ? preparedCard.listedBy || currentUsername : preparedCard.listedBy,
+      soldAt: preparedCard.status === "Sold" ? preparedCard.soldAt || now : preparedCard.soldAt,
+      soldBy: preparedCard.status === "Sold" ? preparedCard.soldBy || currentUsername : preparedCard.soldBy,
+    };
     const validationError = validateCardBusinessRules(cardToSave);
     if (validationError) {
       setError(validationError);
@@ -641,10 +678,18 @@ export default function Home() {
         .insert(cardToInsert(cardToSave, session.user.id, workspaceId))
         .select("*")
         .single();
+      if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, true, false))
+          .select("*")
+          .single();
+        if (!insertResult.error) setNotice("Inventory added. Run the audit SQL migration so usernames save to account storage.");
+      }
       if (insertResult.error && isListingPricingColumnError(insertResult.error.message)) {
         insertResult = await supabase
           .from("cards")
-          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, false))
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, false, false))
           .select("*")
           .single();
         if (!insertResult.error) setNotice("Inventory added. Finish account storage setup so listing price/date fields save for both users.");
@@ -673,10 +718,19 @@ export default function Home() {
         .eq("id", card.id);
       updateQuery = workspaceId ? updateQuery.eq("workspace_id", workspaceId) : updateQuery.eq("user_id", session.user.id);
       let updateResult = await updateQuery.select("*").single();
+      if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
+        let legacyAuditQuery = supabase
+          .from("cards")
+          .update(cardToUpdate(card, true, false))
+          .eq("id", card.id);
+        legacyAuditQuery = workspaceId ? legacyAuditQuery.eq("workspace_id", workspaceId) : legacyAuditQuery.eq("user_id", session.user.id);
+        updateResult = await legacyAuditQuery.select("*").single();
+        if (!updateResult.error) setNotice("Card updated. Run the audit SQL migration so usernames save to account storage.");
+      }
       if (updateResult.error && isListingPricingColumnError(updateResult.error.message)) {
         let legacyUpdateQuery = supabase
           .from("cards")
-          .update(cardToUpdate(card, false))
+          .update(cardToUpdate(card, false, false))
           .eq("id", card.id);
         legacyUpdateQuery = workspaceId ? legacyUpdateQuery.eq("workspace_id", workspaceId) : legacyUpdateQuery.eq("user_id", session.user.id);
         updateResult = await legacyUpdateQuery.select("*").single();
@@ -694,10 +748,14 @@ export default function Home() {
     return true;
   };
 
-  const deleteCard = async (id: string) => {
+  const deleteCard = async (card: CardRecord) => {
     setError("");
+    if (card.status === "Sold") {
+      setError("Sold cards cannot be deleted. They are kept as sales history for profit and audit records.");
+      return;
+    }
     if (usingSupabase && supabase && session?.user.id) {
-      let deleteQuery = supabase.from("cards").delete().eq("id", id);
+      let deleteQuery = supabase.from("cards").delete().eq("id", card.id);
       deleteQuery = workspaceId ? deleteQuery.eq("workspace_id", workspaceId) : deleteQuery.eq("user_id", session.user.id);
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
@@ -705,11 +763,20 @@ export default function Home() {
         return;
       }
     }
-    setCards((current) => current.filter((card) => card.id !== id));
+    setCards((current) => current.filter((item) => item.id !== card.id));
   };
 
   const changeCardStatus = async (card: CardRecord, status: CardStatus) => {
-    const nextCard = prepareCardForStatus(card, status);
+    const now = new Date().toISOString();
+    const preparedCard = prepareCardForStatus(card, status);
+    const nextCard: CardRecord = {
+      ...preparedCard,
+      updatedBy: currentUsername,
+      listedAt: status === "Listed" && card.status !== "Listed" ? now : preparedCard.listedAt,
+      listedBy: status === "Listed" && card.status !== "Listed" ? currentUsername : preparedCard.listedBy,
+      soldAt: status === "Sold" && card.status !== "Sold" ? now : preparedCard.soldAt,
+      soldBy: status === "Sold" && card.status !== "Sold" ? currentUsername : preparedCard.soldBy,
+    };
 
     if (status === "Listed") {
       const validationError = validateCardBusinessRules(nextCard);
@@ -734,7 +801,17 @@ export default function Home() {
   };
 
   const updateListingInfo = async (card: CardRecord, updates: Partial<Pick<CardRecord, "listedPlatform" | "listingUrl" | "askingPrice" | "lowestAcceptablePrice" | "listedDate">>) => {
-    const nextCard = { ...card, ...updates, status: "Listed" as const, listedDate: updates.listedDate ?? (card.listedDate || todayIso()), updatedAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const nextCard = {
+      ...card,
+      ...updates,
+      status: "Listed" as const,
+      listedDate: updates.listedDate ?? (card.listedDate || todayIso()),
+      listedAt: card.status !== "Listed" ? now : card.listedAt,
+      listedBy: card.status !== "Listed" ? currentUsername : card.listedBy,
+      updatedAt: now,
+      updatedBy: currentUsername,
+    };
     const validationError = validateCardBusinessRules(nextCard);
     if (validationError) {
       setError(validationError);
@@ -747,7 +824,7 @@ export default function Home() {
   const saveEditedCard = async (event: FormEvent) => {
     event.preventDefault();
     if (!editingCard?.name.trim()) return;
-    const nextCard = { ...editingCard, updatedAt: new Date().toISOString() };
+    const nextCard = { ...editingCard, updatedAt: new Date().toISOString(), updatedBy: currentUsername };
     const validationError = validateCardBusinessRules(nextCard);
     if (validationError) {
       setError(validationError);
@@ -763,10 +840,14 @@ export default function Home() {
   const saveSale = async (event: FormEvent) => {
     event.preventDefault();
     if (!sellingCard) return;
+    const now = new Date().toISOString();
     const soldCard = {
       ...sellingCard,
       status: "Sold" as const,
-      updatedAt: new Date().toISOString(),
+      soldAt: sellingCard.soldAt || now,
+      soldBy: sellingCard.soldBy || currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
     };
     const validationError = validateCardBusinessRules(soldCard);
     if (validationError) {
@@ -785,7 +866,15 @@ export default function Home() {
     event.preventDefault();
     setError("");
     setNotice("");
-    const validationError = validateExpenseBusinessRules(activeExpense);
+    const now = new Date().toISOString();
+    const expenseToSave: ExpenseRecord = {
+      ...activeExpense,
+      createdAt: activeExpense.createdAt || now,
+      createdBy: activeExpense.createdBy || currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
+    };
+    const validationError = validateExpenseBusinessRules(expenseToSave);
     if (validationError) {
       setError(validationError);
       return;
@@ -795,21 +884,40 @@ export default function Home() {
       if (editingExpenseId) {
         let updateQuery = supabase
           .from("expenses")
-          .update(expenseToUpdate(activeExpense))
-          .eq("id", activeExpense.id);
+          .update(expenseToUpdate(expenseToSave))
+          .eq("id", expenseToSave.id);
         updateQuery = workspaceId ? updateQuery.eq("workspace_id", workspaceId) : updateQuery.eq("user_id", session.user.id);
-        const { data, error: updateError } = await updateQuery.select("*").single();
+        let updateResult = await updateQuery.select("*").single();
+        if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
+          let legacyExpenseQuery = supabase
+            .from("expenses")
+            .update(expenseToUpdate(expenseToSave, false))
+            .eq("id", expenseToSave.id);
+          legacyExpenseQuery = workspaceId ? legacyExpenseQuery.eq("workspace_id", workspaceId) : legacyExpenseQuery.eq("user_id", session.user.id);
+          updateResult = await legacyExpenseQuery.select("*").single();
+          if (!updateResult.error) setNotice("Expense updated. Run the audit SQL migration so usernames save to account storage.");
+        }
+        const { data, error: updateError } = updateResult;
         if (updateError) {
           setError(updateError.message);
           return;
         }
         setExpenses((current) => current.map((expense) => (expense.id === activeExpense.id ? rowToExpense(data) : expense)));
       } else {
-        const { data, error: insertError } = await supabase
+        let insertResult = await supabase
           .from("expenses")
-          .insert(expenseToInsert(activeExpense, session.user.id, workspaceId))
+          .insert(expenseToInsert(expenseToSave, session.user.id, workspaceId))
           .select("*")
           .single();
+        if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+          insertResult = await supabase
+            .from("expenses")
+            .insert(expenseToInsert(expenseToSave, session.user.id, workspaceId, false))
+            .select("*")
+            .single();
+          if (!insertResult.error) setNotice("Expense saved. Run the audit SQL migration so usernames save to account storage.");
+        }
+        const { data, error: insertError } = insertResult;
         if (insertError) {
           setError(insertError.message);
           return;
@@ -818,8 +926,8 @@ export default function Home() {
       }
     } else {
       setExpenses((current) => {
-        const exists = current.some((expense) => expense.id === activeExpense.id);
-        return exists ? current.map((expense) => (expense.id === activeExpense.id ? activeExpense : expense)) : [{ ...activeExpense, id: crypto.randomUUID() }, ...current];
+        const exists = current.some((expense) => expense.id === expenseToSave.id);
+        return exists ? current.map((expense) => (expense.id === expenseToSave.id ? expenseToSave : expense)) : [{ ...expenseToSave, id: crypto.randomUUID() }, ...current];
       });
     }
 
@@ -864,6 +972,7 @@ export default function Home() {
     event.preventDefault();
     setError("");
     setNotice("");
+    const now = new Date().toISOString();
     const submission: GradingSubmission = {
       ...gradingDraft,
       company: gradingDraft.company.trim(),
@@ -872,7 +981,10 @@ export default function Home() {
       cardIds: selectedCardIds,
       status: "At Grading",
       returnedDate: "",
-      updatedAt: new Date().toISOString(),
+      createdAt: gradingDraft.createdAt || now,
+      createdBy: gradingDraft.createdBy || currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
     };
 
     if (!submission.company) {
@@ -889,11 +1001,20 @@ export default function Home() {
     }
 
     if (usingSupabase && supabase && session?.user.id) {
-      const { data, error: insertError } = await supabase
+      let insertResult = await supabase
         .from("grading_submissions")
         .insert(gradingSubmissionToInsert(submission, session.user.id, workspaceId))
         .select("*")
         .single();
+      if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("grading_submissions")
+          .insert(gradingSubmissionToInsert(submission, session.user.id, workspaceId, false))
+          .select("*")
+          .single();
+        if (!insertResult.error) setNotice("Grading submission saved. Run the audit SQL migration so usernames save to account storage.");
+      }
+      const { data, error: insertError } = insertResult;
       if (insertError) {
         setNotice("Grading submission saved locally for now. Run the pending grading SQL migration so it saves to account storage.");
         setGradingSubmissions((current) => [submission, ...current]);
@@ -928,20 +1049,33 @@ export default function Home() {
       setError("Add the return date before marking the submission returned.");
       return;
     }
+    const now = new Date().toISOString();
     const returnedSubmission: GradingSubmission = {
       ...returningSubmission,
       status: "Returned",
       returnedDate: returnDate,
-      updatedAt: new Date().toISOString(),
+      updatedAt: now,
+      updatedBy: currentUsername,
+      returnedBy: currentUsername,
     };
 
     if (usingSupabase && supabase && session?.user.id) {
-      const { data, error: updateError } = await supabase
+      let updateResult = await supabase
         .from("grading_submissions")
         .update(gradingSubmissionToUpdate(returnedSubmission))
         .eq("id", returnedSubmission.id)
         .select("*")
         .single();
+      if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
+        updateResult = await supabase
+          .from("grading_submissions")
+          .update(gradingSubmissionToUpdate(returnedSubmission, false))
+          .eq("id", returnedSubmission.id)
+          .select("*")
+          .single();
+        if (!updateResult.error) setNotice("Marked returned. Run the audit SQL migration so usernames save to account storage.");
+      }
+      const { data, error: updateError } = updateResult;
       if (updateError) {
         setNotice("Marked returned locally for now. Run the pending grading SQL migration so returns save to account storage.");
         setGradingSubmissions((current) => current.map((submission) => submission.id === returnedSubmission.id ? returnedSubmission : submission));
@@ -1242,6 +1376,7 @@ export default function Home() {
                             <span className={`statusBadge ${submission.status === "Returned" ? "sold" : "notlisted"}`}>{submission.status}</span>
                           </div>
                           <p className="muted">{submission.company} • Sent {formatDateLabel(submission.sentDate)}{submission.returnedDate ? ` • Returned ${formatDateLabel(submission.returnedDate)}` : ""}</p>
+                          <p className="muted auditTrail">Submitted {formatDateTimeLabel(submission.createdAt)} by {actorLabel(submission.createdBy, currentUsername)}{submission.status === "Returned" ? ` • Marked returned ${formatDateTimeLabel(submission.updatedAt)} by ${actorLabel(submission.returnedBy || submission.updatedBy, currentUsername)}` : ""}</p>
                         </div>
                         <div className="rowMoney">
                           <span>{money(gradingPurchaseValue(submission))}</span>
@@ -1372,6 +1507,7 @@ export default function Home() {
                   <div className="rowTitle"><strong>{card.name}</strong><span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{card.status}</span></div>
                   <p>{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}</p>
                   <p className="muted">{card.status === "Sold" ? `Sold on ${card.salePlatform || "unknown platform"} for ${money(card.soldPrice)}` : card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}${listedDays(card) !== null ? ` for ${listedDays(card)} days` : ""}` : "Not listed yet"}</p>
+                  <p className="muted auditTrail">Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}{card.status === "Listed" && ` • Listed ${formatDateTimeLabel(card.listedAt || card.updatedAt)} by ${actorLabel(card.listedBy || card.updatedBy, currentUsername)}`}{card.status === "Sold" && ` • Sold ${formatDateTimeLabel(card.soldAt || card.updatedAt)} by ${actorLabel(card.soldBy || card.updatedBy, currentUsername)}`}</p>
                   {card.status === "Listed" && (
                     <p className="muted">
                       Asking {money(card.askingPrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
@@ -1402,7 +1538,7 @@ export default function Home() {
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
                   <button className="secondary" onClick={() => setSellingCard({ ...card, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Enter sale</button>
-                  <button className="danger" onClick={() => deleteCard(card.id)} type="button">Delete</button>
+                  {card.status !== "Sold" && <button className="danger" onClick={() => deleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
             ))}
@@ -1452,6 +1588,7 @@ export default function Home() {
                   <div className="rowTitle"><strong>{expense.category}</strong></div>
                   <p>{expense.description || "No description"}</p>
                   <p className="muted">Vendor/source: {expense.vendor || "Not entered"}</p>
+                  <p className="muted auditTrail">Added {formatDateTimeLabel(expense.createdAt)} by {actorLabel(expense.createdBy, currentUsername)}{expense.updatedAt !== expense.createdAt ? ` • Updated ${formatDateTimeLabel(expense.updatedAt)} by ${actorLabel(expense.updatedBy, currentUsername)}` : ""}</p>
                 </div>
                 <span>{expense.expenseDate}</span>
                 <strong>{money(expense.amount)}</strong>

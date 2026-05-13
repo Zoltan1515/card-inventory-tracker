@@ -15,15 +15,21 @@ type CardRow = {
   asking_price?: number | string | null;
   lowest_acceptable_price?: number | string | null;
   listed_date?: string | null;
+  listed_at?: string | null;
+  listed_by?: string | null;
   front_photo_url: string | null;
   purchase_date: string | null;
   purchase_price: number | string | null;
   sale_date: string | null;
   sale_platform: string | null;
   sold_price: number | string | null;
+  sold_at?: string | null;
+  sold_by?: string | null;
   notes: string | null;
   created_at: string | null;
+  created_by?: string | null;
   updated_at: string | null;
+  updated_by?: string | null;
 };
 
 type ExpenseRow = {
@@ -36,7 +42,9 @@ type ExpenseRow = {
   description: string | null;
   vendor: string | null;
   created_at: string | null;
+  created_by?: string | null;
   updated_at: string | null;
+  updated_by?: string | null;
 };
 
 type GradingSubmissionRow = {
@@ -50,7 +58,10 @@ type GradingSubmissionRow = {
   reference: string | null;
   notes: string | null;
   created_at: string | null;
+  created_by?: string | null;
   updated_at: string | null;
+  updated_by?: string | null;
+  returned_by?: string | null;
 };
 
 type GradingSubmissionCardRow = {
@@ -97,18 +108,24 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   askingPrice: num(row.asking_price),
   lowestAcceptablePrice: num(row.lowest_acceptable_price),
   listedDate: text(row.listed_date),
+  listedAt: text(row.listed_at),
+  listedBy: text(row.listed_by),
   frontPhotoUrl: text(row.front_photo_url),
   purchaseDate: text(row.purchase_date),
   purchasePrice: num(row.purchase_price),
   saleDate: text(row.sale_date),
   salePlatform: text(row.sale_platform),
   soldPrice: num(row.sold_price),
+  soldAt: text(row.sold_at),
+  soldBy: text(row.sold_by),
   notes: text(row.notes),
   createdAt: row.created_at ?? new Date().toISOString(),
+  createdBy: text(row.created_by),
   updatedAt: row.updated_at ?? new Date().toISOString(),
+  updatedBy: text(row.updated_by),
 });
 
-export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true) => ({
+export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true, includeAudit = true) => ({
   user_id: userId,
   ...(workspaceId ? { workspace_id: workspaceId } : {}),
   name: card.name,
@@ -126,10 +143,11 @@ export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: str
   sale_date: dateOrNull(card.saleDate),
   sale_platform: card.salePlatform,
   sold_price: card.soldPrice,
+  ...(includeAudit ? { listed_at: dateOrNull(card.listedAt), listed_by: card.listedBy, sold_at: dateOrNull(card.soldAt), sold_by: card.soldBy, created_by: card.createdBy, updated_by: card.updatedBy } : {}),
   notes: card.notes,
 });
 
-export const cardToUpdate = (card: CardRecord, includeListingPricing = true) => ({
+export const cardToUpdate = (card: CardRecord, includeListingPricing = true, includeAudit = true) => ({
   name: card.name,
   category: card.category,
   year: card.year,
@@ -145,6 +163,7 @@ export const cardToUpdate = (card: CardRecord, includeListingPricing = true) => 
   sale_date: dateOrNull(card.saleDate),
   sale_platform: card.salePlatform,
   sold_price: card.soldPrice,
+  ...(includeAudit ? { listed_at: dateOrNull(card.listedAt), listed_by: card.listedBy, sold_at: dateOrNull(card.soldAt), sold_by: card.soldBy, updated_by: card.updatedBy } : {}),
   notes: card.notes,
 });
 
@@ -156,10 +175,12 @@ export const rowToExpense = (row: ExpenseRow): ExpenseRecord => ({
   description: text(row.description),
   vendor: text(row.vendor),
   createdAt: row.created_at ?? new Date().toISOString(),
+  createdBy: text(row.created_by),
   updatedAt: row.updated_at ?? new Date().toISOString(),
+  updatedBy: text(row.updated_by),
 });
 
-export const expenseToInsert = (expense: ExpenseRecord, userId: string, workspaceId?: string | null) => ({
+export const expenseToInsert = (expense: ExpenseRecord, userId: string, workspaceId?: string | null, includeAudit = true) => ({
   user_id: userId,
   ...(workspaceId ? { workspace_id: workspaceId } : {}),
   category: expense.category,
@@ -167,14 +188,16 @@ export const expenseToInsert = (expense: ExpenseRecord, userId: string, workspac
   expense_date: dateOrNull(expense.expenseDate),
   description: expense.description,
   vendor: expense.vendor,
+  ...(includeAudit ? { created_by: expense.createdBy, updated_by: expense.updatedBy } : {}),
 });
 
-export const expenseToUpdate = (expense: ExpenseRecord) => ({
+export const expenseToUpdate = (expense: ExpenseRecord, includeAudit = true) => ({
   category: expense.category,
   amount: expense.amount,
   expense_date: dateOrNull(expense.expenseDate),
   description: expense.description,
   vendor: expense.vendor,
+  ...(includeAudit ? { updated_by: expense.updatedBy } : {}),
 });
 export const rowToGradingSubmission = (row: GradingSubmissionRow, cardRows: GradingSubmissionCardRow[] = []): GradingSubmission => ({
   id: row.id,
@@ -186,10 +209,13 @@ export const rowToGradingSubmission = (row: GradingSubmissionRow, cardRows: Grad
   notes: text(row.notes),
   cardIds: cardRows.filter((item) => item.submission_id === row.id).map((item) => item.card_id),
   createdAt: row.created_at ?? new Date().toISOString(),
+  createdBy: text(row.created_by),
   updatedAt: row.updated_at ?? new Date().toISOString(),
+  updatedBy: text(row.updated_by),
+  returnedBy: text(row.returned_by),
 });
 
-export const gradingSubmissionToInsert = (submission: GradingSubmission, userId: string, workspaceId?: string | null) => ({
+export const gradingSubmissionToInsert = (submission: GradingSubmission, userId: string, workspaceId?: string | null, includeAudit = true) => ({
   id: submission.id,
   user_id: userId,
   ...(workspaceId ? { workspace_id: workspaceId } : {}),
@@ -199,15 +225,17 @@ export const gradingSubmissionToInsert = (submission: GradingSubmission, userId:
   status: submission.status,
   reference: submission.reference,
   notes: submission.notes,
+  ...(includeAudit ? { created_by: submission.createdBy, updated_by: submission.updatedBy, returned_by: submission.returnedBy } : {}),
 });
 
-export const gradingSubmissionToUpdate = (submission: GradingSubmission) => ({
+export const gradingSubmissionToUpdate = (submission: GradingSubmission, includeAudit = true) => ({
   company: submission.company,
   sent_date: dateOrNull(submission.sentDate),
   returned_date: dateOrNull(submission.returnedDate),
   status: submission.status,
   reference: submission.reference,
   notes: submission.notes,
+  ...(includeAudit ? { updated_by: submission.updatedBy, returned_by: submission.returnedBy } : {}),
   updated_at: new Date().toISOString(),
 });
 

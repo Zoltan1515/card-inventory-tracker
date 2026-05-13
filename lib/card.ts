@@ -13,15 +13,21 @@ export type CardRecord = {
   askingPrice: number;
   lowestAcceptablePrice: number;
   listedDate: string;
+  listedAt: string;
+  listedBy: string;
   frontPhotoUrl: string;
   purchaseDate: string;
   purchasePrice: number;
   saleDate: string;
   salePlatform: string;
   soldPrice: number;
+  soldAt: string;
+  soldBy: string;
   notes: string;
   createdAt: string;
+  createdBy: string;
   updatedAt: string;
+  updatedBy: string;
 };
 
 export type ExpenseCategory = "HST" | "Duties" | "Grading Fees" | "Shipping" | "Card Show Table" | "Supplies" | "Gas" | "Airfare" | "Other";
@@ -34,7 +40,9 @@ export type ExpenseRecord = {
   description: string;
   vendor: string;
   createdAt: string;
+  createdBy: string;
   updatedAt: string;
+  updatedBy: string;
 };
 
 export type GradingSubmissionStatus = "At Grading" | "Returned";
@@ -49,7 +57,10 @@ export type GradingSubmission = {
   notes: string;
   cardIds: string[];
   createdAt: string;
+  createdBy: string;
   updatedAt: string;
+  updatedBy: string;
+  returnedBy: string;
 };
 
 export const emptyCard = (): CardRecord => {
@@ -67,15 +78,21 @@ export const emptyCard = (): CardRecord => {
     askingPrice: 0,
     lowestAcceptablePrice: 0,
     listedDate: "",
+    listedAt: "",
+    listedBy: "",
     frontPhotoUrl: "",
     purchaseDate: new Date().toISOString().slice(0, 10),
     purchasePrice: 0,
     saleDate: "",
     salePlatform: "",
     soldPrice: 0,
+    soldAt: "",
+    soldBy: "",
     notes: "",
     createdAt: now,
+    createdBy: "",
     updatedAt: now,
+    updatedBy: "",
   };
 };
 
@@ -89,7 +106,9 @@ export const emptyExpense = (): ExpenseRecord => {
     description: "",
     vendor: "",
     createdAt: now,
+    createdBy: "",
     updatedAt: now,
+    updatedBy: "",
   };
 };
 
@@ -105,7 +124,10 @@ export const emptyGradingSubmission = (): GradingSubmission => {
     notes: "",
     cardIds: [],
     createdAt: now,
+    createdBy: "",
     updatedAt: now,
+    updatedBy: "",
+    returnedBy: "",
   };
 };
 

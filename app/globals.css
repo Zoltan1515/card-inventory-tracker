@@ -174,6 +174,7 @@ textarea { min-height: 90px; resize: vertical; }
 .rowMoney { display: grid; gap: 4px; justify-items: end; min-width: 120px; }
 .rowMoney span { font-weight: 900; font-size: 1.15rem; }
 .rowMoney small, .muted { color: var(--muted); }
+.auditTrail { font-size: .78rem; line-height: 1.35; }
 .rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .profitSections { display: grid; gap: 18px; }
 .profitStatusSection { border: 1px solid var(--line); border-radius: 18px; padding: 18px; background: rgba(15,23,42,.42); }
