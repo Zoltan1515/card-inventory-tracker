@@ -967,6 +967,7 @@ export default function Home() {
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Cards" value={String(cards.length)} />
               <Stat label="Total Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
+              <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
           </div>
           <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} sold for ${money(mostExpensiveSoldCard.soldPrice)}` : "Top sold card placeholder"}>
