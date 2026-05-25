@@ -1847,7 +1847,7 @@ export default function Home() {
 
           <div className="cardsList">
             {filteredCards.map((card) => (
-              <article className="cardRow" key={card.id}>
+              <article className={`cardRow ${isSoldInventoryView ? "noSelectCardRow" : ""} ${card.status === "Sold" ? "soldCardRow" : ""}`} key={card.id}>
                 {!isSoldInventoryView && (
                 <label className="selectCardBox" aria-label={`Select ${card.name} for grading`}>
                   <input type="checkbox" checked={selectedCardIds.includes(card.id)} disabled={card.status === "Sold" || activeGradingCardIds.has(card.id)} onChange={() => toggleSelectedCard(card.id)} />
@@ -1858,11 +1858,37 @@ export default function Home() {
                 ) : (
                   <div className="cardThumb placeholderThumb">No photo</div>
                 )}
-                <div>
+                <div className="cardInfo">
                   <div className="rowTitle"><strong>{card.name}</strong><span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{card.status}</span></div>
-                  <p>{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}</p>
-                  <p className="muted">{card.status === "Sold" ? `Sold on ${card.salePlatform || "unknown platform"} for ${money(card.soldPrice)}` : card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}${listedDays(card) !== null ? ` for ${listedDays(card)} days` : ""}` : "Not listed yet"}</p>
-                  <p className="muted auditTrail">Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}{card.status === "Listed" && ` • Listed ${formatDateTimeLabel(card.listedAt || card.updatedAt)} by ${actorLabel(card.listedBy || card.updatedBy, currentUsername)}`}{card.status === "Sold" && ` • Sold ${formatDateTimeLabel(card.soldAt || card.updatedAt)} by ${actorLabel(card.soldBy || card.updatedBy, currentUsername)}`}</p>
+                  <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}</p>
+                  {card.status === "Sold" ? (
+                    <>
+                      <div className="saleSnapshot" aria-label={`Sold for ${money(card.soldPrice)} on ${card.salePlatform || "unknown platform"}`}>
+                        <div>
+                          <small>Sold price</small>
+                          <strong>{money(card.soldPrice)}</strong>
+                        </div>
+                        <div>
+                          <small>Sold date</small>
+                          <strong>{formatDateLabel(card.saleDate) || formatDateTimeLabel(card.soldAt || card.updatedAt)}</strong>
+                        </div>
+                        <div>
+                          <small>Platform</small>
+                          <strong>{card.salePlatform || "Unknown"}</strong>
+                        </div>
+                      </div>
+                      <div className="cardDetailChips" aria-label="Saved card details">
+                        <span>Cost {money(card.purchasePrice)}</span>
+                        <span>Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}</span>
+                        <span>Sold by {actorLabel(card.soldBy || card.updatedBy, currentUsername)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="muted">{card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}${listedDays(card) !== null ? ` for ${listedDays(card)} days` : ""}` : "Not listed yet"}</p>
+                      <p className="muted auditTrail">Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}{card.status === "Listed" && ` • Listed ${formatDateTimeLabel(card.listedAt || card.updatedAt)} by ${actorLabel(card.listedBy || card.updatedBy, currentUsername)}`}</p>
+                    </>
+                  )}
                   {card.status === "Listed" && (
                     <p className="muted">
                       Asking {money(card.askingPrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
@@ -1871,8 +1897,8 @@ export default function Home() {
                   {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
                 </div>
                 <div className="rowMoney">
-                  <span>{money(card.purchasePrice)}</span>
-                  <small>purchase price</small>
+                  <span>{money(card.status === "Sold" ? card.soldPrice : card.purchasePrice)}</span>
+                  <small>{card.status === "Sold" ? "sold price" : "purchase price"}</small>
                 </div>
                 <div className="inventoryControls">
                   <label className="miniLabel">Status
