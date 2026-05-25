@@ -1880,7 +1880,7 @@ export default function Home() {
                       <div className="cardDetailChips" aria-label="Saved card details">
                         <span>Cost {money(card.purchasePrice)}</span>
                         <span>Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}</span>
-                        <span>Sold by {actorLabel(card.soldBy || card.updatedBy, currentUsername)}</span>
+                        <span>Sold {formatDateTimeLabel(card.soldAt || card.updatedAt)} by {actorLabel(card.soldBy || card.updatedBy, currentUsername)}</span>
                       </div>
                     </>
                   ) : (
