@@ -41,7 +41,14 @@ type ListedReviewItem = {
   referenceDate: string;
   tone: "current" | "warning" | "urgent";
 };
-
+type ImportCardPreview = {
+  id: string;
+  sourceRow: number;
+  card: CardRecord;
+  selected: boolean;
+  warnings: string[];
+};
+type CsvRow = Record<string, string>;
 
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
@@ -184,6 +191,118 @@ const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord 
 const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date|listed_at|listed_by|schema cache|column/i.test(message);
 const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by|schema cache|column/i.test(message);
 
+const csvValue = (row: CsvRow, aliases: string[]) => {
+  for (const alias of aliases) {
+    const value = row[normalizeCsvHeader(alias)];
+    if (value?.trim()) return value.trim();
+  }
+  return "";
+};
+const normalizeCsvHeader = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "");
+const parseCsvText = (text: string) => {
+  const rows: string[][] = [];
+  let field = "";
+  let row: string[] = [];
+  let quoted = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+    if (char === '"') {
+      if (quoted && next === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      row.push(field);
+      field = "";
+    } else if ((char === "\n" || char === "\r") && !quoted) {
+      if (char === "\r" && next === "\n") index += 1;
+      row.push(field);
+      if (row.some((cell) => cell.trim())) rows.push(row);
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+
+  row.push(field);
+  if (row.some((cell) => cell.trim())) rows.push(row);
+  if (rows.length < 2) return [];
+
+  const headers = rows[0].map(normalizeCsvHeader);
+  return rows.slice(1).map((cells) => headers.reduce<CsvRow>((record, header, index) => {
+    if (header) record[header] = cells[index]?.trim() ?? "";
+    return record;
+  }, {}));
+};
+const parseImportedMoney = (value: string) => Number(value.replace(/[$,]/g, "")) || 0;
+const normalizeImportedStatus = (value: string): CardStatus => {
+  const normalized = value.trim().toLowerCase();
+  if (["sold", "shipped", "complete", "completed"].includes(normalized)) return "Sold";
+  if (["listed", "active", "for sale", "forsale"].includes(normalized)) return "Listed";
+  return "Not Listed";
+};
+const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview | null => {
+  const name = csvValue(row, ["card/player name", "card name", "player", "name", "title", "item title", "product name", "card"]);
+  const setName = csvValue(row, ["set", "set name", "brand", "product", "series"]);
+  const year = csvValue(row, ["year", "season"]);
+  const cardNumber = csvValue(row, ["card #", "card number", "number", "no", "card no"]);
+  const purchasePrice = parseImportedMoney(csvValue(row, ["purchase price", "price paid", "paid", "buy price", "cost", "amount", "total"]));
+  const askingPrice = parseImportedMoney(csvValue(row, ["asking price", "list price", "listing price", "listed price", "sale price"]));
+  const soldPrice = parseImportedMoney(csvValue(row, ["sold price", "sold for", "final sale price"]));
+  const status = normalizeImportedStatus(csvValue(row, ["status", "state"]));
+  const listedPlatform = csvValue(row, ["listed platform", "platform", "marketplace", "listed where"]);
+  const salePlatform = csvValue(row, ["sale platform", "sold platform", "sold where"]);
+  const purchaseDate = csvValue(row, ["purchase date", "date bought", "bought date", "date purchased", "order date", "date"]) || todayIso();
+  const listedDate = csvValue(row, ["listed date", "date listed"]);
+  const saleDate = csvValue(row, ["sale date", "sold date", "date sold"]);
+  const notes = csvValue(row, ["notes", "note", "description", "condition"]);
+  const category = csvValue(row, ["category", "sport", "type", "game"]) || "Sports";
+  const listingUrl = csvValue(row, ["listing url", "url", "link"]);
+  const frontPhotoUrl = csvValue(row, ["front photo url", "photo url", "image", "image url", "picture"]);
+  const hasAnyCardDetail = [name, setName, year, cardNumber, notes].some(Boolean);
+  if (!hasAnyCardDetail) return null;
+
+  const importedStatus: CardStatus = soldPrice > 0 ? "Sold" : askingPrice > 0 || listedPlatform || listingUrl ? "Listed" : status;
+  const now = new Date().toISOString();
+  const card: CardRecord = {
+    ...emptyCard(),
+    id: crypto.randomUUID(),
+    name: name || [year, setName, cardNumber].filter(Boolean).join(" ") || `Imported card row ${sourceRow}`,
+    category,
+    year,
+    setName,
+    cardNumber,
+    status: importedStatus,
+    listedPlatform,
+    listingUrl,
+    askingPrice,
+    lowestAcceptablePrice: parseImportedMoney(csvValue(row, ["minimum sale price", "lowest acceptable price", "minimum price", "min price"])),
+    listedDate: importedStatus === "Listed" ? listedDate || todayIso() : listedDate,
+    frontPhotoUrl,
+    purchaseDate,
+    purchasePrice,
+    saleDate: importedStatus === "Sold" ? saleDate || todayIso() : saleDate,
+    salePlatform,
+    soldPrice,
+    notes,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const warnings = [
+    !name ? "Missing card/player name" : "",
+    !purchasePrice ? "No purchase price" : "",
+    importedStatus === "Sold" && !soldPrice ? "Sold status needs sold price" : "",
+    importedStatus === "Sold" && !salePlatform ? "Sold status needs sale platform" : "",
+    importedStatus === "Listed" && !askingPrice ? "Listed status needs asking price" : "",
+  ].filter(Boolean);
+
+  return { id: card.id, sourceRow, card, selected: warnings.length === 0, warnings };
+};
 
 const sampleCards = (): CardRecord[] => [
   {
@@ -235,6 +354,9 @@ export default function Home() {
   const [openGradingSubmissionId, setOpenGradingSubmissionId] = useState<string | null>(null);
   const [returningSubmission, setReturningSubmission] = useState<GradingSubmission | null>(null);
   const [returnDate, setReturnDate] = useState(todayIso());
+  const [importPreviews, setImportPreviews] = useState<ImportCardPreview[]>([]);
+  const [importFileName, setImportFileName] = useState("");
+  const [importingCards, setImportingCards] = useState(false);
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
@@ -596,6 +718,9 @@ export default function Home() {
     .filter((card): card is CardRecord => Boolean(card))
     .filter((card) => card.status !== "Sold");
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+  const selectedImportPreviews = importPreviews.filter((preview) => preview.selected);
+  const importReadyCount = selectedImportPreviews.length;
+  const importWarningCount = importPreviews.filter((preview) => preview.warnings.length).length;
   const isSoldInventoryView = statusFilter === "Sold";
 
   useEffect(() => {
@@ -701,6 +826,96 @@ export default function Home() {
     if (!expense.expenseDate) return "Add an expense date before saving.";
     if (!expense.vendor.trim() && !expense.description.trim()) return "Add a vendor/source or description before saving the expense.";
     return "";
+  };
+
+
+  const handleCardImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setNotice("");
+    setImportFileName(file.name);
+
+    try {
+      const text = await file.text();
+      const parsedRows = parseCsvText(text)
+        .map((row, index) => importCardFromCsvRow(row, index + 2))
+        .filter((preview): preview is ImportCardPreview => Boolean(preview));
+      setImportPreviews(parsedRows);
+      if (!parsedRows.length) setError("No card rows found in that CSV. Make sure the first row has column headers.");
+      else setNotice(`Previewed ${parsedRows.length} cards from ${file.name}. Review them, then import selected.`);
+    } catch (importError) {
+      setImportPreviews([]);
+      setError(importError instanceof Error ? importError.message : "Could not read that CSV file.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
+  const toggleImportPreview = (id: string) => {
+    setImportPreviews((current) => current.map((preview) => preview.id === id ? { ...preview, selected: !preview.selected } : preview));
+  };
+  const selectAllImportPreviews = () => setImportPreviews((current) => current.map((preview) => ({ ...preview, selected: true })));
+  const selectCleanImportPreviews = () => setImportPreviews((current) => current.map((preview) => ({ ...preview, selected: preview.warnings.length === 0 })));
+  const clearImportPreviews = () => {
+    setImportPreviews([]);
+    setImportFileName("");
+  };
+
+  const importSelectedCards = async () => {
+    if (!selectedImportPreviews.length) {
+      setError("Select at least one card from the import preview before importing.");
+      return;
+    }
+    setError("");
+    setNotice("");
+    setImportingCards(true);
+    const now = new Date().toISOString();
+    const cardsToImport = selectedImportPreviews.map(({ card }) => ({
+      ...card,
+      id: crypto.randomUUID(),
+      createdAt: now,
+      createdBy: currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
+      listedAt: card.status === "Listed" ? card.listedAt || now : card.listedAt,
+      listedBy: card.status === "Listed" ? card.listedBy || currentUsername : card.listedBy,
+      soldAt: card.status === "Sold" ? card.soldAt || now : card.soldAt,
+      soldBy: card.status === "Sold" ? card.soldBy || currentUsername : card.soldBy,
+    }));
+
+    try {
+      if (usingSupabase && supabase && session?.user.id) {
+        let insertResult = await supabase
+          .from("cards")
+          .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId)))
+          .select("*");
+        if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+          insertResult = await supabase
+            .from("cards")
+            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, true, false)))
+            .select("*");
+        }
+        if (insertResult.error && isListingPricingColumnError(insertResult.error.message)) {
+          insertResult = await supabase
+            .from("cards")
+            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, false, false)))
+            .select("*");
+        }
+        if (insertResult.error) {
+          setError(insertResult.error.message);
+          return;
+        }
+        setCards((current) => [...(insertResult.data ?? []).map(rowToCard), ...current]);
+      } else {
+        setCards((current) => [...cardsToImport, ...current]);
+      }
+      setNotice(`Imported ${cardsToImport.length} cards${importFileName ? ` from ${importFileName}` : ""}.`);
+      clearImportPreviews();
+      setTab("inventory");
+    } finally {
+      setImportingCards(false);
+    }
   };
 
   const saveCard = async (event: FormEvent) => {
@@ -1272,6 +1487,47 @@ export default function Home() {
               <h2>Add a card</h2>
             </div>
           </div>
+          <section className="importPanel" aria-label="Import cards from CSV">
+            <div className="importHeader">
+              <div>
+                <p className="eyebrow">Bulk import</p>
+                <h3>Import cards from PrimeLot CSV</h3>
+                <p className="muted">Upload the CSV, preview the rows, select the cards you want, then import them into the shared workspace inventory.</p>
+              </div>
+              <label className="secondary importFileButton">Choose CSV
+                <input accept=".csv,text/csv" type="file" onChange={handleCardImportFile} />
+              </label>
+            </div>
+            {importPreviews.length > 0 && (
+              <div className="importPreview">
+                <div className="importSummary">
+                  <strong>{importReadyCount} selected of {importPreviews.length}</strong>
+                  <span className="muted">{importWarningCount ? `${importWarningCount} rows need review` : "All rows look ready"}{importFileName ? ` • ${importFileName}` : ""}</span>
+                </div>
+                <div className="rowActions importActions">
+                  <button className="secondary" type="button" onClick={selectAllImportPreviews}>Select all</button>
+                  <button className="secondary" type="button" onClick={selectCleanImportPreviews}>Select clean rows</button>
+                  <button className="secondary" type="button" onClick={clearImportPreviews}>Clear import</button>
+                  <button className="primary" type="button" onClick={importSelectedCards} disabled={!importReadyCount || importingCards}>{importingCards ? "Importing…" : `Import ${importReadyCount} cards`}</button>
+                </div>
+                <div className="importPreviewList">
+                  {importPreviews.map((preview) => (
+                    <article className={preview.warnings.length ? "importPreviewRow needsReview" : "importPreviewRow"} key={preview.id}>
+                      <label className="selectCardBox" aria-label={`Select row ${preview.sourceRow} for import`}>
+                        <input type="checkbox" checked={preview.selected} onChange={() => toggleImportPreview(preview.id)} />
+                      </label>
+                      <div>
+                        <div className="rowTitle"><strong>{preview.card.name}</strong><span className={`statusBadge ${preview.card.status.replace(" ", "").toLowerCase()}`}>{preview.card.status}</span></div>
+                        <p>{[preview.card.year, preview.card.setName, preview.card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
+                        <p className="muted">Cost {money(preview.card.purchasePrice)} • Bought {formatDateLabel(preview.card.purchaseDate)}</p>
+                        {preview.warnings.length > 0 && <p className="warning">Review: {preview.warnings.join(" • ")}</p>}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
           <form className="formGrid simpleForm" id="add-inventory-form" onSubmit={saveCard}>
             <Field label="Card/player name" value={activeCard.name} onChange={(v) => setActiveCard({ ...activeCard, name: v })} required />
             <Field label="Category" value={activeCard.category} onChange={(v) => setActiveCard({ ...activeCard, category: v })} placeholder="Sports, Pokemon, MTG..." />
