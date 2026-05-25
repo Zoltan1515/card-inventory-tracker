@@ -12,6 +12,7 @@ type DashboardAction = { id: string; tab: Tab; icon: string; label: string; subt
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
+type InventoryDateField = "purchaseDate" | "listedDate" | "saleDate";
 type InventorySort =
   | "newest-purchase"
   | "oldest-purchase"
@@ -122,6 +123,16 @@ const daysSince = (isoDate: string) => {
   if (Number.isNaN(time)) return null;
   const today = new Date(`${todayIso()}T00:00:00`).getTime();
   return Math.max(0, Math.floor((today - time) / 86_400_000));
+};
+const inventoryDateFieldLabels: Record<InventoryDateField, string> = {
+  purchaseDate: "purchase date",
+  listedDate: "listed date",
+  saleDate: "sold date",
+};
+const cardDateForInventoryFilter = (card: CardRecord, field: InventoryDateField) => {
+  if (field === "listedDate") return card.listedDate || card.listedAt?.slice(0, 10) || "";
+  if (field === "saleDate") return card.saleDate || card.soldAt?.slice(0, 10) || "";
+  return card.purchaseDate;
 };
 const listedAgeDate = (card: CardRecord) => card.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate;
 const listedDays = (card: CardRecord) => daysSince(listedAgeDate(card));
@@ -364,6 +375,9 @@ export default function Home() {
   const [platformFilter, setPlatformFilter] = useState("All");
   const [photoFilter, setPhotoFilter] = useState<PhotoFilter>("All");
   const [listingUrlFilter, setListingUrlFilter] = useState<ListingUrlFilter>("All");
+  const [inventoryDateField, setInventoryDateField] = useState<InventoryDateField>("purchaseDate");
+  const [inventoryStartDate, setInventoryStartDate] = useState("");
+  const [inventoryEndDate, setInventoryEndDate] = useState("");
   const [inventorySort, setInventorySort] = useState<InventorySort>("newest-purchase");
   const [session, setSession] = useState<Session | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
@@ -505,6 +519,9 @@ export default function Home() {
     platformFilter !== "All" ||
     photoFilter !== "All" ||
     listingUrlFilter !== "All" ||
+    inventoryDateField !== "purchaseDate" ||
+    inventoryStartDate ||
+    inventoryEndDate ||
     inventorySort !== "newest-purchase"
   );
 
@@ -515,6 +532,9 @@ export default function Home() {
     setPlatformFilter("All");
     setPhotoFilter("All");
     setListingUrlFilter("All");
+    setInventoryDateField("purchaseDate");
+    setInventoryStartDate("");
+    setInventoryEndDate("");
     setInventorySort("newest-purchase");
   };
 
@@ -570,7 +590,10 @@ export default function Home() {
         .join(" ")
         .toLowerCase();
       const matchesQuery = !q || searchableText.includes(q);
-      return matchesStatus && matchesCategory && matchesPlatform && matchesPhoto && matchesListingUrl && matchesQuery;
+      const matchesInventoryDate = !inventoryStartDate && !inventoryEndDate
+        ? true
+        : dateInRange(cardDateForInventoryFilter(card, inventoryDateField), inventoryStartDate, inventoryEndDate);
+      return matchesStatus && matchesCategory && matchesPlatform && matchesPhoto && matchesListingUrl && matchesInventoryDate && matchesQuery;
     });
 
     return [...filtered].sort((a, b) => {
@@ -592,7 +615,7 @@ export default function Home() {
           return dateValue(b.purchaseDate) - dateValue(a.purchaseDate);
       }
     });
-  }, [activeInventoryCards, categoryFilter, inventorySort, listingUrlFilter, photoFilter, platformFilter, query, soldInventoryCards, statusFilter]);
+  }, [activeInventoryCards, categoryFilter, inventoryDateField, inventoryEndDate, inventorySort, inventoryStartDate, listingUrlFilter, photoFilter, platformFilter, query, soldInventoryCards, statusFilter]);
 
   const inventoryTotalForCurrentView = statusFilter === "Sold" ? soldInventoryCards.length : activeInventoryCards.length;
 
@@ -1362,7 +1385,10 @@ export default function Home() {
     setReturningSubmission(null);
   };
 
-  const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${new Date().toISOString().slice(0, 10)}.csv`);
+  const inventoryDateSuffix = inventoryStartDate || inventoryEndDate
+    ? `${inventoryDateFieldLabels[inventoryDateField].replace(/\s+/g, "-")}-${inventoryStartDate || "start"}-to-${inventoryEndDate || "today"}`
+    : "all-dates";
+  const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${inventoryDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
   const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportAllInventory = () => downloadCsv(cardsToCsv(activeInventoryCards), `card-inventory-all-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -1773,6 +1799,19 @@ export default function Home() {
                 <option value="Has listing URL">Has listing URL</option>
                 <option value="Missing listing URL">Missing listing URL</option>
               </select>
+            </label>
+            <label>Date type
+              <select aria-label="Choose date field for inventory export" value={inventoryDateField} onChange={(e) => setInventoryDateField(e.target.value as InventoryDateField)}>
+                <option value="purchaseDate">Purchase date</option>
+                <option value="listedDate">Listed date</option>
+                <option value="saleDate">Sold date</option>
+              </select>
+            </label>
+            <label>From date
+              <input aria-label="Filter inventory export from date" type="date" value={inventoryStartDate} onChange={(e) => setInventoryStartDate(e.target.value)} />
+            </label>
+            <label>To date
+              <input aria-label="Filter inventory export to date" type="date" value={inventoryEndDate} onChange={(e) => setInventoryEndDate(e.target.value)} />
             </label>
             <label>Sort
               <select aria-label="Sort inventory" value={inventorySort} onChange={(e) => setInventorySort(e.target.value as InventorySort)}>
