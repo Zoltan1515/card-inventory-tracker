@@ -8,7 +8,7 @@ import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, gradingSu
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit";
-type DashboardAction = { id: string; tab: Tab; icon: string; label: string; subtitle?: string; badge?: number; apply?: () => void };
+type DashboardAction = { id: string; tab: Tab; label: string; subtitle?: string; badge?: number; apply?: () => void };
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
@@ -765,14 +765,14 @@ export default function Home() {
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
-    { id: "add", tab: "add", icon: "+", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
-    { id: "attention", tab: "attention", icon: "!", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
-    { id: "listingReview", tab: "listingReview", icon: "▣", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
-    { id: "inventory", tab: "inventory", icon: "▤", label: "Inventory", subtitle: `${activeInventoryCards.length} cards`, apply: showActiveInventory },
-    { id: "soldInventory", tab: "inventory", icon: "◆", label: "Sold Inventory", subtitle: `${soldInventoryCards.length} cards`, apply: showSoldInventory },
-    { id: "grading", tab: "grading", icon: "▥", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount },
-    { id: "expenses", tab: "expenses", icon: "$", label: "Expenses", subtitle: money(totals.expensesTotal) },
-    { id: "profit", tab: "profit", icon: "↗", label: "Profit", subtitle: money(totals.profit) },
+    { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
+    { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
+    { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
+    { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryCards.length} cards`, apply: showActiveInventory },
+    { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryCards.length} cards`, apply: showSoldInventory },
+    { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount },
+    { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal) },
+    { id: "profit", tab: "profit", label: "Profit", subtitle: money(totals.profit) },
   ];
 
   const openAttentionItem = (item: AttentionItem) => {
@@ -1481,10 +1481,10 @@ export default function Home() {
 
       {session && (
         <section className="secondaryStatStrip" aria-label="Business stat strip">
-          <button type="button" onClick={() => setTab("profit")}><span>▱</span><small>Inventory Value</small><strong>{money(totals.totalInventoryValue)}</strong></button>
-          <button type="button" onClick={() => setTab("expenses")}><span>▥</span><small>Expenses</small><strong>{money(totals.expensesTotal)}</strong></button>
-          <button type="button" onClick={() => setTab("listingReview")}><span>◇</span><small>Listed Value</small><strong>{money(listedValue)}</strong></button>
-          <button type="button" onClick={() => setTab("attention")}><span>☆</span><small>Needs Attention</small><strong>{totalAttentionItems}</strong></button>
+          <button type="button" onClick={() => setTab("profit")}><small>Inventory Value</small><strong>{money(totals.totalInventoryValue)}</strong></button>
+          <button type="button" onClick={() => setTab("expenses")}><small>Expenses</small><strong>{money(totals.expensesTotal)}</strong></button>
+          <button type="button" onClick={() => setTab("listingReview")}><small>Listed Value</small><strong>{money(listedValue)}</strong></button>
+          <button type="button" onClick={() => setTab("attention")}><small>Needs Attention</small><strong>{totalAttentionItems}</strong></button>
         </section>
       )}
 
@@ -1494,7 +1494,7 @@ export default function Home() {
         </div>
         <nav className="navBar quickActionGrid" aria-label="Main navigation">
           {dashboardActions.map((action) => (
-            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} icon={action.icon} key={action.id} onClick={() => action.apply ? action.apply() : setTab(action.tab)} subtitle={action.subtitle}>
+            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} key={action.id} onClick={() => action.apply ? action.apply() : setTab(action.tab)} subtitle={action.subtitle}>
               {action.label}
             </NavButton>
           ))}
@@ -2303,10 +2303,9 @@ function AuthPanel() {
   );
 }
 
-function NavButton({ active, onClick, children, icon, subtitle, badge }: { active: boolean; onClick: () => void; children: React.ReactNode; icon?: string; subtitle?: string; badge?: number }) {
+function NavButton({ active, onClick, children, subtitle, badge }: { active: boolean; onClick: () => void; children: React.ReactNode; subtitle?: string; badge?: number }) {
   return (
     <button className={active ? "navButton active" : "navButton"} type="button" onClick={onClick}>
-      {icon && <span className="navIcon">{icon}</span>}
       <span className="navText"><strong>{children}</strong>{subtitle && <small>{subtitle}</small>}</span>
       {!!badge && <span className="navBadge">{badge}</span>}
     </button>
