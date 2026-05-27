@@ -7,6 +7,8 @@ export type ProfitSummaryCsvInput = {
   totalInventoryCost: number;
   totalInventoryValue: number;
   expensesTotal: number;
+  soldCardProfit: number;
+  cash: number;
   profit: number;
   unlistedInventoryCost: number;
   listedInventoryCost: number;
@@ -106,6 +108,8 @@ export const profitSummaryToCsv = (summary: ProfitSummaryCsvInput) => csvRows([
   ["Sold Revenue", summary.revenue],
   ["Inventory Cost Used In Profit", summary.totalInventoryCost],
   ["Total Expenses", summary.expensesTotal],
+  ["Profit From Sold Cards", summary.soldCardProfit],
+  ["Cash", summary.cash],
   ["Total Profit", summary.profit],
   ["Total Inventory Value", summary.totalInventoryValue],
   ["Unlisted Inventory Cost", summary.unlistedInventoryCost],

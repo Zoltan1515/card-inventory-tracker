@@ -653,10 +653,14 @@ export default function Home() {
       };
     });
     const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
-    const profit = revenue - soldInventoryCost - expensesTotal;
+    const soldCardProfit = revenue - soldInventoryCost;
+    const cash = soldCardProfit - expensesTotal;
+    const profit = cash;
     return {
       revenue,
       soldInventoryCost,
+      soldCardProfit,
+      cash,
       unlistedInventoryCost,
       listedInventoryCost,
       totalInventoryValue,
@@ -1400,6 +1404,8 @@ export default function Home() {
     totalInventoryCost: totals.soldInventoryCost,
     totalInventoryValue: totals.totalInventoryValue,
     expensesTotal: totals.expensesTotal,
+    soldCardProfit: totals.soldCardProfit,
+    cash: totals.cash,
     profit: totals.profit,
     unlistedInventoryCost: totals.unlistedInventoryCost,
     listedInventoryCost: totals.listedInventoryCost,
@@ -1443,7 +1449,7 @@ export default function Home() {
             <p className="collectorSince">▣ Collector workspace</p>
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryCards.length)} />
-              <Stat label="Total Profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
+              <Stat label="Cash" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
           </div>
@@ -2005,8 +2011,9 @@ export default function Home() {
           <section className="statsGrid profitGrid" aria-label="Profit totals">
             <Stat label="Revenue from sold cards" value={money(totals.revenue)} />
             <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
+            <Stat label="Profit from sold cards" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
             <Stat label="Total expenses" value={money(totals.expensesTotal)} />
-            <Stat label="Total profit" value={money(totals.profit)} tone={totals.profit >= 0 ? "positive" : "negative"} />
+            <Stat label="Cash" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
             <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             <Stat label="Unlisted inventory" value={money(totals.unlistedInventoryCost)} />
             <Stat label="Listed inventory" value={money(totals.listedInventoryCost)} />
