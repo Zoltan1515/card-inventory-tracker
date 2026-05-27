@@ -654,8 +654,8 @@ export default function Home() {
     });
     const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
     const soldCardProfit = revenue - soldInventoryCost;
-    const cash = soldCardProfit - expensesTotal;
-    const profit = cash;
+    const cash = revenue - totalInventoryCost - expensesTotal;
+    const profit = soldCardProfit;
     return {
       revenue,
       soldInventoryCost,
@@ -1449,7 +1449,8 @@ export default function Home() {
             <p className="collectorSince">▣ Collector workspace</p>
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryCards.length)} />
-              <Stat label="Cash" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
+              <Stat label="Profit from sold cards" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
+              <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
           </div>
@@ -2013,7 +2014,7 @@ export default function Home() {
             <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
             <Stat label="Profit from sold cards" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
             <Stat label="Total expenses" value={money(totals.expensesTotal)} />
-            <Stat label="Cash" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
+            <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
             <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             <Stat label="Unlisted inventory" value={money(totals.unlistedInventoryCost)} />
             <Stat label="Listed inventory" value={money(totals.listedInventoryCost)} />

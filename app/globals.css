@@ -244,8 +244,8 @@ textarea { min-height: 90px; resize: vertical; }
 .loginBadge span { width: 7px; height: 7px; border-radius: 999px; background: var(--neon-green); box-shadow: 0 0 12px var(--neon-green); }
 .collectorEmail { display: block; margin: 16px 0 10px; font-size: clamp(1rem, 3.6vw, 1.35rem); overflow-wrap: anywhere; }
 .collectorSince { color: #c7d2fe; margin-bottom: 18px; }
-.heroStatsGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.compactHeroStats { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 640px; }
+.heroStatsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.compactHeroStats { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; }
 .collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; }
 .collectorHeroCard .stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; }
 .collectorHeroCard .stat strong { color: var(--neon-green); font-size: 1rem; }
