@@ -246,9 +246,9 @@ textarea { min-height: 90px; resize: vertical; }
 .collectorSince { color: #c7d2fe; margin-bottom: 18px; }
 .heroStatsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .compactHeroStats { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; }
-.collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; }
-.collectorHeroCard .stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; }
-.collectorHeroCard .stat strong { color: var(--neon-green); font-size: 1rem; }
+.collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; display: grid; grid-template-rows: minmax(2.35em, auto) auto; align-content: start; }
+.collectorHeroCard .stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; line-height: 1.15; margin-bottom: 8px; }
+.collectorHeroCard .stat strong { color: var(--neon-green); font-size: 1rem; line-height: 1.1; }
 .slabShowpiece { justify-self: end; align-self: center; width: min(210px, 100%); border: 1px solid rgba(103,232,249,.55); border-radius: 18px; padding: 10px; background: linear-gradient(145deg, rgba(226,232,240,.18), rgba(15,23,42,.2)); box-shadow: 0 0 28px rgba(103,232,249,.22), inset 0 0 24px rgba(255,255,255,.06); transform: perspective(700px) rotateY(-8deg); }
 .slabControls { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 7px; }
 .slabControls button, .slabControls input { min-height: 28px; border-radius: 8px; padding: 4px 6px; font-size: .58rem; font-weight: 900; }
