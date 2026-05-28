@@ -2159,8 +2159,8 @@ export default function Home() {
                   {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
                 </div>
                 <div className="rowMoney">
-                  <span>{money(card.status === "Sold" ? card.soldPrice : cardPurchaseCost(card))}</span>
-                  <small>{card.status === "Sold" ? cardQuantity(card) > 1 ? `sold total • ${cardQuantity(card)}` : "sold" : cardQuantity(card) > 1 ? `cost • ${cardQuantity(card)} items` : "cost"}</small>
+                  <span>{money(card.status === "Sold" ? card.soldPrice : card.purchasePrice)}</span>
+                  <small>{card.status === "Sold" ? cardQuantity(card) > 1 ? `sold total • ${cardQuantity(card)}` : "sold" : cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
                 </div>
                 <div className="inventoryControls">
                   <button className="secondary listingEditButton" type="button" onClick={() => beginListingEdit(card)}>
