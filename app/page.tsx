@@ -207,9 +207,9 @@ const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord 
   salePlatform: status === "Sold" ? card.salePlatform : "",
   updatedAt: new Date().toISOString(),
 });
-const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date|listed_at|listed_by|schema cache|column/i.test(message);
-const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by|schema cache|column/i.test(message);
-const isQuantityColumnError = (message: string) => /quantity|schema cache|column/i.test(message);
+const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date/i.test(message);
+const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by/i.test(message);
+const isQuantityColumnError = (message: string) => /quantity/i.test(message);
 
 const csvValue = (row: CsvRow, aliases: string[]) => {
   for (const alias of aliases) {
