@@ -399,6 +399,7 @@ export default function Home() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [showAddInventoryCheck, setShowAddInventoryCheck] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
   const [customStartDate, setCustomStartDate] = useState("");
@@ -414,6 +415,12 @@ export default function Home() {
     const timer = window.setTimeout(() => setNotice(""), 4000);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    if (!showAddInventoryCheck) return;
+    const timer = window.setTimeout(() => setShowAddInventoryCheck(false), 1000);
+    return () => window.clearTimeout(timer);
+  }, [showAddInventoryCheck]);
 
   const loadSupabaseData = async (userId: string) => {
     if (!supabase) return;
@@ -1059,6 +1066,8 @@ export default function Home() {
     }
 
     setNotice((current) => current || "Inventory added.");
+    setShowAddInventoryCheck(false);
+    window.setTimeout(() => setShowAddInventoryCheck(true), 0);
     setActiveCard(emptyCard());
     setTab("inventory");
   };
@@ -1743,6 +1752,7 @@ export default function Home() {
       </section>
 
       {notice && <p className="notice">{notice}</p>}
+      {showAddInventoryCheck && <div className="addInventoryCheck" aria-live="polite" aria-label="Inventory added">✓</div>}
       {error && <p className="errorBox">{error}</p>}
       {loading && <p className="notice">Loading…</p>}
 
