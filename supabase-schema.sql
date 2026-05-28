@@ -9,6 +9,7 @@ create table if not exists public.cards (
   year text default '',
   set_name text default '',
   card_number text default '',
+  quantity integer not null default 1 check (quantity >= 1),
   variant text default '',
   condition text default 'Near Mint',
   raw_or_graded text default 'Raw',

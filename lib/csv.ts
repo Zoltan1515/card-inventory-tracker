@@ -1,5 +1,5 @@
 import type { CardRecord, ExpenseRecord } from "./card";
-import { cardProfit, listedPotentialProfit } from "./card";
+import { cardProfit, cardPurchaseCost, listedPotentialProfit } from "./card";
 
 export type ProfitSummaryCsvInput = {
   periodLabel: string;
@@ -25,6 +25,7 @@ const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["year", "Year"],
   ["setName", "Set"],
   ["cardNumber", "Card Number"],
+  ["quantity", "Quantity"],
   ["status", "Status"],
   ["listedPlatform", "Listed Platform"],
   ["listingUrl", "Listing URL"],
@@ -46,6 +47,7 @@ const salesHeaders: Array<[keyof CardRecord | "profitBeforeExpenses", string]> =
   ["year", "Year"],
   ["setName", "Set"],
   ["cardNumber", "Card Number"],
+  ["quantity", "Quantity Sold"],
   ["purchaseDate", "Purchase Date"],
   ["purchasePrice", "Purchase Price"],
   ["saleDate", "Sale Date"],
@@ -78,13 +80,13 @@ const daysSince = (isoDate: string) => {
 
 const csvRows = (rows: unknown[][]) => rows.map((row) => row.map(escapeCsv).join(",")).join("\n");
 
-const cardExtraHeaders = ["Days Listed", "Potential Profit Before Expenses"];
+const cardExtraHeaders = ["Purchase Cost", "Days Listed", "Potential Profit Before Expenses"];
 
 export const cardsToCsv = (cards: CardRecord[]) => {
   const head = [...cardHeaders.map(([, label]) => label), ...cardExtraHeaders];
   const rows = cards.map((card) => {
     const base = cardHeaders.map(([key]) => card[key]);
-    const extras = [daysSince(card.listedDate), listedPotentialProfit(card)];
+    const extras = [cardPurchaseCost(card), daysSince(card.listedDate), listedPotentialProfit(card)];
     return [...base, ...extras];
   });
   return csvRows([head, ...rows]);

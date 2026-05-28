@@ -8,6 +8,7 @@ export type CardRecord = {
   year: string;
   setName: string;
   cardNumber: string;
+  quantity: number;
   status: CardStatus;
   listedPlatform: string;
   listingUrl: string;
@@ -75,6 +76,7 @@ export const emptyCard = (): CardRecord => {
     year: "",
     setName: "",
     cardNumber: "",
+    quantity: 1,
     status: "Not Listed",
     listedPlatform: "",
     listingUrl: "",
@@ -139,11 +141,16 @@ export const money = (value: number) =>
 
 export const percent = (value: number) => `${(Number.isFinite(value) ? value : 0).toFixed(1)}%`;
 
-export const cardProfit = (card: CardRecord) => card.soldPrice - card.purchasePrice;
+export const cardQuantity = (card: Pick<CardRecord, "quantity">) => Math.max(1, Math.floor(Number(card.quantity) || 1));
 
-export const listedPotentialProfit = (card: CardRecord) => card.askingPrice - card.purchasePrice;
+export const cardPurchaseCost = (card: Pick<CardRecord, "purchasePrice" | "quantity">) => card.purchasePrice * cardQuantity(card);
+
+export const cardProfit = (card: CardRecord) => card.soldPrice - cardPurchaseCost(card);
+
+export const listedPotentialProfit = (card: CardRecord) => (card.askingPrice - card.purchasePrice) * cardQuantity(card);
 
 export const cardRoi = (card: CardRecord) => {
-  if (!card.purchasePrice) return 0;
-  return (cardProfit(card) / card.purchasePrice) * 100;
+  const purchaseCost = cardPurchaseCost(card);
+  if (!purchaseCost) return 0;
+  return (cardProfit(card) / purchaseCost) * 100;
 };

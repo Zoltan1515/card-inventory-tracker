@@ -2,7 +2,7 @@
 
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, GradingSubmission, cardProfit, cardRoi, emptyCard, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, percent } from "@/lib/card";
+import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, GradingSubmission, cardProfit, cardPurchaseCost, cardQuantity, cardRoi, emptyCard, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, percent } from "@/lib/card";
 import { cardsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -156,6 +156,7 @@ const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   listedAt: card.listedAt || "",
   listedBy: card.listedBy || "",
   purchasePrice: Number(card.purchasePrice ?? 0) || 0,
+  quantity: Math.max(1, Math.floor(Number(card.quantity ?? 1) || 1)),
   soldPrice: Number(card.soldPrice ?? 0) || 0,
   soldAt: card.soldAt || "",
   soldBy: card.soldBy || "",
@@ -201,6 +202,7 @@ const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord 
 });
 const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date|listed_at|listed_by|schema cache|column/i.test(message);
 const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by|schema cache|column/i.test(message);
+const isQuantityColumnError = (message: string) => /quantity|schema cache|column/i.test(message);
 
 const csvValue = (row: CsvRow, aliases: string[]) => {
   for (const alias of aliases) {
@@ -263,6 +265,7 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
   const year = csvValue(row, ["year", "season"]);
   const cardNumber = csvValue(row, ["card #", "card number", "number", "no", "card no"]);
   const purchasePrice = parseImportedMoney(csvValue(row, ["purchase price", "price paid", "paid", "buy price", "cost", "amount", "total"]));
+  const quantity = Math.max(1, Math.floor(Number(csvValue(row, ["quantity", "qty", "item qty", "items", "count"])) || 1));
   const askingPrice = parseImportedMoney(csvValue(row, ["asking price", "list price", "listing price", "listed price", "sale price"]));
   const soldPrice = parseImportedMoney(csvValue(row, ["sold price", "sold for", "final sale price"]));
   const status = normalizeImportedStatus(csvValue(row, ["status", "state"]));
@@ -297,6 +300,7 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
     frontPhotoUrl,
     purchaseDate,
     purchasePrice,
+    quantity,
     saleDate: importedStatus === "Sold" ? saleDate || todayIso() : saleDate,
     salePlatform,
     soldPrice,
@@ -647,11 +651,11 @@ export default function Home() {
     const inventoryCostCards = cards.filter(purchasedInRange);
     const filteredExpenses = expenses.filter(expenseInRange);
     const revenue = soldCards.reduce((sum, card) => sum + card.soldPrice, 0);
-    const soldInventoryCost = soldCards.reduce((sum, card) => sum + card.purchasePrice, 0);
-    const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
-    const listedInventoryCost = listedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+    const soldInventoryCost = soldCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+    const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+    const listedInventoryCost = listedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const totalInventoryValue = unlistedInventoryCost + listedInventoryCost;
-    const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+    const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const expenseBreakdown = expenseCategories.map((category) => {
       const categoryExpenses = filteredExpenses.filter((expense) => expense.category === category);
       return {
@@ -681,9 +685,9 @@ export default function Home() {
       listedCards,
       soldCards,
       filteredExpenses,
-      soldCount: soldCards.length,
-      listedCount: listedCards.length,
-      notListedCount: notListedCards.length,
+      soldCount: soldCards.reduce((sum, card) => sum + cardQuantity(card), 0),
+      listedCount: listedCards.reduce((sum, card) => sum + cardQuantity(card), 0),
+      notListedCount: notListedCards.reduce((sum, card) => sum + cardQuantity(card), 0),
     };
   }, [cards, dateRange.end, dateRange.start, expenses, isAllTime]);
 
@@ -695,7 +699,7 @@ export default function Home() {
         recordId: card.id,
         kind: "card" as const,
         title: card.name || "Unnamed card",
-        detail: `${card.status} • ${money(card.purchasePrice)} purchase cost`,
+        detail: `${card.status} • ${money(cardPurchaseCost(card))} purchase cost${cardQuantity(card) > 1 ? ` • Qty ${cardQuantity(card)}` : ""}`,
         action: "Edit card and add a front photo",
       }));
 
@@ -706,7 +710,7 @@ export default function Home() {
         recordId: card.id,
         kind: "card" as const,
         title: card.name || "Unnamed card",
-        detail: [card.category, card.purchaseDate ? `Bought ${card.purchaseDate}` : "No purchase date", money(card.purchasePrice)].filter(Boolean).join(" • "),
+        detail: [card.category, card.purchaseDate ? `Bought ${card.purchaseDate}` : "No purchase date", money(cardPurchaseCost(card)), cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • "),
         action: "Edit card or mark as listed",
       }));
 
@@ -744,15 +748,15 @@ export default function Home() {
   const cardById = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const openGradingSubmissions = useMemo(() => gradingSubmissions.filter((submission) => submission.status === "At Grading"), [gradingSubmissions]);
   const gradingSubmissionCards = (submission: GradingSubmission) => submission.cardIds.map((cardId) => cardById.get(cardId)).filter((card): card is CardRecord => Boolean(card));
-  const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + card.purchasePrice, 0);
+  const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + cardPurchaseCost(card), 0);
   const activeGradingCardIds = useMemo(() => new Set(openGradingSubmissions.flatMap((submission) => submission.cardIds)), [openGradingSubmissions]);
   const openGradingCardCount = Array.from(activeGradingCardIds).filter((cardId) => cardById.has(cardId)).length;
-  const openGradingPurchaseValue = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId)?.purchasePrice ?? 0), 0);
+  const openGradingPurchaseValue = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId) ? cardPurchaseCost(cardById.get(cardId)!) : 0), 0);
   const selectedCards = selectedCardIds
     .map((cardId) => cardById.get(cardId))
     .filter((card): card is CardRecord => Boolean(card))
     .filter((card) => card.status !== "Sold");
-  const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + card.purchasePrice, 0);
+  const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
   const selectedImportPreviews = importPreviews.filter((preview) => preview.selected);
   const importReadyCount = selectedImportPreviews.length;
   const importWarningCount = importPreviews.filter((preview) => preview.warnings.length).length;
@@ -925,16 +929,25 @@ export default function Home() {
           .from("cards")
           .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId)))
           .select("*");
-        if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+        if (insertResult.error && isQuantityColumnError(insertResult.error.message)) {
           insertResult = await supabase
             .from("cards")
-            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, true, false)))
+            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, true, true, false)))
+            .select("*");
+          if (!insertResult.error) setNotice("Inventory imported. Run the quantity SQL migration so item quantities save to account storage.");
+        }
+        if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+          const includeQuantity = !isQuantityColumnError(insertResult.error.message);
+          insertResult = await supabase
+            .from("cards")
+            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, true, false, includeQuantity)))
             .select("*");
         }
         if (insertResult.error && isListingPricingColumnError(insertResult.error.message)) {
+          const includeQuantity = !isQuantityColumnError(insertResult.error.message);
           insertResult = await supabase
             .from("cards")
-            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, false, false)))
+            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, false, false, includeQuantity)))
             .select("*");
         }
         if (insertResult.error) {
@@ -982,10 +995,19 @@ export default function Home() {
         .insert(cardToInsert(cardToSave, session.user.id, workspaceId))
         .select("*")
         .single();
-      if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+      if (insertResult.error && isQuantityColumnError(insertResult.error.message)) {
         insertResult = await supabase
           .from("cards")
-          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, true, false))
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, true, true, false))
+          .select("*")
+          .single();
+        if (!insertResult.error) setNotice("Inventory added. Run the quantity SQL migration so item quantities save to account storage.");
+      }
+      if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+        const includeQuantity = !isQuantityColumnError(insertResult.error.message);
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, true, false, includeQuantity))
           .select("*")
           .single();
         if (!insertResult.error) setNotice("Inventory added. Run the audit SQL migration so usernames save to account storage.");
@@ -993,7 +1015,7 @@ export default function Home() {
       if (insertResult.error && isListingPricingColumnError(insertResult.error.message)) {
         insertResult = await supabase
           .from("cards")
-          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, false, false))
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, false, false, !isQuantityColumnError(insertResult.error.message)))
           .select("*")
           .single();
         if (!insertResult.error) setNotice("Inventory added. Finish account storage setup so listing price/date fields save for both users.");
@@ -1022,10 +1044,19 @@ export default function Home() {
         .eq("id", card.id);
       updateQuery = card.workspaceId ? updateQuery.eq("workspace_id", card.workspaceId) : updateQuery.eq("user_id", session.user.id);
       let updateResult = await updateQuery.select("*").single();
+      if (updateResult.error && isQuantityColumnError(updateResult.error.message)) {
+        let legacyQuantityQuery = supabase
+          .from("cards")
+          .update(cardToUpdate(card, true, true, false))
+          .eq("id", card.id);
+        legacyQuantityQuery = card.workspaceId ? legacyQuantityQuery.eq("workspace_id", card.workspaceId) : legacyQuantityQuery.eq("user_id", session.user.id);
+        updateResult = await legacyQuantityQuery.select("*").single();
+        if (!updateResult.error) setNotice("Card updated. Run the quantity SQL migration so item quantities save to account storage.");
+      }
       if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
         let legacyAuditQuery = supabase
           .from("cards")
-          .update(cardToUpdate(card, true, false))
+          .update(cardToUpdate(card, true, false, !isQuantityColumnError(updateResult.error.message)))
           .eq("id", card.id);
         legacyAuditQuery = card.workspaceId ? legacyAuditQuery.eq("workspace_id", card.workspaceId) : legacyAuditQuery.eq("user_id", session.user.id);
         updateResult = await legacyAuditQuery.select("*").single();
@@ -1034,7 +1065,7 @@ export default function Home() {
       if (updateResult.error && isListingPricingColumnError(updateResult.error.message)) {
         let legacyUpdateQuery = supabase
           .from("cards")
-          .update(cardToUpdate(card, false, false))
+          .update(cardToUpdate(card, false, false, !isQuantityColumnError(updateResult.error.message)))
           .eq("id", card.id);
         legacyUpdateQuery = card.workspaceId ? legacyUpdateQuery.eq("workspace_id", card.workspaceId) : legacyUpdateQuery.eq("user_id", session.user.id);
         updateResult = await legacyUpdateQuery.select("*").single();
@@ -1050,6 +1081,44 @@ export default function Home() {
     }
     setCards((current) => current.map((item) => (item.id === card.id ? card : item)));
     return true;
+  };
+
+  const insertCardRecord = async (card: CardRecord) => {
+    if (usingSupabase && supabase && session?.user.id) {
+      let insertResult = await supabase
+        .from("cards")
+        .insert(cardToInsert(card, session.user.id, workspaceId))
+        .select("*")
+        .single();
+      if (insertResult.error && isQuantityColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(card, session.user.id, workspaceId, true, true, false))
+          .select("*")
+          .single();
+        if (!insertResult.error) setNotice("Card saved. Run the quantity SQL migration so item quantities save to account storage.");
+      }
+      if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(card, session.user.id, workspaceId, true, false, !isQuantityColumnError(insertResult.error.message)))
+          .select("*")
+          .single();
+      }
+      if (insertResult.error && isListingPricingColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(card, session.user.id, workspaceId, false, false, !isQuantityColumnError(insertResult.error.message)))
+          .select("*")
+          .single();
+      }
+      if (insertResult.error) {
+        setError(insertResult.error.message);
+        return null;
+      }
+      return rowToCard(insertResult.data);
+    }
+    return { ...card, id: card.id || crypto.randomUUID(), createdAt: card.createdAt || new Date().toISOString(), updatedAt: card.updatedAt || new Date().toISOString() };
   };
 
   const deleteCard = async (card: CardRecord) => {
@@ -1092,12 +1161,9 @@ export default function Home() {
     }
 
     if (status === "Sold") {
-      const validationError = validateCardBusinessRules(nextCard);
-      if (validationError) {
-        setError(validationError);
-        setSellingCard(nextCard);
-        return;
-      }
+      setError("");
+      setSellingCard({ ...nextCard, quantity: 1 });
+      return;
     }
 
     const ok = await updateCard(nextCard);
@@ -1144,12 +1210,20 @@ export default function Home() {
   const saveSale = async (event: FormEvent) => {
     event.preventDefault();
     if (!sellingCard) return;
+    const sourceCard = cards.find((card) => card.id === sellingCard.id) || sellingCard;
+    const availableQty = cardQuantity(sourceCard);
+    const saleQty = Math.min(availableQty, cardQuantity(sellingCard));
     const now = new Date().toISOString();
     const soldCard = {
       ...sellingCard,
+      id: saleQty < availableQty ? crypto.randomUUID() : sellingCard.id,
+      workspaceId: sourceCard.workspaceId,
+      quantity: saleQty,
       status: "Sold" as const,
       soldAt: sellingCard.soldAt || now,
       soldBy: sellingCard.soldBy || currentUsername,
+      createdAt: saleQty < availableQty ? now : sellingCard.createdAt,
+      createdBy: saleQty < availableQty ? currentUsername : sellingCard.createdBy,
       updatedAt: now,
       updatedBy: currentUsername,
     };
@@ -1158,6 +1232,30 @@ export default function Home() {
       setError(validationError);
       return;
     }
+    if (saleQty < availableQty) {
+      const remainingCard: CardRecord = {
+        ...sourceCard,
+        quantity: availableQty - saleQty,
+        saleDate: "",
+        salePlatform: "",
+        soldPrice: 0,
+        soldAt: "",
+        soldBy: "",
+        status: sourceCard.status === "Sold" ? "Not Listed" : sourceCard.status,
+        updatedAt: now,
+        updatedBy: currentUsername,
+      };
+      const updatedRemaining = await updateCard(remainingCard);
+      if (!updatedRemaining) return;
+      const insertedSold = await insertCardRecord(soldCard);
+      if (!insertedSold) return;
+      setCards((current) => [insertedSold, ...current.map((item) => (item.id === remainingCard.id ? remainingCard : item))]);
+      setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(soldCard.soldPrice)}. ${availableQty - saleQty} left in inventory.`);
+      setSellingCard(null);
+      setTab("inventory");
+      return;
+    }
+
     const ok = await updateCard(soldCard);
     if (ok) {
       setNotice(`Sold ${soldCard.name} for ${money(soldCard.soldPrice)}.`);
@@ -1575,7 +1673,8 @@ export default function Home() {
             <Field label="Year" value={activeCard.year} onChange={(v) => setActiveCard({ ...activeCard, year: v })} />
             <Field label="Set" value={activeCard.setName} onChange={(v) => setActiveCard({ ...activeCard, setName: v })} />
             <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => setActiveCard({ ...activeCard, cardNumber: v })} />
-            <Field label="Purchase price" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
+            <Field label="Item quantity" type="number" value={String(activeCard.quantity)} onChange={(v) => setActiveCard({ ...activeCard, quantity: Math.max(1, Math.floor(Number(v || 1))) })} />
+            <Field label="Purchase price per item" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
             <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
             <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard(prepareCardForStatus(activeCard, v as CardStatus))} />
             <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status, listedDate: v ? activeCard.listedDate || todayIso() : activeCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
@@ -1678,7 +1777,7 @@ export default function Home() {
                     Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{card.listedPlatform ? ` • ${card.listedPlatform}` : ""}
                   </p>
                   <p className="muted">
-                    Asking {money(card.askingPrice)} • Cost {money(card.purchasePrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
+                    Asking {money(card.askingPrice)} • Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
                   </p>
                   {activeGradingCardIds.has(card.id) && (
                     <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
@@ -1747,8 +1846,8 @@ export default function Home() {
                                   <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
                                 </div>
                                 <div className="rowMoney">
-                                  <span>{money(card.purchasePrice)}</span>
-                                  <small>purchase cost</small>
+                                  <span>{money(cardPurchaseCost(card))}</span>
+                                  <small>{cardQuantity(card) > 1 ? `${cardQuantity(card)} items` : "purchase cost"}</small>
                                 </div>
                               </article>
                             ))}
@@ -1875,7 +1974,7 @@ export default function Home() {
                 )}
                 <div className="cardInfo">
                   <div className="rowTitle"><strong>{card.name}</strong><span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{card.status}</span></div>
-                  <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}</p>
+                  <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}{cardQuantity(card) > 1 ? ` • Qty ${cardQuantity(card)}` : ""}</p>
                   {card.status === "Sold" ? (
                     <>
                       <div className="saleSnapshot" aria-label={`Sold for ${money(card.soldPrice)} on ${card.salePlatform || "unknown platform"}`}>
@@ -1893,7 +1992,7 @@ export default function Home() {
                         </div>
                       </div>
                       <div className="cardDetailChips" aria-label="Saved card details">
-                        <span>Cost {money(card.purchasePrice)}</span>
+                        <span>Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} × ${money(card.purchasePrice)})` : ""}</span>
                         <span>Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}</span>
                         <span>Sold {formatDateTimeLabel(card.soldAt || card.updatedAt)} by {actorLabel(card.soldBy || card.updatedBy, currentUsername)}</span>
                       </div>
@@ -1912,8 +2011,8 @@ export default function Home() {
                   {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
                 </div>
                 <div className="rowMoney">
-                  <span>{money(card.status === "Sold" ? card.soldPrice : card.purchasePrice)}</span>
-                  <small>{card.status === "Sold" ? "sold price" : "purchase price"}</small>
+                  <span>{money(card.status === "Sold" ? card.soldPrice : cardPurchaseCost(card))}</span>
+                  <small>{card.status === "Sold" ? "sold price" : cardQuantity(card) > 1 ? `purchase cost (${cardQuantity(card)} items)` : "purchase price"}</small>
                 </div>
                 <div className="inventoryControls">
                   <label className="miniLabel">Status
@@ -1933,7 +2032,7 @@ export default function Home() {
                 </div>
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
-                  <button className="secondary" onClick={() => setSellingCard({ ...card, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Enter sale</button>
+                  <button className="secondary" onClick={() => setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Enter sale</button>
                   {card.status !== "Sold" && <button className="danger" onClick={() => deleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
@@ -2066,7 +2165,8 @@ export default function Home() {
               <Field label="Year" value={editingCard.year} onChange={(v) => setEditingCard({ ...editingCard, year: v })} />
               <Field label="Set" value={editingCard.setName} onChange={(v) => setEditingCard({ ...editingCard, setName: v })} />
               <Field label="Card #" value={editingCard.cardNumber} onChange={(v) => setEditingCard({ ...editingCard, cardNumber: v })} />
-              <Field label="Purchase price" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
+              <Field label="Item quantity" type="number" value={String(editingCard.quantity)} onChange={(v) => setEditingCard({ ...editingCard, quantity: Math.max(1, Math.floor(Number(v || 1))) })} />
+              <Field label="Purchase price per item" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
               <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
               <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard(prepareCardForStatus(editingCard, v as CardStatus))} />
               <Field label="Listed where?" value={editingCard.listedPlatform} onChange={(v) => setEditingCard({ ...editingCard, listedPlatform: v, status: v ? "Listed" : editingCard.status, listedDate: v ? editingCard.listedDate || todayIso() : editingCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
@@ -2166,11 +2266,13 @@ export default function Home() {
               <button className="secondary" type="button" onClick={() => setSellingCard(null)}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
+              <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => setSellingCard({ ...sellingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), Math.floor(Number(v || 1)))) })} required />
               <Field label="Sold for" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
               <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
               <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               <div className="calc full">
-                <span>Purchase price: <strong>{money(sellingCard.purchasePrice)}</strong></span>
+                <span>Available quantity: <strong>{cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)}</strong></span>
+                <span>Purchase cost: <strong>{money(cardPurchaseCost(sellingCard))}</strong></span>
                 <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
               </div>
               <button className="primary full" type="submit">Save sale</button>

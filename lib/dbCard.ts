@@ -9,6 +9,7 @@ type CardRow = {
   year: string | null;
   set_name: string | null;
   card_number: string | null;
+  quantity?: number | string | null;
   status: CardRecord["status"] | string | null;
   listed_platform: string | null;
   listing_url: string | null;
@@ -107,6 +108,7 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   year: text(row.year),
   setName: text(row.set_name),
   cardNumber: text(row.card_number),
+  quantity: Math.max(1, Math.floor(num(row.quantity) || 1)),
   status: normalizeStatus(row.status),
   listedPlatform: text(row.listed_platform),
   listingUrl: text(row.listing_url),
@@ -130,7 +132,7 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   updatedBy: text(row.updated_by),
 });
 
-export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true, includeAudit = true) => ({
+export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true, includeAudit = true, includeQuantity = true) => ({
   user_id: userId,
   ...(workspaceId ? { workspace_id: workspaceId } : {}),
   name: card.name,
@@ -138,6 +140,7 @@ export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: str
   year: card.year,
   set_name: card.setName,
   card_number: card.cardNumber,
+  ...(includeQuantity ? { quantity: card.quantity } : {}),
   status: card.status,
   listed_platform: card.listedPlatform,
   listing_url: card.listingUrl,
@@ -152,12 +155,13 @@ export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: str
   notes: card.notes,
 });
 
-export const cardToUpdate = (card: CardRecord, includeListingPricing = true, includeAudit = true) => ({
+export const cardToUpdate = (card: CardRecord, includeListingPricing = true, includeAudit = true, includeQuantity = true) => ({
   name: card.name,
   category: card.category,
   year: card.year,
   set_name: card.setName,
   card_number: card.cardNumber,
+  ...(includeQuantity ? { quantity: card.quantity } : {}),
   status: card.status,
   listed_platform: card.listedPlatform,
   listing_url: card.listingUrl,
