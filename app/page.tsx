@@ -129,6 +129,7 @@ const inventoryDateFieldLabels: Record<InventoryDateField, string> = {
   listedDate: "listed date",
   saleDate: "sold date",
 };
+const sanitizeQuantityInput = (value: string | number) => Math.max(1, Math.floor(Number(value) || 1));
 const cardDateForInventoryFilter = (card: CardRecord, field: InventoryDateField) => {
   if (field === "listedDate") return card.listedDate || card.listedAt?.slice(0, 10) || "";
   if (field === "saleDate") return card.saleDate || card.soldAt?.slice(0, 10) || "";
@@ -650,7 +651,10 @@ export default function Home() {
     });
   }, [activeInventoryCards, categoryFilter, inventoryDateField, inventoryEndDate, inventorySort, inventoryStartDate, listingUrlFilter, photoFilter, platformFilter, query, soldInventoryCards, statusFilter]);
 
-  const inventoryTotalForCurrentView = statusFilter === "Sold" ? soldInventoryCards.length : activeInventoryCards.length;
+  const activeInventoryQuantity = activeInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
+  const soldInventoryQuantity = soldInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
+  const filteredInventoryQuantity = filteredCards.reduce((sum, card) => sum + cardQuantity(card), 0);
+  const inventoryTotalForCurrentView = statusFilter === "Sold" ? soldInventoryQuantity : activeInventoryQuantity;
 
   const dateRange = useMemo(() => {
     if (dateFilterMode === "month") return { start: currentMonthStart(), end: todayIso() };
@@ -771,12 +775,13 @@ export default function Home() {
   const gradingSubmissionCards = (submission: GradingSubmission) => submission.cardIds.map((cardId) => cardById.get(cardId)).filter((card): card is CardRecord => Boolean(card));
   const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + cardPurchaseCost(card), 0);
   const activeGradingCardIds = useMemo(() => new Set(openGradingSubmissions.flatMap((submission) => submission.cardIds)), [openGradingSubmissions]);
-  const openGradingCardCount = Array.from(activeGradingCardIds).filter((cardId) => cardById.has(cardId)).length;
+  const openGradingCardCount = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId) ? cardQuantity(cardById.get(cardId)!) : 0), 0);
   const openGradingPurchaseValue = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId) ? cardPurchaseCost(cardById.get(cardId)!) : 0), 0);
   const selectedCards = selectedCardIds
     .map((cardId) => cardById.get(cardId))
     .filter((card): card is CardRecord => Boolean(card))
     .filter((card) => card.status !== "Sold");
+  const selectedCardQuantity = selectedCards.reduce((sum, card) => sum + cardQuantity(card), 0);
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
   const selectedImportPreviews = importPreviews.filter((preview) => preview.selected);
   const importReadyCount = selectedImportPreviews.length;
@@ -790,7 +795,7 @@ export default function Home() {
 
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
   const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
-  const listedValue = totals.listedCards.reduce((sum, card) => sum + card.askingPrice, 0);
+  const listedValue = totals.listedCards.reduce((sum, card) => sum + (card.askingPrice * cardQuantity(card)), 0);
   const topSoldCandidates = useMemo(() => {
     const soldCards = cards.filter((card) => card.status === "Sold" && card.soldPrice > 0);
     if (topSoldMode === "month") return soldCards.filter((card) => card.saleDate.startsWith(topSoldMonth));
@@ -805,8 +810,8 @@ export default function Home() {
     { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
     { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
     { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal, apply: () => showDashboardTab("listingReview", "listing-review-panel") },
-    { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryCards.length} cards`, apply: showActiveInventory },
-    { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryCards.length} cards`, apply: showSoldInventory },
+    { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
+    { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards`, apply: showSoldInventory },
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
     { id: "profit", tab: "profit", label: "Profit", subtitle: money(totals.profit), apply: () => showDashboardTab("profit", "profit-panel") },
@@ -1461,7 +1466,7 @@ export default function Home() {
       setGradingSubmissions((current) => [submission, ...current]);
     }
 
-    setNotice(`Sent ${submission.cardIds.length} cards to ${submission.company} for grading.`);
+    setNotice(`Sent ${selectedCardQuantity} cards to ${submission.company} for grading.`);
     setSelectedCardIds([]);
     setShowGradingForm(false);
     setTab("grading");
@@ -1575,7 +1580,7 @@ export default function Home() {
             <strong className="collectorEmail">{session.user.email || "Account"}</strong>
             <p className="collectorSince">▣ Collector workspace</p>
             <div className="heroStatsGrid compactHeroStats">
-              <Stat label="Total Unsold Cards" value={String(activeInventoryCards.length)} />
+              <Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />
               <Stat label="Profit from sold cards" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
               <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
@@ -1679,7 +1684,7 @@ export default function Home() {
                       <div>
                         <div className="rowTitle"><strong>{preview.card.name}</strong><span className={`statusBadge ${preview.card.status.replace(" ", "").toLowerCase()}`}>{preview.card.status}</span></div>
                         <p>{[preview.card.year, preview.card.setName, preview.card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
-                        <p className="muted">Cost {money(preview.card.purchasePrice)} • Bought {formatDateLabel(preview.card.purchaseDate)}</p>
+                        <p className="muted">Cost {money(cardPurchaseCost(preview.card))}{cardQuantity(preview.card) > 1 ? ` (${cardQuantity(preview.card)} × ${money(preview.card.purchasePrice)})` : ""} • Bought {formatDateLabel(preview.card.purchaseDate)}</p>
                         {preview.warnings.length > 0 && <p className="warning">Review: {preview.warnings.join(" • ")}</p>}
                       </div>
                     </article>
@@ -1694,7 +1699,7 @@ export default function Home() {
             <Field label="Year" value={activeCard.year} onChange={(v) => setActiveCard({ ...activeCard, year: v })} />
             <Field label="Set" value={activeCard.setName} onChange={(v) => setActiveCard({ ...activeCard, setName: v })} />
             <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => setActiveCard({ ...activeCard, cardNumber: v })} />
-            <Field label="Item quantity" type="number" value={String(activeCard.quantity)} onChange={(v) => setActiveCard({ ...activeCard, quantity: Math.max(1, Math.floor(Number(v || 1))) })} />
+            <Field label="Item quantity" type="number" value={String(activeCard.quantity)} onChange={(v) => setActiveCard({ ...activeCard, quantity: sanitizeQuantityInput(v) })} />
             <Field label="Purchase price per item" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
             <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
             <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard(prepareCardForStatus(activeCard, v as CardStatus))} />
@@ -1798,7 +1803,7 @@ export default function Home() {
                     Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{card.listedPlatform ? ` • ${card.listedPlatform}` : ""}
                   </p>
                   <p className="muted">
-                    Asking {money(card.askingPrice)} • Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
+                    Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
                   </p>
                   {activeGradingCardIds.has(card.id) && (
                     <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
@@ -1894,7 +1899,8 @@ export default function Home() {
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Inventory</p>
-              <h2>Showing {filteredCards.length} of {inventoryTotalForCurrentView} {statusFilter === "Sold" ? "sold" : "active inventory"} cards</h2>
+              <h2>Showing {filteredInventoryQuantity} of {inventoryTotalForCurrentView} {statusFilter === "Sold" ? "sold" : "active inventory"} cards</h2>
+              <p className="muted">{filteredCards.length} inventory {filteredCards.length === 1 ? "row" : "rows"}</p>
             </div>
             <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
           </div>
@@ -1978,7 +1984,7 @@ export default function Home() {
           <section className="bulkGradingBar" aria-label="Bulk grading actions">
             <div>
               <p className="eyebrow">Bulk grading</p>
-              <strong>{selectedCards.length} selected</strong>
+              <strong>{selectedCardQuantity} selected cards</strong>
               {selectedCards.length > 0 && <p className="muted">Selected purchase value: {money(selectedPurchaseValue)}</p>}
             </div>
             <div className="rowActions">
@@ -2003,8 +2009,8 @@ export default function Home() {
                   <div className="cardThumb placeholderThumb">No photo</div>
                 )}
                 <div className="cardInfo">
-                  <div className="rowTitle"><strong>{card.name}</strong><span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{card.status}</span></div>
-                  <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details yet"}{cardQuantity(card) > 1 ? ` • Qty ${cardQuantity(card)}` : ""}</p>
+                  <div className="rowTitle"><strong>{card.name}</strong></div>
+                  {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
                       <div className="saleSnapshot" aria-label={`Sold for ${money(card.soldPrice)} on ${card.salePlatform || "unknown platform"}`}>
@@ -2029,24 +2035,24 @@ export default function Home() {
                     </>
                   ) : (
                     <>
-                      <p className="muted">{card.status === "Listed" ? `Listed on ${card.listedPlatform || "unknown platform"}${listedDays(card) !== null ? ` for ${listedDays(card)} days` : ""}` : "Not listed yet"}</p>
-                      <p className="muted auditTrail">Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}{card.status === "Listed" && ` • Listed ${formatDateTimeLabel(card.listedAt || card.updatedAt)} by ${actorLabel(card.listedBy || card.updatedBy, currentUsername)}`}</p>
+                      {card.status === "Listed" && <p className="muted">{card.listedPlatform || "Listed"}{listedDays(card) !== null ? ` • ${listedDays(card)}d` : ""}</p>}
+                      <p className="muted auditTrail">Added {formatDateLabel(card.createdAt.slice(0, 10))}</p>
                     </>
                   )}
                   {card.status === "Listed" && (
                     <p className="muted">
-                      Asking {money(card.askingPrice)} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}` : ""}
+                      Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
                     </p>
                   )}
                   {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
                 </div>
                 <div className="rowMoney">
                   <span>{money(card.status === "Sold" ? card.soldPrice : cardPurchaseCost(card))}</span>
-                  <small>{card.status === "Sold" ? "sold price" : cardQuantity(card) > 1 ? `purchase cost (${cardQuantity(card)} items)` : "purchase price"}</small>
+                  <small>{card.status === "Sold" ? cardQuantity(card) > 1 ? `sold total • ${cardQuantity(card)}` : "sold" : cardQuantity(card) > 1 ? `cost • ${cardQuantity(card)} items` : "cost"}</small>
                 </div>
                 <div className="inventoryControls">
-                  <label className="miniLabel">Status
-                    <select value={card.status} onChange={(e) => changeCardStatus(card, e.target.value as CardStatus)}>
+                  <label className="miniLabel statusControl"><span className="visuallyHidden">Status</span>
+                    <select aria-label={`Status for ${card.name}`} value={card.status} onChange={(e) => changeCardStatus(card, e.target.value as CardStatus)}>
                       {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
                     </select>
                   </label>
@@ -2062,7 +2068,7 @@ export default function Home() {
                 </div>
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
-                  <button className="secondary" onClick={() => setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Enter sale</button>
+                  <button className="secondary" onClick={() => setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Sale</button>
                   {card.status !== "Sold" && <button className="danger" onClick={() => deleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
@@ -2195,7 +2201,7 @@ export default function Home() {
               <Field label="Year" value={editingCard.year} onChange={(v) => setEditingCard({ ...editingCard, year: v })} />
               <Field label="Set" value={editingCard.setName} onChange={(v) => setEditingCard({ ...editingCard, setName: v })} />
               <Field label="Card #" value={editingCard.cardNumber} onChange={(v) => setEditingCard({ ...editingCard, cardNumber: v })} />
-              <Field label="Item quantity" type="number" value={String(editingCard.quantity)} onChange={(v) => setEditingCard({ ...editingCard, quantity: Math.max(1, Math.floor(Number(v || 1))) })} />
+              <Field label="Item quantity" type="number" value={String(editingCard.quantity)} onChange={(v) => setEditingCard({ ...editingCard, quantity: sanitizeQuantityInput(v) })} />
               <Field label="Purchase price per item" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
               <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
               <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard(prepareCardForStatus(editingCard, v as CardStatus))} />
@@ -2242,7 +2248,7 @@ export default function Home() {
             <div className="panelHeader">
               <div>
                 <p className="eyebrow">Send to grading</p>
-                <h2>{selectedCards.length} selected cards</h2>
+                <h2>{selectedCardQuantity} selected cards</h2>
                 <p className="muted">Purchase value selected: {money(selectedPurchaseValue)}</p>
               </div>
               <button className="secondary" type="button" onClick={() => setShowGradingForm(false)}>Cancel</button>
@@ -2253,7 +2259,7 @@ export default function Home() {
               <Field label="Order / reference" value={gradingDraft.reference} onChange={(v) => setGradingDraft({ ...gradingDraft, reference: v })} placeholder="Optional submission name or order #" />
               <label className="full textareaLabel">Notes<textarea value={gradingDraft.notes} onChange={(e) => setGradingDraft({ ...gradingDraft, notes: e.target.value })} placeholder="Optional notes about this grading order" /></label>
               <div className="calc full">
-                <span>Cards in submission: <strong>{selectedCards.length}</strong></span>
+                <span>Cards in submission: <strong>{selectedCardQuantity}</strong></span>
                 <span>Total purchase value: <strong>{money(selectedPurchaseValue)}</strong></span>
               </div>
               <button className="primary full" type="submit">Create grading submission</button>
@@ -2296,8 +2302,8 @@ export default function Home() {
               <button className="secondary" type="button" onClick={() => setSellingCard(null)}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
-              <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => setSellingCard({ ...sellingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), Math.floor(Number(v || 1)))) })} required />
-              <Field label="Sold for" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
+              <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => setSellingCard({ ...sellingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), sanitizeQuantityInput(v))) })} required />
+              <Field label="Sold total" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
               <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
               <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               <div className="calc full">
@@ -2524,7 +2530,7 @@ function ProfitStatusSection({
       <div className="profitSectionHeader">
         <div>
           <h3>{title}</h3>
-          <p className="muted">{cards.length} cards</p>
+          <p className="muted">{cards.reduce((sum, card) => sum + cardQuantity(card), 0)} cards</p>
         </div>
         <div className="rowMoney">
           <span>{money(total)}</span>
@@ -2543,7 +2549,7 @@ function ProfitStatusSection({
             {showSale ? (
               <div className="rowMoney">
                 <span className={cardProfit(card) >= 0 ? "positive" : "negative"}>{money(cardProfit(card))}</span>
-                <small>Sold {money(card.soldPrice)} · cost {money(card.purchasePrice)}</small>
+                <small>Sold {money(card.soldPrice)} · cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} × ${money(card.purchasePrice)})` : ""}</small>
               </div>
             ) : (
               <div className="rowMoney">
@@ -2566,10 +2572,10 @@ function Field({ label, value, onChange, type = "text", placeholder, required }:
 }
 
 function NumberField({ label, value, onChange, placeholder, required }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean }) {
-  return <label>{label}<NumberInput value={value} onChange={onChange} placeholder={placeholder} required={required} /></label>;
+  return <label>{label}<NumberInput value={value} onChange={onChange} placeholder={placeholder} required={required} step={label.toLowerCase().includes("quantity") ? "1" : "0.01"} /></label>;
 }
 
-function NumberInput({ value, onChange, placeholder, required, ariaLabel }: { value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; ariaLabel?: string }) {
+function NumberInput({ value, onChange, placeholder, required, ariaLabel, step = "0.01" }: { value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; ariaLabel?: string; step?: string }) {
   const [draft, setDraft] = useState(value);
   const [focused, setFocused] = useState(false);
 
@@ -2582,7 +2588,7 @@ function NumberInput({ value, onChange, placeholder, required, ariaLabel }: { va
       aria-label={ariaLabel}
       required={required}
       type="number"
-      step="0.01"
+      step={step}
       value={draft}
       placeholder={placeholder}
       onFocus={() => setFocused(true)}
