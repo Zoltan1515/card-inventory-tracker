@@ -370,6 +370,7 @@ export default function Home() {
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
+  const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [gradingDraft, setGradingDraft] = useState<GradingSubmission>(emptyGradingSubmission());
@@ -1152,7 +1153,7 @@ export default function Home() {
     setError("");
     if (card.status === "Sold") {
       setError("Sold cards cannot be deleted. They are kept as sales history for profit and audit records.");
-      return;
+      return false;
     }
     if (usingSupabase && supabase && session?.user.id) {
       let deleteQuery = supabase.from("cards").delete().eq("id", card.id);
@@ -1160,10 +1161,32 @@ export default function Home() {
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
-        return;
+        return false;
       }
     }
     setCards((current) => current.filter((item) => item.id !== card.id));
+    return true;
+  };
+
+  const requestDeleteCard = (card: CardRecord) => {
+    setError("");
+    if (card.status === "Sold") {
+      setError("Sold cards cannot be deleted. They are kept as sales history for profit and audit records.");
+      return;
+    }
+    setDeletingCard(card);
+  };
+
+  const confirmDeleteCard = async () => {
+    if (!deletingCard) return;
+    const cardToDelete = deletingCard;
+    const deletedName = cardToDelete.name;
+    const deletedStatus = cardToDelete.status;
+    const deletedQuantity = cardQuantity(cardToDelete);
+    const deleted = await deleteCard(cardToDelete);
+    if (!deleted) return;
+    setDeletingCard(null);
+    setNotice(`Deleted ${deletedQuantity > 1 ? `${deletedQuantity} ` : ""}${deletedStatus.toLowerCase()} ${deletedName}.`);
   };
 
   const beginListingEdit = (card: CardRecord) => {
@@ -2137,7 +2160,7 @@ export default function Home() {
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
                   <button className="secondary" onClick={() => setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Sale</button>
-                  {card.status !== "Sold" && <button className="danger" onClick={() => deleteCard(card)} type="button">Delete</button>}
+                  {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
             ))}
@@ -2251,6 +2274,31 @@ export default function Home() {
             <ProfitStatusSection title="Sold cards" cards={totals.soldCards} totalLabel="Sold inventory cost" total={totals.soldInventoryCost} emptyText="No sold cards yet. Use Inventory → Enter sale." showSale />
           </div>
         </section>
+      )}
+
+      {deletingCard && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Confirm delete card">
+          <div className="modal panel confirmDeleteModal">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow dangerEyebrow">Delete {deletingCard.status === "Listed" ? "listing" : "card"}</p>
+                <h2>Delete {deletingCard.name}?</h2>
+                <p className="muted">This removes the {deletingCard.status.toLowerCase()} card from inventory and updates your totals. This cannot be undone.</p>
+              </div>
+              <button className="secondary" type="button" onClick={() => setDeletingCard(null)}>Cancel</button>
+            </div>
+            <div className="deleteSummary">
+              <span>Status: <strong>{deletingCard.status}</strong></span>
+              <span>Quantity: <strong>{cardQuantity(deletingCard)}</strong></span>
+              <span>Cost: <strong>{money(cardPurchaseCost(deletingCard))}</strong></span>
+              {deletingCard.status === "Listed" && <span>Listed on: <strong>{deletingCard.listedPlatform || "Not entered"}</strong></span>}
+            </div>
+            <div className="confirmActions">
+              <button className="secondary" type="button" onClick={() => setDeletingCard(null)}>Keep card</button>
+              <button className="danger" type="button" onClick={confirmDeleteCard}>Yes, delete it</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {listingCard && (

@@ -234,6 +234,13 @@ textarea { min-height: 90px; resize: vertical; }
 .authForm .primary { justify-self: center; width: min(220px, 100%); }
 .modalBackdrop { position: fixed; inset: 0; background: rgba(2, 6, 23, .76); display: grid; place-items: center; padding: 18px; z-index: 20; }
 .modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow: auto; }
+.confirmDeleteModal { width: min(560px, 100%); border-color: rgba(248,113,113,.36); box-shadow: 0 22px 70px rgba(0,0,0,.5), 0 0 36px rgba(248,113,113,.12); }
+.dangerEyebrow { color: var(--bad) !important; text-shadow: 0 0 14px rgba(248,113,113,.24) !important; }
+.deleteSummary { border: 1px solid rgba(248,113,113,.22); background: rgba(15,23,42,.64); border-radius: 16px; padding: 14px; display: grid; gap: 8px; margin-bottom: 18px; }
+.deleteSummary span { color: var(--muted); }
+.deleteSummary strong { color: var(--text); }
+.confirmActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.confirmActions button { min-height: 44px; }
 
 .mobileTopHeader { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 12px; margin-bottom: 16px; }
 .mobileTopHeader .brandLogo img { width: min(360px, 68vw); filter: drop-shadow(0 0 16px rgba(103,232,249,.45)) drop-shadow(0 0 22px rgba(57,255,156,.18)); }
