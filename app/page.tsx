@@ -165,6 +165,12 @@ const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   updatedAt: card.updatedAt || new Date().toISOString(),
   updatedBy: card.updatedBy || "",
 });
+const rowHasQuantity = (row: Parameters<typeof rowToCard>[0]) => Object.prototype.hasOwnProperty.call(row, "quantity") && row.quantity !== null && row.quantity !== undefined;
+const rowToCardWithQuantityFallback = (row: Parameters<typeof rowToCard>[0], fallback?: Pick<CardRecord, "quantity">): CardRecord => {
+  const card = rowToCard(row);
+  return fallback && !rowHasQuantity(row) ? { ...card, quantity: fallback.quantity } : card;
+};
+
 const normalizeStoredExpense = (expense: Partial<ExpenseRecord>): ExpenseRecord => ({
   ...emptyExpense(),
   ...expense,
@@ -383,9 +389,11 @@ export default function Home() {
   const [inventoryStartDate, setInventoryStartDate] = useState("");
   const [inventoryEndDate, setInventoryEndDate] = useState("");
   const [inventorySort, setInventorySort] = useState<InventorySort>("newest-purchase");
+  const [inventoryFiltersOpen, setInventoryFiltersOpen] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -407,6 +415,7 @@ export default function Home() {
   const loadSupabaseData = async (userId: string) => {
     if (!supabase) return;
     setError("");
+    setDataLoaded(false);
 
     try {
       const membershipResult = await supabase
@@ -435,8 +444,10 @@ export default function Home() {
       ]);
 
       const cardRows = mergeById(workspaceCardsResult.data ?? [], userCardsResult.data ?? []);
+      const cachedCards = localCards();
+      const cachedCardsById = new Map(cachedCards.map((card) => [card.id, card]));
       if (workspaceCardsResult.error && userCardsResult.error) setError(workspaceCardsResult.error.message || userCardsResult.error.message);
-      else setCards(mergeById(cardRows.map(rowToCard), localCards()));
+      else setCards(mergeById(cardRows.map((row) => rowToCardWithQuantityFallback(row, cachedCardsById.get(row.id))), cachedCards));
 
       const expenseRows = mergeById(workspaceExpensesResult.data ?? [], userExpensesResult.data ?? []);
       if (workspaceExpensesResult.error && userExpensesResult.error) setError(`Expenses table needs setup: ${workspaceExpensesResult.error.message || userExpensesResult.error.message}`);
@@ -460,6 +471,7 @@ export default function Home() {
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load your account data. Please refresh and try again.");
     } finally {
+      setDataLoaded(true);
       setLoading(false);
     }
   };
@@ -471,6 +483,7 @@ export default function Home() {
       setCards(storedCards.length ? storedCards : sampleCards());
       setExpenses(localExpenses());
       setGradingSubmissions(localGradingSubmissions());
+      setDataLoaded(true);
       setLoading(false);
       return;
     }
@@ -479,24 +492,30 @@ export default function Home() {
       .getSession()
       .then(({ data }) => {
         setSession(data.session);
-        setLoading(false);
-        if (data.session?.user.id) void loadSupabaseData(data.session.user.id);
+        if (data.session?.user.id) {
+          void loadSupabaseData(data.session.user.id);
+        } else {
+          setDataLoaded(true);
+          setLoading(false);
+        }
       })
       .catch((sessionError) => {
         setError(sessionError instanceof Error ? sessionError.message : "Could not restore your login. Please sign in again.");
+        setDataLoaded(true);
         setLoading(false);
       });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
-      setLoading(false);
       if (nextSession?.user.id) {
+        setDataLoaded(false);
         void loadSupabaseData(nextSession.user.id);
       } else {
         setWorkspaceId(null);
         setCards(localCards());
         setExpenses(localExpenses());
         setGradingSubmissions(localGradingSubmissions());
+        setDataLoaded(true);
         setLoading(false);
       }
     });
@@ -505,12 +524,14 @@ export default function Home() {
   }, [usingSupabase]);
 
   useEffect(() => {
-    if (!loading) window.localStorage.setItem(GRADING_STORAGE_KEY, JSON.stringify(gradingSubmissions));
-    if (!usingSupabase && !loading) {
+    if (!loading && dataLoaded) {
       window.localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards));
+      window.localStorage.setItem(GRADING_STORAGE_KEY, JSON.stringify(gradingSubmissions));
+    }
+    if (!usingSupabase && !loading && dataLoaded) {
       window.localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(expenses));
     }
-  }, [cards, expenses, gradingSubmissions, loading, usingSupabase]);
+  }, [cards, dataLoaded, expenses, gradingSubmissions, loading, usingSupabase]);
 
   const activeInventoryCards = useMemo(() => cards.filter((card) => card.status !== "Sold"), [cards]);
   const soldInventoryCards = useMemo(() => cards.filter((card) => card.status === "Sold"), [cards]);
@@ -1025,7 +1046,7 @@ export default function Home() {
         setError(insertError.message);
         return;
       }
-      setCards((current) => [rowToCard(data), ...current]);
+      setCards((current) => [rowToCardWithQuantityFallback(data, cardToSave), ...current]);
     } else {
       setCards((current) => [{ ...cardToSave, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...current]);
     }
@@ -1076,7 +1097,7 @@ export default function Home() {
         setError(updateError.message);
         return false;
       }
-      setCards((current) => current.map((item) => (item.id === card.id ? rowToCard(data) : item)));
+      setCards((current) => current.map((item) => (item.id === card.id ? rowToCardWithQuantityFallback(data, card) : item)));
       return true;
     }
     setCards((current) => current.map((item) => (item.id === card.id ? card : item)));
@@ -1116,7 +1137,7 @@ export default function Home() {
         setError(insertResult.error.message);
         return null;
       }
-      return rowToCard(insertResult.data);
+      return rowToCardWithQuantityFallback(insertResult.data, card);
     }
     return { ...card, id: card.id || crypto.randomUUID(), createdAt: card.createdAt || new Date().toISOString(), updatedAt: card.updatedAt || new Date().toISOString() };
   };
@@ -1878,7 +1899,15 @@ export default function Home() {
             <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
           </div>
 
-          <section className="inventoryFilterPanel" aria-label="Inventory search and filters">
+          <div className="inventoryFilterToggleRow">
+            <button className="secondary" onClick={() => setInventoryFiltersOpen((open) => !open)} type="button" aria-expanded={inventoryFiltersOpen} aria-controls="inventory-filter-panel">
+              {inventoryFiltersOpen ? "Hide filters" : "Show filters"}
+            </button>
+            <span className="muted">{filtersAreActive ? "Filters active" : "No filters active"}</span>
+          </div>
+
+          {inventoryFiltersOpen && (
+          <section className="inventoryFilterPanel" id="inventory-filter-panel" aria-label="Inventory search and filters">
             <label className="filterSearch">Search inventory
               <input aria-label="Search inventory" placeholder="Search name, set, card #, notes..." value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
@@ -1943,6 +1972,7 @@ export default function Home() {
               <button className="secondary" disabled={!filtersAreActive} onClick={clearInventoryFilters} type="button">Clear filters</button>
             </div>
           </section>
+          )}
 
           {!isSoldInventoryView && (
           <section className="bulkGradingBar" aria-label="Bulk grading actions">

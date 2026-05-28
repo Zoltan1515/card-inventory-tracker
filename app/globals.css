@@ -148,6 +148,8 @@ textarea { min-height: 90px; resize: vertical; }
 .danger { background: rgba(248,113,113,.12); color: var(--bad); border: 1px solid rgba(248,113,113,.28); }
 .filters { display: flex; gap: 12px; min-width: min(720px, 100%); align-items: center; }
 .inventoryFilterPanel { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.5); padding: 14px; display: grid; grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(145px, 1fr)); gap: 12px; margin-bottom: 18px; align-items: end; }
+.inventoryFilterToggleRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.inventoryFilterToggleRow .secondary { min-width: 150px; }
 .inventoryFilterPanel label { min-width: 0; }
 .filterSearch { grid-column: span 2; }
 .filterActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
