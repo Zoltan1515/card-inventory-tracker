@@ -368,6 +368,7 @@ export default function Home() {
   const [activeCard, setActiveCard] = useState<CardRecord>(emptyCard());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
+  const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
@@ -1167,7 +1168,7 @@ export default function Home() {
 
   const beginListingEdit = (card: CardRecord) => {
     setError("");
-    setEditingCard(prepareCardForStatus(card, "Listed"));
+    setListingCard(prepareCardForStatus(card, "Listed"));
   };
 
   const changeCardStatus = async (card: CardRecord, status: CardStatus) => {
@@ -1220,6 +1221,79 @@ export default function Home() {
     }
     const ok = await updateCard(nextCard);
     if (ok) setNotice(`Updated listing info for ${card.name}.`);
+  };
+
+  const saveListing = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!listingCard) return;
+    const sourceCard = cards.find((card) => card.id === listingCard.id) || listingCard;
+    const availableQty = cardQuantity(sourceCard);
+    const listingQty = Math.max(1, Math.min(availableQty, cardQuantity(listingCard)));
+    const now = new Date().toISOString();
+    const nextListedCard: CardRecord = {
+      ...listingCard,
+      id: listingQty < availableQty ? crypto.randomUUID() : sourceCard.id,
+      workspaceId: sourceCard.workspaceId,
+      quantity: listingQty,
+      status: "Listed",
+      listedPlatform: listingCard.listedPlatform.trim(),
+      listedDate: listingCard.listedDate || todayIso(),
+      listedAt: sourceCard.status !== "Listed" ? now : (listingCard.listedAt || now),
+      listedBy: sourceCard.status !== "Listed" ? currentUsername : (listingCard.listedBy || currentUsername),
+      saleDate: "",
+      salePlatform: "",
+      soldPrice: 0,
+      soldAt: "",
+      soldBy: "",
+      createdAt: listingQty < availableQty ? now : sourceCard.createdAt,
+      createdBy: listingQty < availableQty ? currentUsername : sourceCard.createdBy,
+      updatedAt: now,
+      updatedBy: currentUsername,
+    };
+
+    if (!nextListedCard.listedPlatform) {
+      setError("Add where the card is listed before saving the listing.");
+      return;
+    }
+
+    const validationError = validateCardBusinessRules(nextListedCard);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (listingQty < availableQty) {
+      const remainingCard: CardRecord = {
+        ...sourceCard,
+        quantity: availableQty - listingQty,
+        status: "Not Listed",
+        listedPlatform: "",
+        listingUrl: "",
+        askingPrice: 0,
+        lowestAcceptablePrice: 0,
+        listedDate: "",
+        listedAt: "",
+        listedBy: "",
+        updatedAt: now,
+        updatedBy: currentUsername,
+      };
+      const updatedRemaining = await updateCard(remainingCard);
+      if (!updatedRemaining) return;
+      const insertedListed = await insertCardRecord(nextListedCard);
+      if (!insertedListed) return;
+      setCards((current) => [insertedListed, ...current.map((item) => (item.id === remainingCard.id ? remainingCard : item))]);
+      setNotice(`Listed ${listingQty} of ${availableQty} ${nextListedCard.name}. ${availableQty - listingQty} left unlisted.`);
+      setListingCard(null);
+      setTab("inventory");
+      return;
+    }
+
+    const ok = await updateCard(nextListedCard);
+    if (ok) {
+      setNotice(`Listed ${nextListedCard.name} on ${nextListedCard.listedPlatform}.`);
+      setListingCard(null);
+      setTab("inventory");
+    }
   };
 
   const saveEditedCard = async (event: FormEvent) => {
@@ -2057,7 +2131,7 @@ export default function Home() {
                 </div>
                 <div className="inventoryControls">
                   <button className="secondary listingEditButton" type="button" onClick={() => beginListingEdit(card)}>
-                    {card.status === "Listed" ? "Edit listing" : "Add listing details"}
+                    {card.status === "Listed" ? "Update listing" : "Add listing"}
                   </button>
                 </div>
                 <div className="rowActions">
@@ -2177,6 +2251,34 @@ export default function Home() {
             <ProfitStatusSection title="Sold cards" cards={totals.soldCards} totalLabel="Sold inventory cost" total={totals.soldInventoryCost} emptyText="No sold cards yet. Use Inventory → Enter sale." showSale />
           </div>
         </section>
+      )}
+
+      {listingCard && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Add listing details">
+          <form className="modal panel" onSubmit={saveListing}>
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Listing details</p>
+                <h2>{listingCard.name || "Card listing"}</h2>
+                <p className="muted">Add the marketplace, asking price, listed date, and quantity. Saving moves the card into Listed.</p>
+              </div>
+              <button className="secondary" type="button" onClick={() => setListingCard(null)}>Cancel</button>
+            </div>
+            <div className="formGrid simpleForm">
+              <Field label="Listed where?" value={listingCard.listedPlatform} onChange={(v) => setListingCard({ ...listingCard, listedPlatform: v })} placeholder="eBay, Whatnot, TCGplayer..." required />
+              <Field label="Asking price per item" type="number" value={String(listingCard.askingPrice)} onChange={(v) => setListingCard({ ...listingCard, askingPrice: Number(v || 0) })} required />
+              <Field label="Listed date" type="date" value={listingCard.listedDate || todayIso()} onChange={(v) => setListingCard({ ...listingCard, listedDate: v })} required />
+              <Field label={`Quantity to list (available ${cardQuantity(cards.find((card) => card.id === listingCard.id) || listingCard)})`} type="number" value={String(listingCard.quantity)} onChange={(v) => setListingCard({ ...listingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === listingCard.id) || listingCard), sanitizeQuantityInput(v))) })} required />
+              <Field label="Minimum sale price per item" type="number" value={String(listingCard.lowestAcceptablePrice)} onChange={(v) => setListingCard({ ...listingCard, lowestAcceptablePrice: Number(v || 0) })} />
+              <Field label="Listing URL" value={listingCard.listingUrl} onChange={(v) => setListingCard({ ...listingCard, listingUrl: v })} placeholder="Optional link to the live listing" />
+              <div className="calc full">
+                <span>Purchase cost: <strong>{money(cardPurchaseCost(listingCard))}</strong></span>
+                <span>Potential profit: <strong className={listedPotentialProfit(listingCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(listingCard))}</strong></span>
+              </div>
+              <button className="primary full" type="submit">Save listing</button>
+            </div>
+          </form>
+        </div>
       )}
 
       {editingCard && (
