@@ -1165,6 +1165,11 @@ export default function Home() {
     setCards((current) => current.filter((item) => item.id !== card.id));
   };
 
+  const beginListingEdit = (card: CardRecord) => {
+    setError("");
+    setEditingCard(prepareCardForStatus(card, "Listed"));
+  };
+
   const changeCardStatus = async (card: CardRecord, status: CardStatus) => {
     const now = new Date().toISOString();
     const preparedCard = prepareCardForStatus(card, status);
@@ -2051,20 +2056,9 @@ export default function Home() {
                   <small>{card.status === "Sold" ? cardQuantity(card) > 1 ? `sold total • ${cardQuantity(card)}` : "sold" : cardQuantity(card) > 1 ? `cost • ${cardQuantity(card)} items` : "cost"}</small>
                 </div>
                 <div className="inventoryControls">
-                  <label className="miniLabel statusControl"><span className="visuallyHidden">Status</span>
-                    <select aria-label={`Status for ${card.name}`} value={card.status} onChange={(e) => changeCardStatus(card, e.target.value as CardStatus)}>
-                      {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </label>
-                  {card.status === "Listed" && (
-                    <>
-                      <input aria-label={`Listed platform for ${card.name}`} placeholder="Listed where?" value={card.listedPlatform} onChange={(e) => updateListingInfo(card, { listedPlatform: e.target.value })} />
-                      <input aria-label={`Listing URL for ${card.name}`} placeholder="Listing URL" value={card.listingUrl} onChange={(e) => updateListingInfo(card, { listingUrl: e.target.value })} />
-                      <NumberInput ariaLabel={`Asking price for ${card.name}`} placeholder="Asking price" value={String(card.askingPrice)} onChange={(value) => updateListingInfo(card, { askingPrice: Number(value || 0) })} />
-                      <NumberInput ariaLabel={`Minimum sale price for ${card.name}`} placeholder="Minimum sale price" value={String(card.lowestAcceptablePrice)} onChange={(value) => updateListingInfo(card, { lowestAcceptablePrice: Number(value || 0) })} />
-                      <input aria-label={`Listed date for ${card.name}`} type="date" value={card.listedDate} onChange={(e) => updateListingInfo(card, { listedDate: e.target.value })} />
-                    </>
-                  )}
+                  <button className="secondary listingEditButton" type="button" onClick={() => beginListingEdit(card)}>
+                    {card.status === "Listed" ? "Edit listing" : "Add listing details"}
+                  </button>
                 </div>
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
