@@ -538,6 +538,15 @@ export default function Home() {
     setInventorySort("newest-purchase");
   };
 
+  const scrollToSection = (sectionId: string) => {
+    window.setTimeout(() => document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  };
+
+  const showDashboardTab = (nextTab: Tab, sectionId: string) => {
+    setTab(nextTab);
+    scrollToSection(sectionId);
+  };
+
   const applyNeedsAttentionFilter = (groupKey: string) => {
     setQuery("");
     setCategoryFilter("All");
@@ -561,18 +570,17 @@ export default function Home() {
 
   const showActiveInventory = () => {
     clearInventoryFilters();
-    setTab("inventory");
+    showDashboardTab("inventory", "inventory-panel");
   };
 
   const showAddInventoryForm = () => {
-    setTab("add");
-    window.setTimeout(() => document.getElementById("add-inventory-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    showDashboardTab("add", "add-inventory-form");
   };
 
   const showSoldInventory = () => {
     clearInventoryFilters();
     setStatusFilter("Sold");
-    setTab("inventory");
+    showDashboardTab("inventory", "inventory-panel");
   };
 
   const filteredCards = useMemo(() => {
@@ -770,13 +778,13 @@ export default function Home() {
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
     { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
-    { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems },
-    { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal },
+    { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
+    { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal, apply: () => showDashboardTab("listingReview", "listing-review-panel") },
     { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryCards.length} cards`, apply: showActiveInventory },
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryCards.length} cards`, apply: showSoldInventory },
-    { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount },
-    { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal) },
-    { id: "profit", tab: "profit", label: "Profit", subtitle: money(totals.profit) },
+    { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
+    { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
+    { id: "profit", tab: "profit", label: "Profit", subtitle: money(totals.profit), apply: () => showDashboardTab("profit", "profit-panel") },
   ];
 
   const openAttentionItem = (item: AttentionItem) => {
@@ -1606,7 +1614,7 @@ export default function Home() {
       )}
 
       {tab === "attention" && (
-        <section className="panel">
+        <section className="panel" id="attention-panel">
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Needs Attention</p>
@@ -1644,7 +1652,7 @@ export default function Home() {
       )}
 
       {tab === "listingReview" && (
-        <section className="panel">
+        <section className="panel" id="listing-review-panel">
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Listing Review</p>
@@ -1688,7 +1696,7 @@ export default function Home() {
       )}
 
       {tab === "grading" && (
-        <section className="panel">
+        <section className="panel" id="grading-panel">
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Grading</p>
@@ -1762,7 +1770,7 @@ export default function Home() {
       )}
 
       {tab === "inventory" && (
-        <section className="panel">
+        <section className="panel" id="inventory-panel">
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Inventory</p>
@@ -1936,7 +1944,7 @@ export default function Home() {
       )}
 
       {tab === "expenses" && (
-        <section className="panel">
+        <section className="panel" id="expenses-panel">
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">Expenses</p>
@@ -1992,7 +2000,7 @@ export default function Home() {
       )}
 
       {tab === "profit" && (
-        <section className="panel">
+        <section className="panel" id="profit-panel">
           <div className="panelHeader">
             <div>
               <p className="eyebrow">Profit</p>
