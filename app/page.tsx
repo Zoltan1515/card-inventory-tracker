@@ -2024,8 +2024,8 @@ export default function Home() {
                     <>
                       <input aria-label={`Listed platform for ${card.name}`} placeholder="Listed where?" value={card.listedPlatform} onChange={(e) => updateListingInfo(card, { listedPlatform: e.target.value })} />
                       <input aria-label={`Listing URL for ${card.name}`} placeholder="Listing URL" value={card.listingUrl} onChange={(e) => updateListingInfo(card, { listingUrl: e.target.value })} />
-                      <input aria-label={`Asking price for ${card.name}`} placeholder="Asking price" type="number" step="0.01" value={String(card.askingPrice)} onChange={(e) => updateListingInfo(card, { askingPrice: Number(e.target.value || 0) })} />
-                      <input aria-label={`Minimum sale price for ${card.name}`} placeholder="Minimum sale price" type="number" step="0.01" value={String(card.lowestAcceptablePrice)} onChange={(e) => updateListingInfo(card, { lowestAcceptablePrice: Number(e.target.value || 0) })} />
+                      <NumberInput ariaLabel={`Asking price for ${card.name}`} placeholder="Asking price" value={String(card.askingPrice)} onChange={(value) => updateListingInfo(card, { askingPrice: Number(value || 0) })} />
+                      <NumberInput ariaLabel={`Minimum sale price for ${card.name}`} placeholder="Minimum sale price" value={String(card.lowestAcceptablePrice)} onChange={(value) => updateListingInfo(card, { lowestAcceptablePrice: Number(value || 0) })} />
                       <input aria-label={`Listed date for ${card.name}`} type="date" value={card.listedDate} onChange={(e) => updateListingInfo(card, { listedDate: e.target.value })} />
                     </>
                   )}
@@ -2531,7 +2531,38 @@ function ProfitStatusSection({
 
 function Field({ label, value, onChange, type = "text", placeholder, required }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean }) {
   if (type === "date") return <DateField label={label} value={value} onChange={onChange} required={required} />;
-  return <label>{label}<input required={required} type={type} step={type === "number" ? "0.01" : undefined} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} /></label>;
+  if (type === "number") return <NumberField label={label} value={value} onChange={onChange} placeholder={placeholder} required={required} />;
+  return <label>{label}<input required={required} type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} /></label>;
+}
+
+function NumberField({ label, value, onChange, placeholder, required }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean }) {
+  return <label>{label}<NumberInput value={value} onChange={onChange} placeholder={placeholder} required={required} /></label>;
+}
+
+function NumberInput({ value, onChange, placeholder, required, ariaLabel }: { value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean; ariaLabel?: string }) {
+  const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(value);
+  }, [focused, value]);
+
+  return (
+    <input
+      aria-label={ariaLabel}
+      required={required}
+      type="number"
+      step="0.01"
+      value={draft}
+      placeholder={placeholder}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        onChange(e.target.value);
+      }}
+    />
+  );
 }
 
 function DateField({ label, value, onChange, required }: { label: string; value: string; onChange: (value: string) => void; required?: boolean }) {
