@@ -458,6 +458,7 @@ export default function Home() {
   const [importPreviews, setImportPreviews] = useState<ImportCardPreview[]>([]);
   const [importFileName, setImportFileName] = useState("");
   const [importingCards, setImportingCards] = useState(false);
+  const [postingToPrimeLot, setPostingToPrimeLot] = useState(false);
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
@@ -1971,6 +1972,67 @@ export default function Home() {
   const ebayExportCards = selectedCards.length ? selectedCards : filteredCards;
   const ebayExportSuffix = selectedCards.length ? `selected-${selectedCards.length}-cards` : inventoryDateSuffix;
   const exportEbayListings = () => downloadCsv(ebayListingsToCsv(ebayExportCards), `ebay-listing-upload-${ebayExportSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const postSelectedCardsToPrimeLot = async () => {
+    setError("");
+    setNotice("");
+    if (!selectedCards.length) {
+      setError("Select at least one unsold card before posting to PrimeLot.");
+      return;
+    }
+    if (!session?.access_token) {
+      setError("Sign in before posting to PrimeLot.");
+      return;
+    }
+    const cardsMissingPrice = selectedCards.filter((card) => Number(card.askingPrice || 0) <= 0);
+    if (cardsMissingPrice.length) {
+      setError("Add an asking price to every selected card before posting to PrimeLot.");
+      return;
+    }
+
+    setPostingToPrimeLot(true);
+    try {
+      const response = await fetch("/api/primelot/post-listings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ cards: selectedCards }),
+      });
+      const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string } = await response.json();
+      if (!response.ok) {
+        setError(result.error || "PrimeLot posting failed.");
+        return;
+      }
+
+      const listingsByCardId = new Map((result.createdListings || []).map((listing) => [listing.cardTrackerId, listing]));
+      let updatedCount = 0;
+      for (const card of selectedCards) {
+        const listing = listingsByCardId.get(card.id);
+        if (!listing) continue;
+        const updatedCard: CardRecord = {
+          ...card,
+          status: "Listed",
+          listedPlatform: "PrimeLot",
+          listingUrl: listing.url,
+          listedDate: todayIso(),
+          listedAt: new Date().toISOString(),
+          listedBy: currentUsername,
+          updatedAt: new Date().toISOString(),
+          updatedBy: currentUsername,
+        };
+        const saved = await updateCard(updatedCard);
+        if (saved) updatedCount += 1;
+      }
+
+      clearSelectedCards();
+      setNotice(`Posted ${updatedCount} card${updatedCount === 1 ? "" : "s"} on PrimeLot.`);
+    } catch (postError) {
+      setError(postError instanceof Error ? postError.message : "PrimeLot posting failed.");
+    } finally {
+      setPostingToPrimeLot(false);
+    }
+  };
   const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
   const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportAllInventory = () => downloadCsv(cardsToCsv(activeInventoryCards), `card-inventory-all-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -2452,15 +2514,16 @@ export default function Home() {
           )}
 
           {!isSoldInventoryView && (
-          <section className="bulkGradingBar" aria-label="Bulk grading actions">
+          <section className="bulkGradingBar" aria-label="Bulk inventory actions">
             <div>
-              <p className="eyebrow">Bulk grading</p>
+              <p className="eyebrow">Bulk actions</p>
               <strong>{selectedCardQuantity} selected cards</strong>
               {selectedCards.length > 0 && <p className="muted">Selected purchase value: {money(selectedPurchaseValue)}</p>}
             </div>
             <div className="rowActions">
               <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.some((card) => card.status !== "Sold")}>Select all shown</button>
               <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCards.length}>Clear selected</button>
+              <button className="secondary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : "Post on PrimeLot"}</button>
               <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCards.length}>Send selected to grading</button>
             </div>
           </section>
