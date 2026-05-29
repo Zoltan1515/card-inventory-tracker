@@ -778,7 +778,8 @@ export default function Home() {
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const listedInventoryCost = listedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
-    const totalInventoryValue = unlistedInventoryCost + listedInventoryCost;
+    const listedInventoryValue = listedCards.reduce((sum, card) => sum + (card.askingPrice * cardQuantity(card)), 0);
+    const totalInventoryValue = listedInventoryValue;
     const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const expenseBreakdown = expenseCategories.map((category) => {
       const categoryExpenses = filteredExpenses.filter((expense) => expense.category === category);
@@ -2616,7 +2617,7 @@ export default function Home() {
             <div>
               <p className="eyebrow">Profit</p>
               <h2>Sold revenue minus sold inventory cost and expenses</h2>
-              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Profit only counts cards that are already sold; listed and unlisted cards stay in Total Inventory Value.</p>
+              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Profit only counts cards that are already sold; Total Inventory Value matches your current listed asking value.</p>
             </div>
           </div>
           <DateFilterControls
@@ -2636,7 +2637,7 @@ export default function Home() {
             <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
             <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             <Stat label="Unlisted inventory" value={money(totals.unlistedInventoryCost)} />
-            <Stat label="Listed inventory" value={money(totals.listedInventoryCost)} />
+            <Stat label="Listed asking value" value={money(totals.totalInventoryValue)} />
           </section>
 
           <section className="businessExports" aria-label="Business exports">
@@ -2655,7 +2656,7 @@ export default function Home() {
 
           <div className="profitSections">
             <ProfitStatusSection title="Unlisted cards" cards={totals.notListedCards} totalLabel="Money in unlisted cards" total={totals.unlistedInventoryCost} emptyText="No unlisted cards." />
-            <ProfitStatusSection title="Listed cards" cards={totals.listedCards} totalLabel="Money in listed cards" total={totals.listedInventoryCost} emptyText="No listed cards." />
+            <ProfitStatusSection title="Listed cards" cards={totals.listedCards} totalLabel="Listed asking value" total={totals.totalInventoryValue} emptyText="No listed cards." />
             <ProfitStatusSection title="Sold cards" cards={totals.soldCards} totalLabel="Sold inventory cost" total={totals.soldInventoryCost} emptyText="No sold cards yet. Use Inventory → Enter sale." showSale />
           </div>
         </section>
