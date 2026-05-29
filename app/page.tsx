@@ -3,7 +3,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, GradingSubmission, cardProfit, cardPurchaseCost, cardQuantity, cardRoi, emptyCard, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, percent } from "@/lib/card";
-import { cardsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
+import { cardsToCsv, ebayListingsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -1936,6 +1936,7 @@ export default function Home() {
     ? `${inventoryDateFieldLabels[inventoryDateField].replace(/\s+/g, "-")}-${inventoryStartDate || "start"}-to-${inventoryEndDate || "today"}`
     : "all-dates";
   const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${inventoryDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const exportEbayListings = () => downloadCsv(ebayListingsToCsv(filteredCards), `ebay-listing-upload-${inventoryDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
   const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportAllInventory = () => downloadCsv(cardsToCsv(activeInventoryCards), `card-inventory-all-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -2325,7 +2326,10 @@ export default function Home() {
               <h2>Showing {filteredInventoryQuantity} of {inventoryTotalForCurrentView} {statusFilter === "Sold" ? "sold" : "active inventory"} cards</h2>
               <p className="muted">{filteredCards.length} inventory {filteredCards.length === 1 ? "row" : "rows"}</p>
             </div>
-            <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
+            <div className="exportActions">
+              <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
+              <button className="primary" onClick={exportEbayListings} type="button">Export eBay upload CSV</button>
+            </div>
           </div>
 
           <div className="inventoryFilterToggleRow">

@@ -1,5 +1,5 @@
 import type { CardRecord, ExpenseRecord } from "./card";
-import { cardProfit, cardPurchaseCost, listedPotentialProfit } from "./card";
+import { cardProfit, cardPurchaseCost, cardQuantity, listedPotentialProfit } from "./card";
 
 export type ProfitSummaryCsvInput = {
   periodLabel: string;
@@ -102,6 +102,122 @@ export const expensesToCsv = (expenses: ExpenseRecord[]) => {
   const head = expenseHeaders.map(([, label]) => label);
   const rows = expenses.map((expense) => expenseHeaders.map(([key]) => expense[key]));
   return csvRows([head, ...rows]);
+};
+
+const normalizeForEbayTitle = (value: string) => value.replace(/\s+/g, " ").trim();
+
+const ebayTitle = (card: CardRecord) => {
+  const title = normalizeForEbayTitle([card.year, card.name, card.setName, card.cardNumber ? `#${card.cardNumber}` : "", card.category].filter(Boolean).join(" "));
+  return title.slice(0, 80);
+};
+
+const ebaySpecificValue = (notes: string, labels: string[]) => {
+  const lines = notes.split("\n");
+  for (const line of lines) {
+    const [rawKey, ...rest] = line.split(":");
+    if (!rest.length) continue;
+    const key = rawKey.trim().toLowerCase();
+    if (labels.some((label) => key === label.toLowerCase())) return rest.join(":").trim();
+  }
+  return "";
+};
+
+const cardGrade = (card: Pick<CardRecord, "notes">) => ebaySpecificValue(card.notes, ["Grade"]).replace(/^(PSA|BGS|SGC|CGC|TAG)\s+/i, "");
+const professionalGrader = (card: Pick<CardRecord, "notes">) => {
+  const noteGrader = ebaySpecificValue(card.notes, ["Professional Grader", "Grader"]);
+  if (noteGrader) return noteGrader;
+  const gradeLine = ebaySpecificValue(card.notes, ["Grade"]);
+  const match = gradeLine.match(/^(PSA|BGS|SGC|CGC|TAG)\b/i);
+  return match ? match[1].toUpperCase() : "";
+};
+
+const ebayCategoryId = (category: string) => {
+  const normalized = category.toLowerCase();
+  if (/pokemon|pokémon|mtg|magic|yugioh|tcg|ccg/.test(normalized)) return "183454";
+  return "261328";
+};
+
+const ebayConditionId = (card: CardRecord) => cardGrade(card) || professionalGrader(card) ? "2750" : "4000";
+const ebaySport = (category: string) => (/pokemon|pokémon|mtg|magic|yugioh|tcg|ccg/i.test(category) ? "" : category);
+const ebayPrice = (card: CardRecord) => (card.askingPrice || card.lowestAcceptablePrice || card.purchasePrice || 0).toFixed(2);
+const ebayDescription = (card: CardRecord) => [
+  ebayTitle(card),
+  cardGrade(card) ? `Grade: ${professionalGrader(card)} ${cardGrade(card)}`.trim() : "",
+  card.notes.split("\n").filter((line) => !/^grade:/i.test(line.trim())).join("\n"),
+].filter(Boolean).join("\n\n");
+
+const ebayHeaders = [
+  "Action(SiteID=US|Country=US|Currency=USD|Version=1193)",
+  "CustomLabel",
+  "Category",
+  "Title",
+  "ConditionID",
+  "PicURL",
+  "Description",
+  "Format",
+  "Duration",
+  "StartPrice",
+  "Quantity",
+  "Location",
+  "PaymentProfileName",
+  "ReturnProfileName",
+  "ShippingProfileName",
+  "C:Sport",
+  "C:Card Name",
+  "C:Player/Athlete",
+  "C:Set",
+  "C:Season",
+  "C:Card Number",
+  "C:Professional Grader",
+  "C:Grade",
+  "C:Certification Number",
+  "C:League",
+  "WCTReviewNotes",
+];
+
+export const ebayListingsToCsv = (cards: CardRecord[]) => {
+  const rows = cards.filter((card) => card.status !== "Sold").map((card) => {
+    const grade = cardGrade(card);
+    const grader = professionalGrader(card);
+    const reviewNotes = [
+      !card.frontPhotoUrl ? "Missing PicURL" : "",
+      !ebayPrice(card) || ebayPrice(card) === "0.00" ? "Missing price" : "",
+      !card.name ? "Missing card/player name" : "",
+      !card.year ? "Missing season/year" : "",
+      !card.setName ? "Missing set" : "",
+      grade && !grader ? "Missing professional grader" : "",
+      "Confirm category, item specifics, business policies, and shipping before upload",
+    ].filter(Boolean).join("; ");
+    return [
+      "Add",
+      `WCT-${card.id.slice(0, 8)}`,
+      ebayCategoryId(card.category),
+      ebayTitle(card),
+      ebayConditionId(card),
+      card.frontPhotoUrl,
+      ebayDescription(card),
+      "FixedPrice",
+      "GTC",
+      ebayPrice(card),
+      cardQuantity(card),
+      "",
+      "",
+      "",
+      "",
+      ebaySport(card.category),
+      card.name,
+      card.name,
+      card.setName,
+      card.year,
+      card.cardNumber,
+      grader,
+      grade,
+      ebaySpecificValue(card.notes, ["Certification Number", "Cert Number", "Cert"]),
+      ebaySpecificValue(card.notes, ["League"]),
+      reviewNotes,
+    ];
+  });
+  return csvRows([ebayHeaders, ...rows]);
 };
 
 export const profitSummaryToCsv = (summary: ProfitSummaryCsvInput) => csvRows([
