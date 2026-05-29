@@ -51,6 +51,7 @@ type ImportCardPreview = {
 };
 type CsvRow = Record<string, string>;
 type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string };
+type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
@@ -139,6 +140,9 @@ const normalizePhotoFile = async (file: File) => {
   return new File([blob], `${normalizedName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
 };
 const cleanGradeLabel = (grade: string) => grade.trim().replace(/^grade:\s*/i, "");
+const emptyInventoryExpenseDraft = (): InventoryExpenseDraft => ({ shipping: "", hst: "", duties: "" });
+const inventoryExpenseAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
+const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
 const cardGradeLabel = (card: Pick<CardRecord, "notes">) => card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grade:"))?.replace(/^grade:\s*/i, "").trim() || "";
 const notesWithGrade = (notes: string, grade: string) => {
   const withoutGrade = notes.split("\n").filter((line) => !line.toLowerCase().startsWith("grade:")).join("\n").trim();
@@ -434,6 +438,8 @@ export default function Home() {
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
   const [gradingSubmissions, setGradingSubmissions] = useState<GradingSubmission[]>([]);
   const [activeCard, setActiveCard] = useState<CardRecord>(emptyCard());
+  const [activeCardGrade, setActiveCardGrade] = useState("");
+  const [inventoryExpenseDraft, setInventoryExpenseDraft] = useState<InventoryExpenseDraft>(emptyInventoryExpenseDraft());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
@@ -873,6 +879,30 @@ export default function Home() {
   const selectedImportPreviews = importPreviews.filter((preview) => preview.selected);
   const importReadyCount = selectedImportPreviews.length;
   const importWarningCount = importPreviews.filter((preview) => preview.warnings.length).length;
+  const inventoryExpenseTotal = inventoryExpenseDraftTotal(inventoryExpenseDraft);
+  const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
+    const now = new Date().toISOString();
+    const expenseDate = card.purchaseDate || todayIso();
+    const rows: Array<{ category: ExpenseCategory; amount: number }> = [
+      { category: "Shipping", amount: inventoryExpenseAmount(inventoryExpenseDraft.shipping) },
+      { category: "HST", amount: inventoryExpenseAmount(inventoryExpenseDraft.hst) },
+      { category: "Duties", amount: inventoryExpenseAmount(inventoryExpenseDraft.duties) },
+    ];
+    return rows.filter((row) => row.amount > 0).map((row) => ({
+      ...emptyExpense(),
+      id: crypto.randomUUID(),
+      workspaceId: workspaceId || undefined,
+      category: row.category,
+      amount: row.amount,
+      expenseDate,
+      vendor: "",
+      description: `Inventory add: ${card.name}`,
+      createdAt: now,
+      createdBy: currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
+    }));
+  };
   const isSoldInventoryView = statusFilter === "Sold";
 
   useEffect(() => {
@@ -1084,6 +1114,32 @@ export default function Home() {
     }
   };
 
+  const insertExpenseRecords = async (records: ExpenseRecord[]) => {
+    if (!records.length) return [];
+    if (usingSupabase && supabase && session?.user.id) {
+      let insertResult = await supabase
+        .from("expenses")
+        .insert(records.map((expense) => expenseToInsert(expense, session.user.id, workspaceId)))
+        .select("*");
+      if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("expenses")
+          .insert(records.map((expense) => expenseToInsert(expense, session.user.id, workspaceId, false)))
+          .select("*");
+        if (!insertResult.error) setNotice("Inventory added. Run the audit SQL migration so expense usernames save to account storage.");
+      }
+      if (insertResult.error) {
+        setError(`Inventory was added, but the expense rows did not save: ${insertResult.error.message}`);
+        return null;
+      }
+      const savedRows = (insertResult.data ?? []).map(rowToExpense);
+      setExpenses((current) => [...savedRows, ...current]);
+      return savedRows;
+    }
+    setExpenses((current) => [...records, ...current]);
+    return records;
+  };
+
   const saveCard = async (event: FormEvent) => {
     event.preventDefault();
     if (!activeCard.name.trim()) return;
@@ -1094,6 +1150,7 @@ export default function Home() {
     const preparedCard = activeCard.status === "Listed" || activeCard.status === "Sold" ? prepareCardForStatus(activeCard, activeCard.status) : activeCard;
     const cardToSave: CardRecord = {
       ...preparedCard,
+      notes: notesWithGrade(preparedCard.notes, activeCardGrade),
       createdBy: preparedCard.createdBy || currentUsername,
       updatedBy: currentUsername,
       listedAt: preparedCard.status === "Listed" ? preparedCard.listedAt || now : preparedCard.listedAt,
@@ -1106,6 +1163,8 @@ export default function Home() {
       setError(validationError);
       return;
     }
+
+    let savedInventoryCard: CardRecord | null = null;
 
     if (usingSupabase && supabase && session?.user.id) {
       let insertResult = await supabase
@@ -1143,15 +1202,23 @@ export default function Home() {
         setError(insertError.message);
         return;
       }
-      setCards((current) => [rowToCardWithQuantityFallback(data, cardToSave), ...current]);
+      savedInventoryCard = rowToCardWithQuantityFallback(data, cardToSave);
+      setCards((current) => [savedInventoryCard!, ...current]);
     } else {
-      setCards((current) => [{ ...cardToSave, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }, ...current]);
+      savedInventoryCard = { ...cardToSave, id: crypto.randomUUID(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      setCards((current) => [savedInventoryCard!, ...current]);
     }
 
-    setNotice((current) => current || "Inventory added.");
+    const inventoryExpenseRows = savedInventoryCard ? inventoryExpenseRowsForCard(savedInventoryCard) : [];
+    const savedExpenseRows = await insertExpenseRecords(inventoryExpenseRows);
+    if (savedExpenseRows === null) return;
+
+    setNotice((current) => current || `Inventory added${savedExpenseRows.length ? ` with ${money(savedExpenseRows.reduce((sum, expense) => sum + expense.amount, 0))} in expenses` : ""}.`);
     setShowAddInventoryCheck(false);
     window.setTimeout(() => setShowAddInventoryCheck(true), 0);
     setActiveCard(emptyCard());
+    setActiveCardGrade("");
+    setInventoryExpenseDraft(emptyInventoryExpenseDraft());
     setTab("inventory");
   };
 
@@ -2047,6 +2114,7 @@ export default function Home() {
             <Field label="Item quantity" type="number" value={String(activeCard.quantity)} onChange={(v) => setActiveCard({ ...activeCard, quantity: sanitizeQuantityInput(v) })} />
             <Field label="Purchase price per item" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
             <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
+            <Field label="Grade if already graded" value={activeCardGrade} onChange={setActiveCardGrade} placeholder="PSA 10, BGS 9.5, SGC 9..." />
             <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard(prepareCardForStatus(activeCard, v as CardStatus))} />
             <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status, listedDate: v ? activeCard.listedDate || todayIso() : activeCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
             <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => setActiveCard({ ...activeCard, listingUrl: v })} />
@@ -2078,6 +2146,16 @@ export default function Home() {
               </div>
             )}
             <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => setActiveCard({ ...activeCard, notes: e.target.value })} /></label>
+            <div className="full splitList">
+              <strong>Optional expenses for this card</strong>
+              <p className="muted">Add these only if they belong with this purchase. They will also appear in the Expenses tab and expense reports.</p>
+              <div className="splitRow">
+                <Field label="Shipping" type="number" value={inventoryExpenseDraft.shipping} onChange={(v) => setInventoryExpenseDraft((draft) => ({ ...draft, shipping: v }))} />
+                <Field label="HST" type="number" value={inventoryExpenseDraft.hst} onChange={(v) => setInventoryExpenseDraft((draft) => ({ ...draft, hst: v }))} />
+                <Field label="Duties" type="number" value={inventoryExpenseDraft.duties} onChange={(v) => setInventoryExpenseDraft((draft) => ({ ...draft, duties: v }))} />
+              </div>
+              <p className="muted">Expense total: <strong>{money(inventoryExpenseTotal)}</strong></p>
+            </div>
             <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Add to inventory"}</button>
           </form>
         </section>
@@ -2591,6 +2669,7 @@ export default function Home() {
               <Field label="Item quantity" type="number" value={String(editingCard.quantity)} onChange={(v) => setEditingCard({ ...editingCard, quantity: sanitizeQuantityInput(v) })} />
               <Field label="Purchase price per item" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
               <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
+              <Field label="Grade if already graded" value={cardGradeLabel(editingCard)} onChange={(v) => setEditingCard({ ...editingCard, notes: notesWithGrade(editingCard.notes, v) })} placeholder="PSA 10, BGS 9.5, SGC 9..." />
               <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard(prepareCardForStatus(editingCard, v as CardStatus))} />
               <Field label="Listed where?" value={editingCard.listedPlatform} onChange={(v) => setEditingCard({ ...editingCard, listedPlatform: v, status: v ? "Listed" : editingCard.status, listedDate: v ? editingCard.listedDate || todayIso() : editingCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
               <Field label="Listing URL" value={editingCard.listingUrl} onChange={(v) => setEditingCard({ ...editingCard, listingUrl: v })} />
