@@ -854,10 +854,21 @@ export default function Home() {
     .filter((item): item is { card: CardRecord; referenceDate: string; age: number } => item.age !== null)
     .map(({ card, referenceDate, age }) => ({ card, referenceDate, age, tone: listingReviewTone(age) }))
     .sort((a, b) => b.age - a.age), [cards]);
+  const listedAskingValue = (card: CardRecord) => card.askingPrice * cardQuantity(card);
+  const listingReviewGroups = {
+    current: listingReviewItems.filter((item) => item.tone === "current"),
+    warning: listingReviewItems.filter((item) => item.tone === "warning"),
+    urgent: listingReviewItems.filter((item) => item.tone === "urgent"),
+  };
   const listingReviewCounts = {
-    current: listingReviewItems.filter((item) => item.tone === "current").length,
-    warning: listingReviewItems.filter((item) => item.tone === "warning").length,
-    urgent: listingReviewItems.filter((item) => item.tone === "urgent").length,
+    current: listingReviewGroups.current.length,
+    warning: listingReviewGroups.warning.length,
+    urgent: listingReviewGroups.urgent.length,
+  };
+  const listingReviewAskingTotals = {
+    current: listingReviewGroups.current.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
+    warning: listingReviewGroups.warning.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
+    urgent: listingReviewGroups.urgent.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
   };
 
   const cardById = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
@@ -2211,9 +2222,10 @@ export default function Home() {
             <button className="secondary" type="button" onClick={showActiveInventory}>Open inventory</button>
           </div>
           <section className="statsGrid listingReviewStats" aria-label="Listing review summary">
-            <Stat label="Current listings (0–30 days)" value={String(listingReviewCounts.current)} />
-            <Stat label="Review soon (30–60 days)" value={String(listingReviewCounts.warning)} tone={listingReviewCounts.warning ? "warning" : undefined} />
-            <Stat label="Urgent review (60+ days)" value={String(listingReviewCounts.urgent)} tone={listingReviewCounts.urgent ? "negative" : undefined} />
+            <Stat label={`Current listings (0–30 days) • ${listingReviewCounts.current} cards`} value={money(listingReviewAskingTotals.current)} />
+            <Stat label={`Review soon (30–60 days) • ${listingReviewCounts.warning} cards`} value={money(listingReviewAskingTotals.warning)} tone={listingReviewCounts.warning ? "warning" : undefined} />
+            <Stat label={`Urgent review (60+ days) • ${listingReviewCounts.urgent} cards`} value={money(listingReviewAskingTotals.urgent)} tone={listingReviewCounts.urgent ? "negative" : undefined} />
+            <Stat label="Total Listed Asking" value={money(listedValue)} />
           </section>
           <div className="cardsList listingReviewList">
             {listingReviewItems.map(({ card, age, referenceDate, tone }) => (
