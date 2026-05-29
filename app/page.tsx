@@ -955,7 +955,6 @@ export default function Home() {
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards sold`, apply: showSoldInventory },
-    { id: "sales", tab: "inventory", label: "Sales", subtitle: money(totals.revenue), apply: showSoldInventory },
   ];
 
   const openAttentionItem = (item: AttentionItem) => {
