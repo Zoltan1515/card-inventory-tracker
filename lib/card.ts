@@ -60,6 +60,7 @@ export type GradingSubmission = {
   reference: string;
   notes: string;
   cardIds: string[];
+  cardQuantities: Record<string, number>;
   createdAt: string;
   createdBy: string;
   updatedAt: string;
@@ -128,6 +129,7 @@ export const emptyGradingSubmission = (): GradingSubmission => {
     reference: "",
     notes: "",
     cardIds: [],
+    cardQuantities: {},
     createdAt: now,
     createdBy: "",
     updatedAt: now,

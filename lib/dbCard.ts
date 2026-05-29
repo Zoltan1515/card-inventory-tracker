@@ -68,6 +68,7 @@ type GradingSubmissionRow = {
 type GradingSubmissionCardRow = {
   submission_id: string;
   card_id: string;
+  quantity_sent?: number | string | null;
 };
 
 const num = (value: number | string | null | undefined) => Number(value ?? 0) || 0;
@@ -219,6 +220,12 @@ export const rowToGradingSubmission = (row: GradingSubmissionRow, cardRows: Grad
   reference: text(row.reference),
   notes: text(row.notes),
   cardIds: cardRows.filter((item) => item.submission_id === row.id).map((item) => item.card_id),
+  cardQuantities: cardRows
+    .filter((item) => item.submission_id === row.id)
+    .reduce<Record<string, number>>((quantities, item) => {
+      quantities[item.card_id] = Math.max(1, Math.floor(num(item.quantity_sent) || 1));
+      return quantities;
+    }, {}),
   createdAt: row.created_at ?? new Date().toISOString(),
   createdBy: text(row.created_by),
   updatedAt: row.updated_at ?? new Date().toISOString(),
@@ -250,7 +257,8 @@ export const gradingSubmissionToUpdate = (submission: GradingSubmission, include
   updated_at: new Date().toISOString(),
 });
 
-export const gradingSubmissionCardRows = (submission: GradingSubmission) => submission.cardIds.map((cardId) => ({
+export const gradingSubmissionCardRows = (submission: GradingSubmission, includeQuantity = true) => submission.cardIds.map((cardId) => ({
   submission_id: submission.id,
   card_id: cardId,
+  ...(includeQuantity ? { quantity_sent: Math.max(1, Math.floor(Number(submission.cardQuantities[cardId]) || 1)) } : {}),
 }));

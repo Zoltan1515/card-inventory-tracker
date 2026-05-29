@@ -50,6 +50,11 @@ type ImportCardPreview = {
   warnings: string[];
 };
 type CsvRow = Record<string, string>;
+type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string };
+type GradingLinkQueryResult = {
+  data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
+  error: { message: string } | null;
+};
 
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
@@ -78,6 +83,68 @@ const formatDateTimeLabel = (value: string) => {
   return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 const actorLabel = (value: string, fallback = "Unknown user") => value || fallback;
+const PHOTO_MAX_SIDE = 1800;
+
+const canvasToBlob = (canvas: HTMLCanvasElement, type = "image/jpeg", quality = 0.9) =>
+  new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Could not prepare photo for upload."))), type, quality);
+  });
+
+const loadImageBitmap = async (file: File) => {
+  if (typeof window !== "undefined" && "createImageBitmap" in window) {
+    try {
+      return await createImageBitmap(file, { imageOrientation: "from-image" });
+    } catch {
+      return null;
+    }
+  }
+  return null;
+};
+
+const loadHtmlImage = (file: File) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read the selected photo."));
+    };
+    image.src = url;
+  });
+
+const normalizePhotoFile = async (file: File) => {
+  if (!file.type.startsWith("image/")) return file;
+
+  const bitmap = await loadImageBitmap(file);
+  const source = bitmap ?? (await loadHtmlImage(file));
+  const sourceWidth = source.width;
+  const sourceHeight = source.height;
+  const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(sourceWidth, sourceHeight));
+  const width = Math.max(1, Math.round(sourceWidth * scale));
+  const height = Math.max(1, Math.round(sourceHeight * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("Could not prepare photo for upload.");
+  context.drawImage(source, 0, 0, width, height);
+  bitmap?.close();
+
+  const blob = await canvasToBlob(canvas);
+  const normalizedName = file.name.replace(/\.[^.]+$/, "") || "card-photo";
+  return new File([blob], `${normalizedName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+};
+const cleanGradeLabel = (grade: string) => grade.trim().replace(/^grade:\s*/i, "");
+const cardGradeLabel = (card: Pick<CardRecord, "notes">) => card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grade:"))?.replace(/^grade:\s*/i, "").trim() || "";
+const notesWithGrade = (notes: string, grade: string) => {
+  const withoutGrade = notes.split("\n").filter((line) => !line.toLowerCase().startsWith("grade:")).join("\n").trim();
+  const cleanGrade = cleanGradeLabel(grade);
+  return [cleanGrade ? `Grade: ${cleanGrade}` : "", withoutGrade].filter(Boolean).join("\n");
+};
 const mergeById = <T extends { id: string }>(primary: T[], fallback: T[]) => {
   const rows = new Map<string, T>();
   fallback.forEach((item) => rows.set(item.id, item));
@@ -192,6 +259,7 @@ const normalizeStoredGradingSubmission = (submission: Partial<GradingSubmission>
   reference: submission.reference || "",
   notes: submission.notes || "",
   cardIds: Array.isArray(submission.cardIds) ? submission.cardIds : [],
+  cardQuantities: submission.cardQuantities || {},
   createdAt: submission.createdAt || new Date().toISOString(),
   createdBy: submission.createdBy || "",
   updatedAt: submission.updatedAt || new Date().toISOString(),
@@ -373,11 +441,13 @@ export default function Home() {
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
+  const [selectedGradingQuantities, setSelectedGradingQuantities] = useState<Record<string, number>>({});
   const [gradingDraft, setGradingDraft] = useState<GradingSubmission>(emptyGradingSubmission());
   const [showGradingForm, setShowGradingForm] = useState(false);
   const [openGradingSubmissionId, setOpenGradingSubmissionId] = useState<string | null>(null);
   const [returningSubmission, setReturningSubmission] = useState<GradingSubmission | null>(null);
   const [returnDate, setReturnDate] = useState(todayIso());
+  const [returnGradeRows, setReturnGradeRows] = useState<ReturnGradeRow[]>([]);
   const [importPreviews, setImportPreviews] = useState<ImportCardPreview[]>([]);
   const [importFileName, setImportFileName] = useState("");
   const [importingCards, setImportingCards] = useState(false);
@@ -472,9 +542,14 @@ export default function Home() {
         setGradingSubmissions([]);
       } else {
         const submissionIds = (gradingResult.data ?? []).map((submission) => submission.id);
-        const linkResult = submissionIds.length
-          ? await supabase.from("grading_submission_cards").select("submission_id, card_id").in("submission_id", submissionIds)
+        let linkResult: GradingLinkQueryResult = submissionIds.length
+          ? await supabase.from("grading_submission_cards").select("submission_id, card_id, quantity_sent").in("submission_id", submissionIds)
           : { data: [], error: null };
+        if (linkResult.error && isQuantityColumnError(linkResult.error.message)) {
+          linkResult = submissionIds.length
+            ? await supabase.from("grading_submission_cards").select("submission_id, card_id").in("submission_id", submissionIds)
+            : { data: [], error: null };
+        }
         if (linkResult.error) setGradingSubmissions(mergeById((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row)), localGradingSubmissions()));
         else setGradingSubmissions(mergeById((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row, linkResult.data ?? [])), localGradingSubmissions()));
       }
@@ -781,17 +856,20 @@ export default function Home() {
 
   const cardById = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const openGradingSubmissions = useMemo(() => gradingSubmissions.filter((submission) => submission.status === "At Grading"), [gradingSubmissions]);
+  const gradingSubmissionQuantity = (submission: GradingSubmission, card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(submission.cardQuantities[card.id]) || cardQuantity(card))));
   const gradingSubmissionCards = (submission: GradingSubmission) => submission.cardIds.map((cardId) => cardById.get(cardId)).filter((card): card is CardRecord => Boolean(card));
-  const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+  const gradingSubmissionCardQuantity = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + gradingSubmissionQuantity(submission, card), 0);
+  const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + (card.purchasePrice * gradingSubmissionQuantity(submission, card)), 0);
   const activeGradingCardIds = useMemo(() => new Set(openGradingSubmissions.flatMap((submission) => submission.cardIds)), [openGradingSubmissions]);
-  const openGradingCardCount = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId) ? cardQuantity(cardById.get(cardId)!) : 0), 0);
-  const openGradingPurchaseValue = Array.from(activeGradingCardIds).reduce((sum, cardId) => sum + (cardById.get(cardId) ? cardPurchaseCost(cardById.get(cardId)!) : 0), 0);
+  const openGradingCardCount = openGradingSubmissions.reduce((sum, submission) => sum + gradingSubmissionCardQuantity(submission), 0);
+  const openGradingPurchaseValue = openGradingSubmissions.reduce((sum, submission) => sum + gradingPurchaseValue(submission), 0);
   const selectedCards = selectedCardIds
     .map((cardId) => cardById.get(cardId))
     .filter((card): card is CardRecord => Boolean(card))
     .filter((card) => card.status !== "Sold");
-  const selectedCardQuantity = selectedCards.reduce((sum, card) => sum + cardQuantity(card), 0);
-  const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+  const selectedQuantityForCard = (card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(selectedGradingQuantities[card.id]) || cardQuantity(card))));
+  const selectedCardQuantity = selectedCards.reduce((sum, card) => sum + selectedQuantityForCard(card), 0);
+  const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + (card.purchasePrice * selectedQuantityForCard(card)), 0);
   const selectedImportPreviews = importPreviews.filter((preview) => preview.selected);
   const importReadyCount = selectedImportPreviews.length;
   const importWarningCount = importPreviews.filter((preview) => preview.warnings.length).length;
@@ -852,35 +930,40 @@ export default function Home() {
       else setActiveCard((card) => ({ ...card, frontPhotoUrl: url }));
     };
 
-    if (usingSupabase && supabase && session?.user.id) {
-      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${session.user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from("card-photos").upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-      });
+    try {
+      const uploadFile = await normalizePhotoFile(file);
 
-      if (uploadError) {
-        setError(`Photo upload failed. Make sure the card-photos storage SQL has been run. ${uploadError.message}`);
-        setPhotoUploading(false);
-        return;
+      if (usingSupabase && supabase && session?.user.id) {
+        const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
+        const { error: uploadError } = await supabase.storage.from("card-photos").upload(path, uploadFile, {
+          cacheControl: "3600",
+          contentType: uploadFile.type,
+          upsert: false,
+        });
+
+        if (uploadError) {
+          setError(`Photo upload failed. Make sure the card-photos storage SQL has been run. ${uploadError.message}`);
+          return;
+        }
+
+        const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
+        applyPhoto(data.publicUrl);
+        setNotice("Front photo uploaded.");
+      } else {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(uploadFile);
+        });
+        applyPhoto(dataUrl);
+        setNotice("Front photo added locally.");
       }
-
-      const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
-      applyPhoto(data.publicUrl);
-      setNotice("Front photo uploaded.");
-    } else {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      });
-      applyPhoto(dataUrl);
-      setNotice("Front photo added locally.");
+    } catch (photoError) {
+      setError(photoError instanceof Error ? photoError.message : "Photo upload failed. Try taking the photo again.");
+    } finally {
+      setPhotoUploading(false);
     }
-
-    setPhotoUploading(false);
   };
 
   const validateCardBusinessRules = (card: CardRecord) => {
@@ -1492,11 +1575,29 @@ export default function Home() {
   const toggleSelectedCard = (cardId: string) => {
     const card = cardById.get(cardId);
     if (!card || card.status === "Sold" || activeGradingCardIds.has(cardId)) return;
-    setSelectedCardIds((current) => current.includes(cardId) ? current.filter((id) => id !== cardId) : [...current, cardId]);
+    setSelectedCardIds((current) => {
+      if (current.includes(cardId)) {
+        setSelectedGradingQuantities((quantities) => {
+          const next = { ...quantities };
+          delete next[cardId];
+          return next;
+        });
+        return current.filter((id) => id !== cardId);
+      }
+      setSelectedGradingQuantities((quantities) => ({ ...quantities, [cardId]: cardQuantity(card) }));
+      return [...current, cardId];
+    });
   };
 
-  const selectAllFilteredCards = () => setSelectedCardIds(filteredCards.filter((card) => card.status !== "Sold" && !activeGradingCardIds.has(card.id)).map((card) => card.id));
-  const clearSelectedCards = () => setSelectedCardIds([]);
+  const selectAllFilteredCards = () => {
+    const selectableCards = filteredCards.filter((card) => card.status !== "Sold" && !activeGradingCardIds.has(card.id));
+    setSelectedCardIds(selectableCards.map((card) => card.id));
+    setSelectedGradingQuantities(Object.fromEntries(selectableCards.map((card) => [card.id, cardQuantity(card)])));
+  };
+  const clearSelectedCards = () => {
+    setSelectedCardIds([]);
+    setSelectedGradingQuantities({});
+  };
 
   const beginGradingSubmission = () => {
     setError("");
@@ -1505,7 +1606,11 @@ export default function Home() {
       return;
     }
     const submissionCardIds = selectedCards.map((card) => card.id);
-    setGradingDraft({ ...emptyGradingSubmission(), cardIds: submissionCardIds });
+    setGradingDraft({
+      ...emptyGradingSubmission(),
+      cardIds: submissionCardIds,
+      cardQuantities: Object.fromEntries(selectedCards.map((card) => [card.id, selectedQuantityForCard(card)])),
+    });
     setShowGradingForm(true);
   };
 
@@ -1514,12 +1619,68 @@ export default function Home() {
     setError("");
     setNotice("");
     const now = new Date().toISOString();
+    const draftCompany = gradingDraft.company.trim();
+    const draftReference = gradingDraft.reference.trim();
+    const draftNotes = gradingDraft.notes.trim();
+    if (!draftCompany) {
+      setError("Choose the grading company before saving the submission.");
+      return;
+    }
+    if (!gradingDraft.sentDate) {
+      setError("Add the date the cards were sent to grading.");
+      return;
+    }
+    if (!selectedCards.length) {
+      setError("Select at least one card before saving the grading submission.");
+      return;
+    }
+
+    const gradingCards: CardRecord[] = [];
+    const insertedSplitCards: CardRecord[] = [];
+    const cardQuantities: Record<string, number> = {};
+
+    for (const card of selectedCards) {
+      const availableQuantity = cardQuantity(card);
+      const quantityToSend = selectedQuantityForCard(card);
+      if (quantityToSend < availableQuantity) {
+        const remainingCard: CardRecord = {
+          ...card,
+          quantity: availableQuantity - quantityToSend,
+          updatedAt: now,
+          updatedBy: currentUsername,
+        };
+        const updatedRemaining = await updateCard(remainingCard);
+        if (!updatedRemaining) return;
+
+        const gradingCard: CardRecord = {
+          ...card,
+          id: crypto.randomUUID(),
+          quantity: quantityToSend,
+          createdAt: now,
+          createdBy: currentUsername,
+          updatedAt: now,
+          updatedBy: currentUsername,
+        };
+        const insertedGradingCard = await insertCardRecord(gradingCard);
+        if (!insertedGradingCard) return;
+        gradingCards.push(insertedGradingCard);
+        insertedSplitCards.push(insertedGradingCard);
+        cardQuantities[insertedGradingCard.id] = quantityToSend;
+      } else {
+        gradingCards.push(card);
+        cardQuantities[card.id] = availableQuantity;
+      }
+    }
+
+    if (insertedSplitCards.length) setCards((current) => [...insertedSplitCards, ...current]);
+
     const submission: GradingSubmission = {
       ...gradingDraft,
-      company: gradingDraft.company.trim(),
-      reference: gradingDraft.reference.trim(),
-      notes: gradingDraft.notes.trim(),
-      cardIds: selectedCards.map((card) => card.id),
+      company: draftCompany,
+      reference: draftReference,
+      notes: draftNotes,
+      cardIds: gradingCards.map((card) => card.id),
+      cardQuantities,
       status: "At Grading",
       returnedDate: "",
       createdAt: gradingDraft.createdAt || now,
@@ -1527,19 +1688,6 @@ export default function Home() {
       updatedAt: now,
       updatedBy: currentUsername,
     };
-
-    if (!submission.company) {
-      setError("Choose the grading company before saving the submission.");
-      return;
-    }
-    if (!submission.sentDate) {
-      setError("Add the date the cards were sent to grading.");
-      return;
-    }
-    if (!submission.cardIds.length) {
-      setError("Select at least one card before saving the grading submission.");
-      return;
-    }
 
     if (usingSupabase && supabase && session?.user.id) {
       let insertResult = await supabase
@@ -1560,13 +1708,18 @@ export default function Home() {
         setNotice("Grading submission saved locally for now. Run the pending grading SQL migration so it saves to account storage.");
         setGradingSubmissions((current) => [submission, ...current]);
         setSelectedCardIds([]);
+        setSelectedGradingQuantities({});
         setShowGradingForm(false);
         setTab("grading");
         return;
       }
 
       const linkRows = gradingSubmissionCardRows(submission);
-      const linkResult = linkRows.length ? await supabase.from("grading_submission_cards").insert(linkRows) : { error: null };
+      let linkResult = linkRows.length ? await supabase.from("grading_submission_cards").insert(linkRows) : { error: null };
+      if (linkResult.error && isQuantityColumnError(linkResult.error.message)) {
+        linkResult = linkRows.length ? await supabase.from("grading_submission_cards").insert(gradingSubmissionCardRows(submission, false)) : { error: null };
+        if (!linkResult.error) setNotice("Grading submission saved. Run the grading quantity SQL migration so partial quantities persist after reload.");
+      }
       if (linkResult.error) {
         await supabase.from("grading_submissions").delete().eq("id", submission.id);
         setError(linkResult.error.message);
@@ -1577,10 +1730,85 @@ export default function Home() {
       setGradingSubmissions((current) => [submission, ...current]);
     }
 
-    setNotice(`Sent ${selectedCardQuantity} cards to ${submission.company} for grading.`);
+    setNotice((current) => current || `Sent ${selectedCardQuantity} cards to ${submission.company} for grading.`);
     setSelectedCardIds([]);
+    setSelectedGradingQuantities({});
     setShowGradingForm(false);
     setTab("grading");
+  };
+
+  const openReturnGradingModal = (submission: GradingSubmission) => {
+    setReturningSubmission(submission);
+    setReturnDate(todayIso());
+    setReturnGradeRows(gradingSubmissionCards(submission).map((card) => ({
+      id: crypto.randomUUID(),
+      cardId: card.id,
+      quantity: gradingSubmissionQuantity(submission, card),
+      grade: cardGradeLabel(card),
+    })));
+  };
+
+  const updateReturnGradeRow = (rowId: string, changes: Partial<ReturnGradeRow>) => {
+    setReturnGradeRows((rows) => rows.map((row) => row.id === rowId ? { ...row, ...changes } : row));
+  };
+
+  const addReturnGradeRow = (card: CardRecord) => {
+    if (!returningSubmission) return;
+    const expectedQuantity = gradingSubmissionQuantity(returningSubmission, card);
+    const usedQuantity = returnGradeRows.filter((row) => row.cardId === card.id).reduce((sum, row) => sum + row.quantity, 0);
+    const remainingQuantity = Math.max(1, expectedQuantity - usedQuantity);
+    setReturnGradeRows((rows) => [...rows, { id: crypto.randomUUID(), cardId: card.id, quantity: remainingQuantity, grade: "" }]);
+  };
+
+  const removeReturnGradeRow = (rowId: string) => {
+    setReturnGradeRows((rows) => rows.length <= 1 ? rows : rows.filter((row) => row.id !== rowId));
+  };
+
+  const applyReturnedGradeSplits = async (submission: GradingSubmission) => {
+    const insertedCards: CardRecord[] = [];
+    const now = new Date().toISOString();
+
+    for (const card of gradingSubmissionCards(submission)) {
+      const expectedQuantity = gradingSubmissionQuantity(submission, card);
+      const rowsForCard = returnGradeRows.filter((row) => row.cardId === card.id && row.quantity > 0);
+      const totalQuantity = rowsForCard.reduce((sum, row) => sum + row.quantity, 0);
+      if (totalQuantity !== expectedQuantity) {
+        setError(`${card.name} needs grade quantities totaling ${expectedQuantity}.`);
+        return false;
+      }
+
+      const [firstRow, ...extraRows] = rowsForCard;
+      if (firstRow) {
+        const updatedCard: CardRecord = {
+          ...card,
+          quantity: firstRow.quantity,
+          notes: notesWithGrade(card.notes, firstRow.grade),
+          updatedAt: now,
+          updatedBy: currentUsername,
+        };
+        const updated = await updateCard(updatedCard);
+        if (!updated) return false;
+      }
+
+      for (const row of extraRows) {
+        const splitCard: CardRecord = {
+          ...card,
+          id: crypto.randomUUID(),
+          quantity: row.quantity,
+          notes: notesWithGrade(card.notes, row.grade),
+          createdAt: now,
+          createdBy: currentUsername,
+          updatedAt: now,
+          updatedBy: currentUsername,
+        };
+        const inserted = await insertCardRecord(splitCard);
+        if (!inserted) return false;
+        insertedCards.push(inserted);
+      }
+    }
+
+    if (insertedCards.length) setCards((current) => [...insertedCards, ...current]);
+    return true;
   };
 
   const markGradingReturned = async (event: FormEvent) => {
@@ -1590,6 +1818,9 @@ export default function Home() {
       setError("Add the return date before marking the submission returned.");
       return;
     }
+    const gradeSplitsApplied = await applyReturnedGradeSplits(returningSubmission);
+    if (!gradeSplitsApplied) return;
+
     const now = new Date().toISOString();
     const returnedSubmission: GradingSubmission = {
       ...returningSubmission,
@@ -1621,6 +1852,7 @@ export default function Home() {
         setNotice("Marked returned locally for now. Run the pending grading SQL migration so returns save to account storage.");
         setGradingSubmissions((current) => current.map((submission) => submission.id === returnedSubmission.id ? returnedSubmission : submission));
         setReturningSubmission(null);
+        setReturnGradeRows([]);
         return;
       }
       setGradingSubmissions((current) => current.map((submission) => submission.id === returnedSubmission.id ? rowToGradingSubmission(data, gradingSubmissionCardRows(returnedSubmission)) : submission));
@@ -1630,6 +1862,7 @@ export default function Home() {
 
     setNotice(`${returnedSubmission.company} grading submission marked returned.`);
     setReturningSubmission(null);
+    setReturnGradeRows([]);
   };
 
   const inventoryDateSuffix = inventoryStartDate || inventoryEndDate
@@ -1970,7 +2203,7 @@ export default function Home() {
                         </div>
                         <div className="rowMoney">
                           <span>{money(gradingPurchaseValue(submission))}</span>
-                          <small>{submissionCards.length} cards</small>
+                          <small>{gradingSubmissionCardQuantity(submission)} cards</small>
                         </div>
                       </button>
                       {isOpen && (
@@ -1984,15 +2217,15 @@ export default function Home() {
                                   <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
                                 </div>
                                 <div className="rowMoney">
-                                  <span>{money(cardPurchaseCost(card))}</span>
-                                  <small>{cardQuantity(card) > 1 ? `${cardQuantity(card)} items` : "purchase cost"}</small>
+                                  <span>{money(card.purchasePrice * gradingSubmissionQuantity(submission, card))}</span>
+                                  <small>{gradingSubmissionQuantity(submission, card) > 1 ? `${gradingSubmissionQuantity(submission, card)} items` : "purchase cost"}</small>
                                 </div>
                               </article>
                             ))}
                             {!submissionCards.length && <p className="empty">No cards found for this submission.</p>}
                           </div>
                           <div className="rowActions">
-                            {submission.status !== "Returned" && <button className="primary" type="button" onClick={() => { setReturningSubmission(submission); setReturnDate(todayIso()); }}>Mark returned</button>}
+                            {submission.status !== "Returned" && <button className="primary" type="button" onClick={() => openReturnGradingModal(submission)}>Mark returned</button>}
                           </div>
                         </div>
                       )}
@@ -2121,7 +2354,7 @@ export default function Home() {
                   <div className="cardThumb placeholderThumb">No photo</div>
                 )}
                 <div className="cardInfo">
-                  <div className="rowTitle"><strong>{card.name}</strong></div>
+                  <div className="rowTitle"><strong>{card.name}</strong>{cardGradeLabel(card) && <span className="statusBadge listed">{cardGradeLabel(card)}</span>}</div>
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
@@ -2412,6 +2645,30 @@ export default function Home() {
               <Field label="Date sent" type="date" value={gradingDraft.sentDate} onChange={(v) => setGradingDraft({ ...gradingDraft, sentDate: v })} required />
               <Field label="Order / reference" value={gradingDraft.reference} onChange={(v) => setGradingDraft({ ...gradingDraft, reference: v })} placeholder="Optional submission name or order #" />
               <label className="full textareaLabel">Notes<textarea value={gradingDraft.notes} onChange={(e) => setGradingDraft({ ...gradingDraft, notes: e.target.value })} placeholder="Optional notes about this grading order" /></label>
+              <div className="full splitList">
+                <strong>Quantity to send</strong>
+                <p className="muted">For quantity rows, choose how many copies are going to grading. The rest stay in inventory.</p>
+                {selectedCards.map((card) => {
+                  const availableQuantity = cardQuantity(card);
+                  return (
+                    <div className="splitCard" key={card.id}>
+                      <div className="rowTitle">
+                        <strong>{card.name}</strong>
+                        <span className="muted">Available: {availableQuantity}</span>
+                      </div>
+                      <Field
+                        label="Send qty"
+                        type="number"
+                        value={String(selectedQuantityForCard(card))}
+                        onChange={(v) => setSelectedGradingQuantities((quantities) => ({
+                          ...quantities,
+                          [card.id]: Math.max(1, Math.min(availableQuantity, sanitizeQuantityInput(v))),
+                        }))}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
               <div className="calc full">
                 <span>Cards in submission: <strong>{selectedCardQuantity}</strong></span>
                 <span>Total purchase value: <strong>{money(selectedPurchaseValue)}</strong></span>
@@ -2430,14 +2687,42 @@ export default function Home() {
                 <p className="eyebrow">Mark returned</p>
                 <h2>{returningSubmission.reference || `${returningSubmission.company} submission`}</h2>
               </div>
-              <button className="secondary" type="button" onClick={() => setReturningSubmission(null)}>Cancel</button>
+              <button className="secondary" type="button" onClick={() => { setReturningSubmission(null); setReturnGradeRows([]); }}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
               <Field label="Return date" type="date" value={returnDate} onChange={setReturnDate} required />
               <div className="calc full">
                 <span>Company: <strong>{returningSubmission.company}</strong></span>
-                <span>Cards returning: <strong>{returningSubmission.cardIds.length}</strong></span>
+                <span>Cards returning: <strong>{gradingSubmissionCardQuantity(returningSubmission)}</strong></span>
                 <span>Sent date: <strong>{formatDateLabel(returningSubmission.sentDate)}</strong></span>
+              </div>
+              <div className="full splitList">
+                <strong>Grades received</strong>
+                <p className="muted">If the same card got different grades, add one line per grade. Example: Qty 1 PSA 10, Qty 1 PSA 9.</p>
+                {gradingSubmissionCards(returningSubmission).map((card) => {
+                  const expectedQuantity = gradingSubmissionQuantity(returningSubmission, card);
+                  const rows = returnGradeRows.filter((row) => row.cardId === card.id);
+                  const enteredQuantity = rows.reduce((sum, row) => sum + row.quantity, 0);
+                  return (
+                    <div className="splitCard" key={card.id}>
+                      <div className="rowTitle">
+                        <strong>{card.name}</strong>
+                        <span className="muted">Qty returning: {expectedQuantity}</span>
+                      </div>
+                      {rows.map((row) => (
+                        <div className="splitRow" key={row.id}>
+                          <Field label="Qty" type="number" value={String(row.quantity)} onChange={(v) => updateReturnGradeRow(row.id, { quantity: Math.max(1, Math.min(expectedQuantity, sanitizeQuantityInput(v))) })} />
+                          <Field label="Grade" value={row.grade} onChange={(v) => updateReturnGradeRow(row.id, { grade: v })} placeholder="PSA 10, PSA 9..." />
+                          {rows.length > 1 && <button className="secondary" type="button" onClick={() => removeReturnGradeRow(row.id)}>Remove</button>}
+                        </div>
+                      ))}
+                      <div className="rowActions">
+                        <span className={enteredQuantity === expectedQuantity ? "muted" : "warning"}>Entered qty: {enteredQuantity} / {expectedQuantity}</span>
+                        <button className="secondary" type="button" onClick={() => addReturnGradeRow(card)}>Add another grade line</button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <button className="primary full" type="submit">Mark order returned</button>
             </div>

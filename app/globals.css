@@ -211,6 +211,10 @@ textarea { min-height: 90px; resize: vertical; }
 .gradingOrderSummary { width: 100%; border: 0; background: transparent; color: var(--text); display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 16px; text-align: left; }
 .gradingOrderSummary:hover { background: rgba(56,189,248,.08); }
 .gradingOrderDetail { border-top: 1px solid var(--line); padding: 16px; display: grid; gap: 14px; }
+.splitList { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(15,23,42,.45); display: grid; gap: 12px; }
+.splitList > strong { color: var(--text); }
+.splitCard { border: 1px solid rgba(148,163,184,.18); border-radius: 14px; padding: 12px; display: grid; gap: 10px; background: rgba(8,15,28,.42); }
+.splitRow { display: grid; grid-template-columns: minmax(82px, 110px) minmax(160px, 1fr) auto; gap: 10px; align-items: end; }
 .miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
 .inventoryControls input, .inventoryControls select { padding: 10px; }
 .listingEditButton { width: 100%; justify-content: center; }
@@ -393,6 +397,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .inventoryControls select, .inventoryControls input, .listingEditButton { padding: 8px 10px; min-height: 38px; border-radius: 10px; }
   .rowActions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
   .rowActions button { min-height: 38px; padding: 8px 10px; }
+  .splitRow { grid-template-columns: 1fr; }
+  .splitCard .rowActions { display: flex; }
   .saleSnapshot { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 8px 0; }
   .saleSnapshot div { padding: 7px; border-radius: 10px; }
   .saleSnapshot small { font-size: .56rem; }
