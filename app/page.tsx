@@ -117,7 +117,38 @@ const loadHtmlImage = (file: File) =>
     image.src = url;
   });
 
-const normalizePhotoFile = async (file: File) => {
+const sharpenPhoto = (context: CanvasRenderingContext2D, width: number, height: number) => {
+  const image = context.getImageData(0, 0, width, height);
+  const source = image.data;
+  const output = new Uint8ClampedArray(source);
+  const amount = 0.18;
+  const centerWeight = 1 + amount * 4;
+
+  for (let y = 1; y < height - 1; y += 1) {
+    for (let x = 1; x < width - 1; x += 1) {
+      const offset = (y * width + x) * 4;
+      const top = ((y - 1) * width + x) * 4;
+      const bottom = ((y + 1) * width + x) * 4;
+      const left = (y * width + x - 1) * 4;
+      const right = (y * width + x + 1) * 4;
+
+      for (let channel = 0; channel < 3; channel += 1) {
+        output[offset + channel] = Math.max(0, Math.min(255,
+          source[offset + channel] * centerWeight -
+          source[top + channel] * amount -
+          source[bottom + channel] * amount -
+          source[left + channel] * amount -
+          source[right + channel] * amount,
+        ));
+      }
+    }
+  }
+
+  image.data.set(output);
+  context.putImageData(image, 0, 0);
+};
+
+const normalizePhotoFile = async (file: File, cleanUp = false) => {
   if (!file.type.startsWith("image/")) return file;
 
   const bitmap = await loadImageBitmap(file);
@@ -132,12 +163,15 @@ const normalizePhotoFile = async (file: File) => {
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new Error("Could not prepare photo for upload.");
+  context.filter = cleanUp ? "brightness(1.08) contrast(1.12) saturate(1.04)" : "none";
   context.drawImage(source, 0, 0, width, height);
+  context.filter = "none";
   bitmap?.close();
+  if (cleanUp) sharpenPhoto(context, width, height);
 
-  const blob = await canvasToBlob(canvas);
+  const blob = await canvasToBlob(canvas, "image/jpeg", cleanUp ? 0.92 : 0.9);
   const normalizedName = file.name.replace(/\.[^.]+$/, "") || "card-photo";
-  return new File([blob], `${normalizedName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  return new File([blob], `${normalizedName}${cleanUp ? "-clean" : ""}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
 };
 const cleanGradeLabel = (grade: string) => grade.trim().replace(/^grade:\s*/i, "");
 const emptyInventoryExpenseDraft = (): InventoryExpenseDraft => ({ shipping: "", hst: "", duties: "" });
@@ -477,6 +511,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [showAddInventoryCheck, setShowAddInventoryCheck] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoCleanupEnabled, setPhotoCleanupEnabled] = useState(true);
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
   const [customStartDate, setCustomStartDate] = useState("");
   const [customEndDate, setCustomEndDate] = useState("");
@@ -972,7 +1007,7 @@ export default function Home() {
     };
 
     try {
-      const uploadFile = await normalizePhotoFile(file);
+      const uploadFile = await normalizePhotoFile(file, photoCleanupEnabled);
 
       if (usingSupabase && supabase && session?.user.id) {
         const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
@@ -989,7 +1024,7 @@ export default function Home() {
 
         const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
         applyPhoto(data.publicUrl);
-        setNotice("Front photo uploaded.");
+        setNotice(photoCleanupEnabled ? "Front photo cleaned up and uploaded." : "Front photo uploaded.");
       } else {
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -998,7 +1033,7 @@ export default function Home() {
           reader.readAsDataURL(uploadFile);
         });
         applyPhoto(dataUrl);
-        setNotice("Front photo added locally.");
+        setNotice(photoCleanupEnabled ? "Front photo cleaned up and added locally." : "Front photo added locally.");
       }
     } catch (photoError) {
       setError(photoError instanceof Error ? photoError.message : "Photo upload failed. Try taking the photo again.");
@@ -2147,6 +2182,13 @@ export default function Home() {
                 <Field label="Sold where?" value={activeCard.salePlatform} onChange={(v) => setActiveCard({ ...activeCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               </>
             )}
+            <label className="photoCleanupToggle full">
+              <input type="checkbox" checked={photoCleanupEnabled} onChange={(e) => setPhotoCleanupEnabled(e.target.checked)} />
+              <span>
+                <strong>Clean up photo before saving</strong>
+                <small>Brightens, adds contrast, and lightly sharpens the uploaded listing photo without changing card details.</small>
+              </span>
+            </label>
             <PhotoUploadControl
               helpText="Take a new card photo, or choose one from your gallery."
               onPick={(file) => uploadFrontPhoto(file)}
@@ -2707,6 +2749,13 @@ export default function Home() {
                   <Field label="Sold where?" value={editingCard.salePlatform} onChange={(v) => setEditingCard({ ...editingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
                 </>
               )}
+              <label className="photoCleanupToggle full">
+                <input type="checkbox" checked={photoCleanupEnabled} onChange={(e) => setPhotoCleanupEnabled(e.target.checked)} />
+                <span>
+                  <strong>Clean up photo before saving</strong>
+                  <small>Brightens, adds contrast, and lightly sharpens the uploaded listing photo without changing card details.</small>
+                </span>
+              </label>
               <PhotoUploadControl
                 helpText="Take a new card photo, or choose a replacement from your gallery."
                 onPick={(file) => uploadFrontPhoto(file, "editing")}
