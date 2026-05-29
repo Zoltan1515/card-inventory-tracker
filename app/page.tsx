@@ -924,10 +924,10 @@ export default function Home() {
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
+    { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
     { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
     { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
     { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal, apply: () => showDashboardTab("listingReview", "listing-review-panel") },
-    { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards`, apply: showSoldInventory },
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
