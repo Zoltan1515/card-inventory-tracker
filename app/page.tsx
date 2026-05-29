@@ -445,6 +445,7 @@ export default function Home() {
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
+  const [enlargedPhotoCard, setEnlargedPhotoCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [selectedGradingQuantities, setSelectedGradingQuantities] = useState<Record<string, number>>({});
@@ -497,6 +498,15 @@ export default function Home() {
     const timer = window.setTimeout(() => setShowAddInventoryCheck(false), 1000);
     return () => window.clearTimeout(timer);
   }, [showAddInventoryCheck]);
+
+  useEffect(() => {
+    if (!enlargedPhotoCard) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setEnlargedPhotoCard(null);
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [enlargedPhotoCard]);
 
   const loadSupabaseData = async (userId: string) => {
     if (!supabase) return;
@@ -1947,7 +1957,9 @@ export default function Home() {
     ? `${inventoryDateFieldLabels[inventoryDateField].replace(/\s+/g, "-")}-${inventoryStartDate || "start"}-to-${inventoryEndDate || "today"}`
     : "all-dates";
   const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${inventoryDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
-  const exportEbayListings = () => downloadCsv(ebayListingsToCsv(filteredCards), `ebay-listing-upload-${inventoryDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const ebayExportCards = selectedCards.length ? selectedCards : filteredCards;
+  const ebayExportSuffix = selectedCards.length ? `selected-${selectedCards.length}-cards` : inventoryDateSuffix;
+  const exportEbayListings = () => downloadCsv(ebayListingsToCsv(ebayExportCards), `ebay-listing-upload-${ebayExportSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportDateSuffix = selectedDateLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "all-time";
   const exportExpenses = () => downloadCsv(expensesToCsv(totals.filteredExpenses), `card-expenses-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const exportAllInventory = () => downloadCsv(cardsToCsv(activeInventoryCards), `card-inventory-all-${new Date().toISOString().slice(0, 10)}.csv`);
@@ -2340,7 +2352,7 @@ export default function Home() {
             </div>
             <div className="exportActions">
               <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
-              <button className="primary" onClick={exportEbayListings} type="button">Export eBay upload CSV</button>
+              <button className="primary" onClick={exportEbayListings} type="button">{selectedCards.length ? `Export ${selectedCards.length} selected to eBay CSV` : "Export eBay upload CSV"}</button>
             </div>
           </div>
 
@@ -2443,7 +2455,9 @@ export default function Home() {
                 </label>
                 )}
                 {card.frontPhotoUrl ? (
-                  <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} />
+                  <button className="photoThumbButton" type="button" onClick={() => setEnlargedPhotoCard(card)} aria-label={`Enlarge photo of ${card.name || "card"}`}>
+                    <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} />
+                  </button>
                 ) : (
                   <div className="cardThumb placeholderThumb">No photo</div>
                 )}
@@ -2848,6 +2862,22 @@ export default function Home() {
               <button className="primary full" type="submit">Save sale</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {enlargedPhotoCard?.frontPhotoUrl && (
+        <div className="modalBackdrop photoLightboxBackdrop" role="dialog" aria-modal="true" aria-label={`Photo preview for ${enlargedPhotoCard.name || "card"}`} onClick={() => setEnlargedPhotoCard(null)}>
+          <div className="photoLightbox" onClick={(event) => event.stopPropagation()}>
+            <div className="photoLightboxHeader">
+              <div>
+                <p className="eyebrow">Card photo</p>
+                <h2>{enlargedPhotoCard.name || "Card photo"}</h2>
+                <p className="muted">{[enlargedPhotoCard.year, enlargedPhotoCard.setName, enlargedPhotoCard.cardNumber].filter(Boolean).join(" • ")}</p>
+              </div>
+              <button className="secondary" type="button" onClick={() => setEnlargedPhotoCard(null)}>Close</button>
+            </div>
+            <img src={enlargedPhotoCard.frontPhotoUrl} alt={`Enlarged front of ${enlargedPhotoCard.name || "card"}`} />
+          </div>
         </div>
       )}
 
