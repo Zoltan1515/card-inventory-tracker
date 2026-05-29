@@ -754,7 +754,6 @@ export default function Home() {
   const activeInventoryQuantity = activeInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
   const soldInventoryQuantity = soldInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
   const filteredInventoryQuantity = filteredCards.reduce((sum, card) => sum + cardQuantity(card), 0);
-  const inventoryTotalForCurrentView = statusFilter === "Sold" ? soldInventoryQuantity : activeInventoryQuantity;
 
   const dateRange = useMemo(() => {
     if (dateFilterMode === "month") return { start: currentMonthStart(), end: todayIso() };
@@ -888,6 +887,7 @@ export default function Home() {
   const gradingSubmissionCardQuantity = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + gradingSubmissionQuantity(submission, card), 0);
   const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + (card.purchasePrice * gradingSubmissionQuantity(submission, card)), 0);
   const activeGradingCardIds = useMemo(() => new Set(openGradingSubmissions.flatMap((submission) => submission.cardIds)), [openGradingSubmissions]);
+  const activeGradingSubmissionForCard = (cardId: string) => openGradingSubmissions.find((submission) => submission.cardIds.includes(cardId)) || null;
   const openGradingCardCount = openGradingSubmissions.reduce((sum, submission) => sum + gradingSubmissionCardQuantity(submission), 0);
   const openGradingPurchaseValue = openGradingSubmissions.reduce((sum, submission) => sum + gradingPurchaseValue(submission), 0);
   const selectedCards = selectedCardIds
@@ -925,6 +925,9 @@ export default function Home() {
     }));
   };
   const isSoldInventoryView = statusFilter === "Sold";
+  const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + card.soldPrice, 0) : 0;
+  const soldViewCost = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0) : 0;
+  const soldViewProfit = soldViewRevenue - soldViewCost;
 
   useEffect(() => {
     if (!isSoldInventoryView) return;
@@ -952,7 +955,6 @@ export default function Home() {
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards`, apply: showSoldInventory },
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
-    { id: "profit", tab: "profit", label: "Profit", subtitle: money(totals.profit), apply: () => showDashboardTab("profit", "profit-panel") },
   ];
 
   const openAttentionItem = (item: AttentionItem) => {
@@ -969,6 +971,12 @@ export default function Home() {
       setTab("expenses");
       window.setTimeout(() => document.getElementById("expense-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
     }
+  };
+
+  const openGradingSubmissionFromInventory = (submissionId: string) => {
+    setTab("grading");
+    setOpenGradingSubmissionId(submissionId);
+    scrollToSection("grading-panel");
   };
 
   const uploadFrontPhoto = async (file: File, target: "active" | "editing" = "active") => {
@@ -1798,6 +1806,7 @@ export default function Home() {
         setSelectedCardIds([]);
         setSelectedGradingQuantities({});
         setShowGradingForm(false);
+        setOpenGradingSubmissionId(submission.id);
         setTab("grading");
         return;
       }
@@ -1822,6 +1831,7 @@ export default function Home() {
     setSelectedCardIds([]);
     setSelectedGradingQuantities({});
     setShowGradingForm(false);
+    setOpenGradingSubmissionId(submission.id);
     setTab("grading");
   };
 
@@ -2346,13 +2356,13 @@ export default function Home() {
         <section className="panel" id="inventory-panel">
           <div className="panelHeader inventoryHeader">
             <div>
-              <p className="eyebrow">Inventory</p>
-              <h2>Showing {filteredInventoryQuantity} of {inventoryTotalForCurrentView} {statusFilter === "Sold" ? "sold" : "active inventory"} cards</h2>
-              <p className="muted">{filteredCards.length} inventory {filteredCards.length === 1 ? "row" : "rows"}</p>
+              <p className="eyebrow">{isSoldInventoryView ? "Sold Inventory" : "Inventory"}</p>
+              <h2>{isSoldInventoryView ? `Sold Inventory: showing ${filteredInventoryQuantity} of ${soldInventoryQuantity} sold cards` : `Showing ${filteredInventoryQuantity} of ${activeInventoryQuantity} active inventory cards`}</h2>
+              <p className="muted">{isSoldInventoryView ? "Sold cards are kept out of active inventory and listed here with sale amount, sold date, and platform." : `${filteredCards.length} inventory ${filteredCards.length === 1 ? "row" : "rows"}`}</p>
             </div>
             <div className="exportActions">
               <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
-              <button className="primary" onClick={exportEbayListings} type="button">{selectedCards.length ? `Export ${selectedCards.length} selected to eBay CSV` : "Export eBay upload CSV"}</button>
+              {!isSoldInventoryView && <button className="primary" onClick={exportEbayListings} type="button">{selectedCards.length ? `Export ${selectedCards.length} selected to eBay CSV` : "Export eBay upload CSV"}</button>}
             </div>
           </div>
 
@@ -2431,6 +2441,15 @@ export default function Home() {
           </section>
           )}
 
+          {isSoldInventoryView && (
+            <section className="statsGrid soldInventoryStats" aria-label="Sold inventory totals">
+              <Stat label="Sold cards shown" value={String(filteredInventoryQuantity)} />
+              <Stat label="Sold amount shown" value={money(soldViewRevenue)} tone="positive" />
+              <Stat label="Original cost shown" value={money(soldViewCost)} />
+              <Stat label="Profit from shown sold cards" value={money(soldViewProfit)} tone={soldViewProfit >= 0 ? "positive" : "negative"} />
+            </section>
+          )}
+
           {!isSoldInventoryView && (
           <section className="bulkGradingBar" aria-label="Bulk grading actions">
             <div>
@@ -2462,7 +2481,20 @@ export default function Home() {
                   <div className="cardThumb placeholderThumb">No photo</div>
                 )}
                 <div className="cardInfo">
-                  <div className="rowTitle"><strong>{card.name}</strong>{cardGradeLabel(card) && <span className="statusBadge listed">{cardGradeLabel(card)}</span>}</div>
+                  <div className="rowTitle">
+                    <strong>{card.name}</strong>
+                    {cardGradeLabel(card) && <span className="statusBadge listed">{cardGradeLabel(card)}</span>}
+                    {activeGradingSubmissionForCard(card.id) && (
+                      <button
+                        className="statusBadge gradingLinkBadge"
+                        type="button"
+                        onClick={() => openGradingSubmissionFromInventory(activeGradingSubmissionForCard(card.id)!.id)}
+                        title="Open this grading submission"
+                      >
+                        In grading
+                      </button>
+                    )}
+                  </div>
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
@@ -2503,14 +2535,16 @@ export default function Home() {
                   <span>{money(card.status === "Sold" ? card.soldPrice : card.purchasePrice)}</span>
                   <small>{card.status === "Sold" ? cardQuantity(card) > 1 ? `sold total • ${cardQuantity(card)}` : "sold" : cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
                 </div>
-                <div className="inventoryControls">
-                  <button className="secondary listingEditButton" type="button" onClick={() => beginListingEdit(card)}>
-                    {card.status === "Listed" ? "Update listing" : "Add listing"}
-                  </button>
-                </div>
+                {!isSoldInventoryView && (
+                  <div className="inventoryControls">
+                    <button className="secondary listingEditButton" type="button" onClick={() => beginListingEdit(card)}>
+                      {card.status === "Listed" ? "Update listing" : "Add listing"}
+                    </button>
+                  </div>
+                )}
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
-                  <button className="secondary" onClick={() => setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">Sale</button>
+                  <button className="secondary" onClick={() => setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
                   {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>

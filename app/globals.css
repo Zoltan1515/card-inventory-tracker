@@ -186,9 +186,12 @@ textarea { min-height: 90px; resize: vertical; }
 .cardDetailChips { display: flex; flex-wrap: wrap; gap: 8px; }
 .cardDetailChips span { color: var(--muted); border: 1px solid rgba(148,163,184,.18); background: rgba(15,23,42,.5); border-radius: 999px; padding: 5px 8px; font-size: .78rem; line-height: 1.25; }
 .statusBadge { background: var(--panel-2); color: var(--primary); border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; font-size: .78rem; }
+button.statusBadge { cursor: pointer; font: inherit; }
 .statusBadge.sold { color: var(--good); border-color: rgba(34,197,94,.35); }
 .statusBadge.listed { color: var(--primary); }
 .statusBadge.notlisted { color: var(--warning); border-color: rgba(245,158,11,.35); }
+.gradingLinkBadge { color: var(--warning); border-color: rgba(245,158,11,.55); background: rgba(245,158,11,.12); font-weight: 800; }
+.gradingLinkBadge:hover, .gradingLinkBadge:focus-visible { border-color: rgba(245,158,11,.9); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
 .rowMoney { display: grid; gap: 4px; justify-items: end; min-width: 120px; }
 .rowMoney span { font-weight: 900; font-size: 1.15rem; }
 .rowMoney small, .muted { color: var(--muted); }
