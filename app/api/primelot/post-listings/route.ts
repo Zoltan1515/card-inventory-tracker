@@ -39,6 +39,7 @@ type PrimeLotConnection = {
 
 const jsonError = (message: string, status = 400, code?: string) => NextResponse.json({ error: message, code }, { status });
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
+const sourceTrackingColumnError = (message = "") => /source_id|source_platform/i.test(message) && /schema cache|column|Could not find/i.test(message);
 
 const cardTypeForCategory = (category?: string) => {
   const value = (category || "").toLowerCase();
@@ -148,7 +149,7 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const rows = cards.map((card) => ({
+  const baseRows = cards.map((card) => ({
     user_id: primeLotSellerUserId,
     card_type: cardTypeForCategory(card.category),
     card_name: card.name.trim(),
@@ -169,23 +170,35 @@ export async function POST(request: NextRequest) {
     is_wishlist_offer: false,
     quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
     quantity_sold: 0,
+  }));
+  const rowsWithSourceTracking = baseRows.map((row, index) => ({
+    ...row,
     source_platform: "wickedcardtracker",
-    source_id: card.id,
+    source_id: cards[index].id,
   }));
 
-  const { data, error } = await primeLotSupabase
+  let insertedUsingSourceTracking = true;
+  let insertResult = await primeLotSupabase
     .from("single_cards")
-    .insert(rows)
+    .insert(rowsWithSourceTracking)
     .select("id, source_id, status");
 
-  if (error) return jsonError(`PrimeLot rejected the listings: ${error.message}`, 502);
+  if (insertResult.error && sourceTrackingColumnError(insertResult.error.message)) {
+    insertedUsingSourceTracking = false;
+    insertResult = await primeLotSupabase
+      .from("single_cards")
+      .insert(baseRows)
+      .select("id, status");
+  }
 
-  const createdListings: CreatedListing[] = (data || []).map((row: { id: string; source_id: string; status: string }) => ({
-    cardTrackerId: row.source_id,
+  if (insertResult.error) return jsonError(`PrimeLot rejected the listings: ${insertResult.error.message}`, 502);
+
+  const createdListings: CreatedListing[] = (insertResult.data || []).map((row: { id: string; source_id?: string; status: string }, index: number) => ({
+    cardTrackerId: insertedUsingSourceTracking ? row.source_id || cards[index]?.id || "" : cards[index]?.id || "",
     primeLotListingId: row.id,
     url: `${primeLotSiteUrl}/single-cards/${row.id}`,
     status: row.status,
-  }));
+  })).filter((listing) => Boolean(listing.cardTrackerId));
 
   return NextResponse.json({ createdListings });
 }
