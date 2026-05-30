@@ -973,6 +973,7 @@ export default function Home() {
     .filter((card) => card.status !== "Sold");
   const selectedPrimeLotCards = selectedCards.filter((card) => card.status === "Not Listed");
   const selectedQuantityForCard = (card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(selectedGradingQuantities[card.id]) || cardQuantity(card))));
+  const selectedPrimeLotListingQuantity = selectedPrimeLotCards.reduce((sum, card) => sum + selectedQuantityForCard(card), 0);
   const selectedCardQuantity = selectedCards.reduce((sum, card) => sum + selectedQuantityForCard(card), 0);
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + (card.purchasePrice * selectedQuantityForCard(card)), 0);
   const selectedImportPreviews = importPreviews.filter((preview) => preview.selected);
@@ -2158,7 +2159,7 @@ export default function Home() {
     setPrimeLotReviewOpen(true);
   };
 
-  const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge" | "gradingCompany", value: string) => {
+  const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge", value: string) => {
     setPrimeLotReviewDrafts((drafts) => ({
       ...drafts,
       [cardId]: {
@@ -2174,9 +2175,9 @@ export default function Home() {
     const draft = primeLotReviewDrafts[card.id];
     return {
       ...card,
+      quantity: selectedQuantityForCard(card),
       askingPrice: Number(draft?.askingPrice || 0),
       shippingCharge: Number(draft?.shippingCharge || 0),
-      gradingCompany: (draft?.gradingCompany ?? card.gradingCompany).trim(),
     };
   });
 
@@ -2475,28 +2476,35 @@ export default function Home() {
                 const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "" };
                 const quantity = selectedQuantityForCard(card);
                 const total = Number(draft.askingPrice || 0) * quantity;
-                const needsGrader = card.grade.trim() && !draft.gradingCompany.trim();
+                const grader = card.gradingCompany.trim();
+                const needsGrader = card.grade.trim() && !grader;
                 return (
                   <article className="primeLotReviewRow" key={card.id}>
                     <div className="primeLotReviewCardHeader">
                       <div>
                         <strong>{card.name}</strong>
-                        <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}{quantity > 1 ? ` • Qty ${quantity}` : ""}</p>
+                        <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}{quantity > 1 ? ` • ${quantity} listings` : " • 1 listing"}</p>
                       </div>
                       <span className="statusBadge notlisted">Not Listed</span>
                     </div>
                     <div className="primeLotReviewFields">
                       <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
                       <Field label="Buyer shipping charge" type="number" value={draft.shippingCharge} onChange={(value) => updatePrimeLotReviewDraft(card.id, "shippingCharge", value)} />
-                      {card.grade.trim() && <Field label="Grading company" value={draft.gradingCompany} onChange={(value) => updatePrimeLotReviewDraft(card.id, "gradingCompany", value)} placeholder="PSA, BGS, SGC, CGC..." required />}
+                      {card.grade.trim() && (
+                        <div className="readOnlyField">
+                          <span>Grading company</span>
+                          <strong>{grader || "Missing"}</strong>
+                          <small>Grading company is set on the card listing. Edit the original listing to change it.</small>
+                        </div>
+                      )}
                     </div>
-                    <p className={needsGrader ? "warning" : "muted"}>{needsGrader ? "Missing grading company before this can post." : `PrimeLot listing total: ${money(total)}`}</p>
+                    <p className={needsGrader ? "warning" : "muted"}>{needsGrader ? "Missing grading company. Cancel and edit the original card listing before posting." : `PrimeLot listing total: ${money(total)}`}</p>
                   </article>
                 );
               })}
             </div>
             <div className="primeLotReviewSummary">
-              <span><small>Cards selected</small><strong>{selectedPrimeLotCards.length}</strong></span>
+              <span><small>Listings selected</small><strong>{selectedPrimeLotListingQuantity}</strong></span>
               <span><small>Estimated total</small><strong>{money(selectedPrimeLotCards.reduce((sum, card) => sum + (Number(primeLotReviewDrafts[card.id]?.askingPrice || card.askingPrice || 0) * selectedQuantityForCard(card)), 0))}</strong></span>
             </div>
             <div className="rowActions">

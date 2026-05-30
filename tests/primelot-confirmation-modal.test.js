@@ -34,4 +34,24 @@ assert(
   'Bulk PrimeLot button must not call postSelectedCardsToPrimeLot directly.'
 );
 
+assert(
+  page.includes('Listings selected'),
+  'Review modal summary should say Listings selected, not Cards selected.'
+);
+
+assert(
+  page.includes('Grading company is set on the card listing'),
+  'Review modal should show grading company as read-only source data.'
+);
+
+assert(
+  !page.includes('updatePrimeLotReviewDraft(card.id, "gradingCompany"'),
+  'Review modal must not allow changing grading company inline.'
+);
+
+assert(
+  page.includes('quantity: selectedQuantityForCard(card)'),
+  'PrimeLot payload should use the selected listing quantity, not silently post the whole inventory row quantity.'
+);
+
 console.log('PrimeLot confirmation modal source checks passed.');
