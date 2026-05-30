@@ -72,6 +72,8 @@ const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
+const primeLotPublicStatuses = new Set(["active", "listed", "published", "live"]);
+const isPrimeLotPublicListing = (status = "") => primeLotPublicStatuses.has(status.toLowerCase());
 const currentMonthStart = () => `${todayIso().slice(0, 7)}-01`;
 const currentYearStart = () => `${todayIso().slice(0, 4)}-01-01`;
 const dateInRange = (date: string, start: string, end: string) => {
@@ -2088,17 +2090,22 @@ export default function Home() {
 
       const listingsByCardId = new Map((result.createdListings || []).map((listing) => [listing.cardTrackerId, listing]));
       let updatedCount = 0;
+      let publicListingCount = 0;
+      let draftListingCount = 0;
       for (const card of selectedCards) {
         const listing = listingsByCardId.get(card.id);
         if (!listing) continue;
+        const isPublicListing = isPrimeLotPublicListing(listing.status);
+        if (isPublicListing) publicListingCount += 1;
+        else draftListingCount += 1;
         const updatedCard: CardRecord = {
           ...card,
-          status: "Listed",
-          listedPlatform: "PrimeLot",
+          status: isPublicListing ? "Listed" : card.status,
+          listedPlatform: isPublicListing ? "PrimeLot" : card.listedPlatform,
           listingUrl: listing.url,
-          listedDate: todayIso(),
-          listedAt: new Date().toISOString(),
-          listedBy: currentUsername,
+          listedDate: isPublicListing ? todayIso() : card.listedDate,
+          listedAt: isPublicListing ? new Date().toISOString() : card.listedAt,
+          listedBy: isPublicListing ? currentUsername : card.listedBy,
           updatedAt: new Date().toISOString(),
           updatedBy: currentUsername,
         };
@@ -2107,7 +2114,13 @@ export default function Home() {
       }
 
       clearSelectedCards();
-      setNotice(`Posted ${updatedCount} card${updatedCount === 1 ? "" : "s"} on PrimeLot.`);
+      if (draftListingCount && !publicListingCount) {
+        setNotice(`Created ${updatedCount} PrimeLot draft${updatedCount === 1 ? "" : "s"}. Card Tracker will keep them Not Listed until they are published on PrimeLot.`);
+      } else if (draftListingCount) {
+        setNotice(`Posted ${publicListingCount} card${publicListingCount === 1 ? "" : "s"} on PrimeLot and created ${draftListingCount} draft${draftListingCount === 1 ? "" : "s"}. Drafts stay Not Listed in Card Tracker until published.`);
+      } else {
+        setNotice(`Posted ${updatedCount} card${updatedCount === 1 ? "" : "s"} on PrimeLot.`);
+      }
     } catch (postError) {
       setError(postError instanceof Error ? postError.message : "PrimeLot posting failed.");
     } finally {
@@ -2261,25 +2274,26 @@ export default function Home() {
               </div>
               <button className="secondary compactButton" type="button" onClick={() => setPrimeLotModalOpen(false)}>Close</button>
             </div>
-            <p className="muted">Connect a PrimeLot storefront once. After that, selected Card Tracker inventory can publish to PrimeLot and the listing links sync back here.</p>
+            <p className="muted">Connect a PrimeLot storefront once. After that, selected Card Tracker inventory can be sent to PrimeLot. Public listings move to Listed here; drafts stay Not Listed until they are published on PrimeLot.</p>
             <div className="primeLotBenefitGrid">
               <span>Public listing pages</span>
               <span>Shareable card URLs</span>
               <span>No duplicate data entry</span>
-              <span>Inventory updates after posting</span>
+              <span>Listing links saved here</span>
             </div>
             <form className="stackedForm" onSubmit={savePrimeLotConnection}>
               <div className="segmentedButtons" role="group" aria-label="PrimeLot setup type">
-                <button className={primeLotIntent === "create" ? "active" : ""} type="button" onClick={() => setPrimeLotIntent("create")}>Create PrimeLot account</button>
-                <button className={primeLotIntent === "connect" ? "active" : ""} type="button" onClick={() => setPrimeLotIntent("connect")}>I already have PrimeLot</button>
+                <button className={primeLotIntent === "create" ? "primary active" : "primary"} type="button" onClick={() => setPrimeLotIntent("create")}>Create PrimeLot account</button>
+                <button className={primeLotIntent === "connect" ? "primary active" : "primary"} type="button" onClick={() => setPrimeLotIntent("connect")}>I already have PrimeLot</button>
               </div>
               <Field label="PrimeLot account email" type="email" value={primeLotEmail} onChange={setPrimeLotEmail} required />
-              <Field label="Preferred store name" value={primeLotStoreSlug} onChange={setPrimeLotStoreSlug} placeholder="my-card-shop" />
+              <Field label="PrimeLot shop name (optional)" value={primeLotStoreSlug} onChange={setPrimeLotStoreSlug} placeholder="zoltans-cards" />
+              <p className="muted formHelpText">This is the storefront name/URL you want on PrimeLot. If you already have PrimeLot, use your existing shop name.</p>
               {primeLotConnection.status === "pending" && <p className="notice">Your PrimeLot request is saved. Activation is pending before cards can post.</p>}
               {primeLotConnection.connected && <p className="notice">Connected to {primeLotConnection.sellerEmail || "PrimeLot"}. You can post selected cards now.</p>}
               {primeLotConnection.migrationRequired && <p className="errorBox">Connection storage still needs the PrimeLot SQL migration before requests can save.</p>}
               <div className="rowActions">
-                <button className="primary" type="submit" disabled={savingPrimeLotConnection}>{savingPrimeLotConnection ? "Saving…" : primeLotConnection.connected ? "Update connection" : "Save PrimeLot request"}</button>
+                <button className="primary" type="submit" disabled={savingPrimeLotConnection}>{savingPrimeLotConnection ? "Saving…" : primeLotConnection.connected ? "Update connection" : "Save PrimeLot Request"}</button>
                 <button className="secondary" type="button" onClick={() => setPrimeLotModalOpen(false)}>Cancel</button>
               </div>
             </form>
