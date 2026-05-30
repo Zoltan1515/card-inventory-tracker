@@ -2286,6 +2286,10 @@ export default function Home() {
                 <button className={primeLotIntent === "create" ? "primary active" : "primary"} type="button" onClick={() => setPrimeLotIntent("create")}>Create PrimeLot account</button>
                 <button className={primeLotIntent === "connect" ? "primary active" : "primary"} type="button" onClick={() => setPrimeLotIntent("connect")}>I already have PrimeLot</button>
               </div>
+              <div className="primeLotIntentNote">
+                <strong>{primeLotIntent === "connect" ? "Connect your existing PrimeLot shop" : "Request a new PrimeLot shop"}</strong>
+                <p>{primeLotIntent === "connect" ? "Use the email and shop name already on PrimeLot. If this shop matches the configured PrimeLot seller account, it activates right away." : "We will save this request so the PrimeLot storefront can be created, then activated for posting."}</p>
+              </div>
               <Field label="PrimeLot account email" type="email" value={primeLotEmail} onChange={setPrimeLotEmail} required />
               <Field label="PrimeLot shop name (optional)" value={primeLotStoreSlug} onChange={setPrimeLotStoreSlug} placeholder="zoltans-cards" />
               <p className="muted formHelpText">This is the storefront name/URL you want on PrimeLot. If you already have PrimeLot, use your existing shop name.</p>

@@ -115,7 +115,13 @@ export async function POST(request: NextRequest) {
 
   const autoApproveEmail = normalizeEmail(process.env.PRIMELOT_AUTO_APPROVE_EMAIL);
   const fallbackSellerId = process.env.PRIMELOT_SELLER_USER_ID || "";
-  const shouldAutoApprove = Boolean(fallbackSellerId && autoApproveEmail && sellerEmail === autoApproveEmail);
+  const shouldAutoApprove = Boolean(
+    fallbackSellerId && (
+      intent === "connect" ||
+      !autoApproveEmail ||
+      sellerEmail === autoApproveEmail
+    )
+  );
 
   const payload = {
     user_id: user.id,

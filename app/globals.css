@@ -218,8 +218,11 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .primeLotBenefitGrid span { border: 1px solid rgba(56,189,248,.24); border-radius: 999px; padding: 8px 10px; color: var(--text); background: rgba(15,23,42,.58); font-size: .88rem; }
 .stackedForm { display: grid; gap: 12px; }
 .segmentedButtons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.segmentedButtons .primary { border: 0; color: #031018; font-weight: 800; }
-.segmentedButtons .primary.active { color: #031018; box-shadow: 0 0 0 3px rgba(57,255,156,.16), 0 0 24px rgba(57,255,156,.18); }
+.segmentedButtons .primary { border: 0; color: #031018; font-weight: 800; opacity: .72; }
+.segmentedButtons .primary.active { opacity: 1; color: #031018; box-shadow: 0 0 0 3px rgba(57,255,156,.16), 0 0 24px rgba(57,255,156,.18); }
+.primeLotIntentNote { border: 1px solid rgba(103,232,249,.22); border-radius: 14px; padding: 12px; background: rgba(8,16,34,.62); }
+.primeLotIntentNote strong { display: block; color: var(--neon-green); margin-bottom: 4px; }
+.primeLotIntentNote p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.4; }
 .formHelpText { margin: -6px 0 2px; font-size: .86rem; }
 .selectCardBox { display: grid; place-items: center; align-self: stretch; }
 .selectCardBox input { width: 22px; height: 22px; accent-color: var(--primary); }
