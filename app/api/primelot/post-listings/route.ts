@@ -43,7 +43,7 @@ type PrimeLotConnection = {
 const jsonError = (message: string, status = 400, code?: string) => NextResponse.json({ error: message, code }, { status });
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
 const sourceTrackingColumnError = (message = "") => /source_id|source_platform/i.test(message) && /schema cache|column|Could not find/i.test(message);
-const shippingColumnError = (message = "") => /shipping_price/i.test(message) && /schema cache|column|Could not find/i.test(message);
+const shippingColumnError = (message = "") => /shipping_cost/i.test(message) && /schema cache|column|Could not find/i.test(message);
 
 const cardTypeForCategory = (category?: string) => {
   const value = (category || "").toLowerCase();
@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
 
   const invalidCard = cards.find((card) => !card.id || !card.name?.trim() || Number(card.askingPrice || 0) <= 0);
   if (invalidCard) return jsonError("Every PrimeLot post needs a card name and asking price.");
+  const hasRequestedShipping = cards.some((card) => Number(card.shippingCharge || 0) > 0);
 
   const primeLotSupabase = createClient(primeLotSupabaseUrl, primeLotServiceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -196,7 +197,7 @@ export async function POST(request: NextRequest) {
   });
   const rowsWithShipping = baseRows.map((row, index) => ({
     ...row,
-    shipping_price: Number(cards[index].shippingCharge || 0),
+    shipping_cost: Number(cards[index].shippingCharge || 0),
   }));
   const rowsWithSourceTracking = rowsWithShipping.map((row, index) => ({
     ...row,
@@ -213,7 +214,8 @@ export async function POST(request: NextRequest) {
 
   if (insertResult.error && shippingColumnError(insertResult.error.message)) {
     insertedUsingShipping = false;
-    const rowsWithoutShipping = rowsWithSourceTracking.map(({ shipping_price: _shippingPrice, ...row }) => row);
+    if (hasRequestedShipping) return jsonError("PrimeLot could not save buyer shipping because its shipping_cost field is missing. The listings were not posted without your shipping charges.", 502, "PRIMELOT_SHIPPING_NOT_CONFIGURED");
+    const rowsWithoutShipping = rowsWithSourceTracking.map(({ shipping_cost: _shippingCost, ...row }) => row);
     insertResult = await primeLotSupabase
       .from("single_cards")
       .insert(rowsWithoutShipping)
@@ -231,6 +233,7 @@ export async function POST(request: NextRequest) {
 
   if (insertResult.error && shippingColumnError(insertResult.error.message)) {
     insertedUsingShipping = false;
+    if (hasRequestedShipping) return jsonError("PrimeLot could not save buyer shipping because its shipping_cost field is missing. The listings were not posted without your shipping charges.", 502, "PRIMELOT_SHIPPING_NOT_CONFIGURED");
     insertResult = await primeLotSupabase
       .from("single_cards")
       .insert(baseRows)
