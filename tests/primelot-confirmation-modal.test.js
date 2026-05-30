@@ -40,13 +40,38 @@ assert(
 );
 
 assert(
-  page.includes('selectedCards.length}</strong>'),
-  'PrimeLot modal selected count should count selected listing rows, not card quantity.'
+  page.includes('const alreadyOnPrimeLot = (card: CardRecord) =>') && page.includes('const canPostCardToPrimeLot = (card: CardRecord) =>'),
+  'PrimeLot posting eligibility should be explicit and reusable.'
 );
 
 assert(
-  page.includes('selectedCards.map((card) => {') && page.includes('const canPostToPrimeLot = card.status === "Not Listed";'),
-  'Review modal should show every selected inventory row and mark whether it can post.'
+  page.includes('const selectedPrimeLotCards = selectedCards.filter(canPostCardToPrimeLot);'),
+  'PrimeLot postable rows should be derived from the selected inventory rows with one reusable eligibility check.'
+);
+
+assert(
+  !page.includes('selectedCards.filter((card) => card.status === "Not Listed")'),
+  'PrimeLot posting must not silently drop selected rows just because their generic inventory status is Listed.'
+);
+
+assert(
+  page.includes('selectedPrimeLotCards.map((card) => [card.id, {'),
+  'Review drafts should be initialized from the same rows that will be posted.'
+);
+
+assert(
+  page.includes('const reviewedPrimeLotCards = () => selectedPrimeLotCards.map((card) => {'),
+  'Confirm action should post the same PrimeLot rows shown in the review modal.'
+);
+
+assert(
+  page.includes('selectedPrimeLotCards.map((card) => {') && page.includes('const canPostToPrimeLot = canPostCardToPrimeLot(card);'),
+  'Review modal should render the same rows that the confirm action will post.'
+);
+
+assert(
+  page.includes('selectedPrimeLotCards.length}</strong>'),
+  'PrimeLot modal selected count should count rows that will actually be posted, not a different selected-card set or quantity.'
 );
 
 assert(

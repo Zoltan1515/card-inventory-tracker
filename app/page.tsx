@@ -971,7 +971,13 @@ export default function Home() {
     .map((cardId) => cardById.get(cardId))
     .filter((card): card is CardRecord => Boolean(card))
     .filter((card) => card.status !== "Sold");
-  const selectedPrimeLotCards = selectedCards.filter((card) => card.status === "Not Listed");
+  const alreadyOnPrimeLot = (card: CardRecord) => {
+    const platform = (card.listedPlatform || "").toLowerCase();
+    const listingUrl = (card.listingUrl || "").toLowerCase();
+    return platform.includes("primelot") || listingUrl.includes("primelot.cards") || listingUrl.includes("primelot");
+  };
+  const canPostCardToPrimeLot = (card: CardRecord) => card.status !== "Sold" && !alreadyOnPrimeLot(card);
+  const selectedPrimeLotCards = selectedCards.filter(canPostCardToPrimeLot);
   const selectedQuantityForCard = (card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(selectedGradingQuantities[card.id]) || cardQuantity(card))));
   const selectedCardQuantity = selectedCards.reduce((sum, card) => sum + selectedQuantityForCard(card), 0);
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + (card.purchasePrice * selectedQuantityForCard(card)), 0);
@@ -2138,7 +2144,7 @@ export default function Home() {
     setError("");
     setNotice("");
     if (!selectedPrimeLotCards.length) {
-      setError("Select at least one Not Listed card before posting to PrimeLot. Listed cards are blocked so they cannot be posted twice.");
+      setError("Select at least one card that is not already posted on PrimeLot.");
       return;
     }
     if (!primeLotConnection.connected) {
@@ -2150,7 +2156,7 @@ export default function Home() {
       return;
     }
 
-    setPrimeLotReviewDrafts(Object.fromEntries(selectedCards.map((card) => [card.id, {
+    setPrimeLotReviewDrafts(Object.fromEntries(selectedPrimeLotCards.map((card) => [card.id, {
       askingPrice: String(card.askingPrice || ""),
       shippingCharge: String(card.shippingCharge || 0),
       gradingCompany: card.gradingCompany || "",
@@ -2470,8 +2476,8 @@ export default function Home() {
               <p>When you press confirm, these cards will be published to your connected PrimeLot storefront and Card Tracker will mark live listings as Listed.</p>
             </div>
             <div className="primeLotReviewList">
-              {selectedCards.map((card) => {
-                const canPostToPrimeLot = card.status === "Not Listed";
+              {selectedPrimeLotCards.map((card) => {
+                const canPostToPrimeLot = canPostCardToPrimeLot(card);
                 const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "" };
                 const total = Number(draft.askingPrice || 0) * cardQuantity(card);
                 return (
@@ -2487,13 +2493,13 @@ export default function Home() {
                       <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
                       <Field label="Buyer shipping charge" type="number" value={draft.shippingCharge} onChange={(value) => updatePrimeLotReviewDraft(card.id, "shippingCharge", value)} />
                     </div>
-                    <p className={canPostToPrimeLot ? "muted" : "warning"}>{canPostToPrimeLot ? `PrimeLot listing total: ${money(total)}` : "This selected row is already listed, so it will not be posted again. Clear its old listing first if you need to repost it."}</p>
+                    <p className={canPostToPrimeLot ? "muted" : "warning"}>{canPostToPrimeLot ? `PrimeLot listing total: ${money(total)}` : "This selected row is already on PrimeLot, so it will not be posted again."}</p>
                   </article>
                 );
               })}
             </div>
             <div className="primeLotReviewSummary">
-              <span><small>Listings selected</small><strong>{selectedCards.length}</strong></span>
+              <span><small>Listings selected</small><strong>{selectedPrimeLotCards.length}</strong></span>
               <span><small>Estimated total</small><strong>{money(selectedPrimeLotCards.reduce((sum, card) => sum + (Number(primeLotReviewDrafts[card.id]?.askingPrice || card.askingPrice || 0) * cardQuantity(card)), 0))}</strong></span>
             </div>
             <div className="rowActions">
