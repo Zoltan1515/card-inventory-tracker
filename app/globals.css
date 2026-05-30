@@ -207,6 +207,18 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .inventoryControls { display: grid; gap: 8px; min-width: 180px; }
 .bulkGradingBar { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.55); padding: 14px; display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
 .bulkGradingBar .eyebrow { margin-bottom: 4px; }
+.primeLotStatusCard { border: 1px solid rgba(56,189,248,.28); border-radius: 18px; background: linear-gradient(135deg, rgba(56,189,248,.1), rgba(15,23,42,.58)); padding: 14px; display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
+.primeLotStatusCard .eyebrow { margin-bottom: 4px; }
+.modalCard { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow: auto; border: 1px solid var(--line); border-radius: 22px; background: rgba(4,9,20,.97); padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.58), 0 0 32px rgba(103,232,249,.12); }
+.modalHeader { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 12px; }
+.modalHeader h2 { margin: 0; }
+.compactButton { padding: 8px 10px; min-height: 0; }
+.primeLotModal { display: grid; gap: 14px; }
+.primeLotBenefitGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.primeLotBenefitGrid span { border: 1px solid rgba(56,189,248,.24); border-radius: 999px; padding: 8px 10px; color: var(--text); background: rgba(15,23,42,.58); font-size: .88rem; }
+.stackedForm { display: grid; gap: 12px; }
+.segmentedButtons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.segmentedButtons button.active { border-color: var(--primary); color: var(--primary); box-shadow: 0 0 0 3px rgba(56,189,248,.12); }
 .selectCardBox { display: grid; place-items: center; align-self: stretch; }
 .selectCardBox input { width: 22px; height: 22px; accent-color: var(--primary); }
 .gradingInline { color: var(--warning) !important; font-weight: 800; }
@@ -338,7 +350,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .formGrid, .simpleForm, .expenseForm { grid-template-columns: repeat(2, 1fr); }
   .cardRow, .noSelectCardRow, .expenseRow, .gradingOrderSummary { grid-template-columns: 1fr; }
   .saleSnapshot { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .bulkGradingBar { align-items: stretch; flex-direction: column; }
+  .bulkGradingBar, .primeLotStatusCard { align-items: stretch; flex-direction: column; }
+  .primeLotBenefitGrid, .segmentedButtons { grid-template-columns: 1fr; }
   .rowMoney { justify-items: start; }
   .rowActions { justify-content: flex-start; }
 }

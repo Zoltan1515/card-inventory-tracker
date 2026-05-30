@@ -30,7 +30,15 @@ type CreatedListing = {
   status: string;
 };
 
-const jsonError = (message: string, status = 400) => NextResponse.json({ error: message }, { status });
+type PrimeLotConnection = {
+  primelot_seller_user_id: string | null;
+  primelot_seller_email: string | null;
+  primelot_store_slug: string | null;
+  status: string | null;
+};
+
+const jsonError = (message: string, status = 400, code?: string) => NextResponse.json({ error: message, code }, { status });
+const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
 
 const cardTypeForCategory = (category?: string) => {
   const value = (category || "").toLowerCase();
@@ -58,15 +66,14 @@ export async function POST(request: NextRequest) {
   const cardTrackerSupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const primeLotSupabaseUrl = process.env.PRIMELOT_SUPABASE_URL;
   const primeLotServiceRoleKey = process.env.PRIMELOT_SUPABASE_SERVICE_ROLE_KEY;
-  const primeLotSellerUserId = process.env.PRIMELOT_SELLER_USER_ID;
   const primeLotSiteUrl = (process.env.PRIMELOT_SITE_URL || "https://primelot.cards").replace(/\/$/, "");
   const primeLotPostStatus = process.env.PRIMELOT_POST_STATUS || "active";
 
   if (!cardTrackerSupabaseUrl || !cardTrackerSupabaseAnonKey) {
     return jsonError("Wicked Card Tracker Supabase auth is not configured.", 503);
   }
-  if (!primeLotSupabaseUrl || !primeLotServiceRoleKey || !primeLotSellerUserId) {
-    return jsonError("PrimeLot posting is not configured yet. Add PRIMELOT_SUPABASE_URL, PRIMELOT_SUPABASE_SERVICE_ROLE_KEY, and PRIMELOT_SELLER_USER_ID in Vercel.", 503);
+  if (!primeLotSupabaseUrl || !primeLotServiceRoleKey) {
+    return jsonError("PrimeLot posting is not configured yet. Add PRIMELOT_SUPABASE_URL and PRIMELOT_SUPABASE_SERVICE_ROLE_KEY in Vercel.", 503, "PRIMELOT_NOT_CONFIGURED");
   }
 
   const authorization = request.headers.get("authorization") || "";
@@ -78,6 +85,50 @@ export async function POST(request: NextRequest) {
   });
   const { data: authData, error: authError } = await cardTrackerSupabase.auth.getUser(token);
   if (authError || !authData.user) return jsonError("Your Wicked Card Tracker session could not be verified.", 401);
+
+  const membershipResult = await cardTrackerSupabase
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", authData.user.id)
+    .limit(1)
+    .maybeSingle();
+  const workspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
+
+  const connectionSelect = "primelot_seller_user_id,primelot_seller_email,primelot_store_slug,status";
+  let connectionResult: any = workspaceId
+    ? await cardTrackerSupabase
+      .from("primelot_connections")
+      .select(connectionSelect)
+      .eq("workspace_id", workspaceId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle()
+    : { data: null, error: null };
+
+  if (!connectionResult.data && !connectionResult.error) {
+    connectionResult = await cardTrackerSupabase
+      .from("primelot_connections")
+      .select(connectionSelect)
+      .eq("user_id", authData.user.id)
+      .is("workspace_id", null)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+  }
+
+  if (connectionResult.error) {
+    if (missingConnectionTable(connectionResult.error.message)) {
+      const fallbackSellerUserId = process.env.PRIMELOT_SELLER_USER_ID;
+      if (!fallbackSellerUserId) return jsonError("Connect a PrimeLot seller account before posting. Run supabase-primelot-connections-migration.sql to enable the connection flow.", 409, "PRIMELOT_NOT_CONNECTED");
+      connectionResult = { data: { primelot_seller_user_id: fallbackSellerUserId, primelot_seller_email: null, primelot_store_slug: null, status: "active" }, error: null };
+    } else {
+      return jsonError(`Could not check your PrimeLot connection: ${connectionResult.error.message}`, 500);
+    }
+  }
+
+  const primeLotConnection = connectionResult.data as PrimeLotConnection | null;
+  const primeLotSellerUserId = primeLotConnection?.primelot_seller_user_id || process.env.PRIMELOT_SELLER_USER_ID;
+  if (!primeLotSellerUserId) return jsonError("Connect a PrimeLot seller account before posting.", 409, "PRIMELOT_NOT_CONNECTED");
 
   let body: { cards?: CardPayload[] };
   try {

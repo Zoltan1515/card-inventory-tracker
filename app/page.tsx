@@ -56,6 +56,15 @@ type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
 };
+type PrimeLotConnectionState = {
+  connected: boolean;
+  status: "none" | "pending" | "active" | "disconnected" | string;
+  sellerEmail: string;
+  storeSlug: string;
+  storeUrl: string;
+  requestedIntent: string;
+  migrationRequired?: boolean;
+};
 
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
@@ -459,6 +468,12 @@ export default function Home() {
   const [importFileName, setImportFileName] = useState("");
   const [importingCards, setImportingCards] = useState(false);
   const [postingToPrimeLot, setPostingToPrimeLot] = useState(false);
+  const [primeLotConnection, setPrimeLotConnection] = useState<PrimeLotConnectionState>({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
+  const [primeLotModalOpen, setPrimeLotModalOpen] = useState(false);
+  const [primeLotIntent, setPrimeLotIntent] = useState<"create" | "connect">("create");
+  const [primeLotEmail, setPrimeLotEmail] = useState("");
+  const [primeLotStoreSlug, setPrimeLotStoreSlug] = useState("");
+  const [savingPrimeLotConnection, setSavingPrimeLotConnection] = useState(false);
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
@@ -487,6 +502,22 @@ export default function Home() {
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
   const currentUsername = session?.user.email || "Local user";
+  const primeLotButtonLabel = primeLotConnection.connected ? "Post on PrimeLot" : primeLotConnection.status === "pending" ? "PrimeLot pending" : "Sell on PrimeLot";
+
+  const loadPrimeLotConnection = async (accessToken = session?.access_token) => {
+    if (!accessToken) return;
+    try {
+      const response = await fetch("/api/primelot/connection", { headers: { Authorization: `Bearer ${accessToken}` } });
+      const result: PrimeLotConnectionState & { error?: string } = await response.json();
+      if (response.ok) {
+        setPrimeLotConnection(result);
+        if (result.sellerEmail) setPrimeLotEmail(result.sellerEmail);
+        if (result.storeSlug) setPrimeLotStoreSlug(result.storeSlug);
+      }
+    } catch {
+      // Keep inventory usable if the PrimeLot connection check is unavailable.
+    }
+  };
 
   useEffect(() => {
     if (!notice) return;
@@ -596,6 +627,7 @@ export default function Home() {
         setSession(data.session);
         if (data.session?.user.id) {
           void loadSupabaseData(data.session.user.id);
+          void loadPrimeLotConnection(data.session.access_token);
         } else {
           setDataLoaded(true);
           setLoading(false);
@@ -612,8 +644,10 @@ export default function Home() {
       if (nextSession?.user.id) {
         setDataLoaded(false);
         void loadSupabaseData(nextSession.user.id);
+        void loadPrimeLotConnection(nextSession.access_token);
       } else {
         setWorkspaceId(null);
+        setPrimeLotConnection({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
         setCards(localCards());
         setExpenses(localExpenses());
         setGradingSubmissions(localGradingSubmissions());
@@ -1972,11 +2006,57 @@ export default function Home() {
   const ebayExportCards = selectedCards.length ? selectedCards : filteredCards;
   const ebayExportSuffix = selectedCards.length ? `selected-${selectedCards.length}-cards` : inventoryDateSuffix;
   const exportEbayListings = () => downloadCsv(ebayListingsToCsv(ebayExportCards), `ebay-listing-upload-${ebayExportSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
+  const openPrimeLotModal = (intent: "create" | "connect" = primeLotConnection.status === "pending" ? (primeLotConnection.requestedIntent === "connect" ? "connect" : "create") : "create") => {
+    setError("");
+    setNotice("");
+    setPrimeLotIntent(intent);
+    setPrimeLotEmail(primeLotConnection.sellerEmail || session?.user.email || "");
+    setPrimeLotStoreSlug(primeLotConnection.storeSlug || (session?.user.email || "").split("@")[0]?.toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "");
+    setPrimeLotModalOpen(true);
+  };
+
+  const savePrimeLotConnection = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    if (!session?.access_token) {
+      setError("Sign in before connecting PrimeLot.");
+      return;
+    }
+    setSavingPrimeLotConnection(true);
+    try {
+      const response = await fetch("/api/primelot/connection", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ intent: primeLotIntent, sellerEmail: primeLotEmail, storeSlug: primeLotStoreSlug }),
+      });
+      const result: PrimeLotConnectionState & { error?: string; code?: string } = await response.json();
+      if (!response.ok) {
+        setError(result.error || "Could not save the PrimeLot connection request.");
+        return;
+      }
+      setPrimeLotConnection(result);
+      setPrimeLotModalOpen(false);
+      setNotice(result.connected ? "PrimeLot connected. You can post selected inventory now." : "PrimeLot request saved. We will finish activating this storefront before listings can post.");
+    } catch (connectionError) {
+      setError(connectionError instanceof Error ? connectionError.message : "Could not save the PrimeLot connection request.");
+    } finally {
+      setSavingPrimeLotConnection(false);
+    }
+  };
+
   const postSelectedCardsToPrimeLot = async () => {
     setError("");
     setNotice("");
     if (!selectedCards.length) {
       setError("Select at least one unsold card before posting to PrimeLot.");
+      return;
+    }
+    if (!primeLotConnection.connected) {
+      openPrimeLotModal(primeLotConnection.requestedIntent === "connect" ? "connect" : "create");
       return;
     }
     if (!session?.access_token) {
@@ -1999,8 +2079,9 @@ export default function Home() {
         },
         body: JSON.stringify({ cards: selectedCards }),
       });
-      const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string } = await response.json();
+      const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string; code?: string } = await response.json();
       if (!response.ok) {
+        if (result.code === "PRIMELOT_NOT_CONNECTED") openPrimeLotModal();
         setError(result.error || "PrimeLot posting failed.");
         return;
       }
@@ -2152,6 +2233,59 @@ export default function Home() {
       {showAddInventoryCheck && <div className="addInventoryCheck" aria-live="polite" aria-label="Inventory added">✓</div>}
       {error && <p className="errorBox">{error}</p>}
       {loading && <p className="notice">Loading…</p>}
+
+      {session && (
+        <section className="primeLotStatusCard" aria-label="PrimeLot connection status">
+          <div>
+            <p className="eyebrow">PrimeLot storefront</p>
+            <strong>{primeLotConnection.connected ? "Connected" : primeLotConnection.status === "pending" ? "Activation pending" : "Not connected"}</strong>
+            <p className="muted">
+              {primeLotConnection.connected
+                ? `Publishing to ${primeLotConnection.sellerEmail || "your PrimeLot seller account"}${primeLotConnection.storeUrl ? ` • ${primeLotConnection.storeUrl}` : ""}`
+                : primeLotConnection.status === "pending"
+                  ? `Request saved for ${primeLotConnection.sellerEmail || "PrimeLot"}. Listings will post after activation.`
+                  : "Turn selected inventory into public PrimeLot listings without retyping card details."}
+            </p>
+          </div>
+          <button className="secondary" type="button" onClick={() => openPrimeLotModal(primeLotConnection.requestedIntent === "connect" ? "connect" : "create")}>{primeLotConnection.connected ? "Manage" : primeLotConnection.status === "pending" ? "View request" : "Set up PrimeLot"}</button>
+        </section>
+      )}
+
+      {primeLotModalOpen && (
+        <div className="modalBackdrop" role="presentation">
+          <section className="modalCard primeLotModal" role="dialog" aria-modal="true" aria-labelledby="primelot-connect-title">
+            <div className="modalHeader">
+              <div>
+                <p className="eyebrow">PrimeLot sales channel</p>
+                <h2 id="primelot-connect-title">{primeLotConnection.connected ? "PrimeLot connected" : "Sell cards on PrimeLot"}</h2>
+              </div>
+              <button className="secondary compactButton" type="button" onClick={() => setPrimeLotModalOpen(false)}>Close</button>
+            </div>
+            <p className="muted">Connect a PrimeLot storefront once. After that, selected Card Tracker inventory can publish to PrimeLot and the listing links sync back here.</p>
+            <div className="primeLotBenefitGrid">
+              <span>Public listing pages</span>
+              <span>Shareable card URLs</span>
+              <span>No duplicate data entry</span>
+              <span>Inventory updates after posting</span>
+            </div>
+            <form className="stackedForm" onSubmit={savePrimeLotConnection}>
+              <div className="segmentedButtons" role="group" aria-label="PrimeLot setup type">
+                <button className={primeLotIntent === "create" ? "active" : ""} type="button" onClick={() => setPrimeLotIntent("create")}>Create PrimeLot account</button>
+                <button className={primeLotIntent === "connect" ? "active" : ""} type="button" onClick={() => setPrimeLotIntent("connect")}>I already have PrimeLot</button>
+              </div>
+              <Field label="PrimeLot account email" type="email" value={primeLotEmail} onChange={setPrimeLotEmail} required />
+              <Field label="Preferred store name" value={primeLotStoreSlug} onChange={setPrimeLotStoreSlug} placeholder="my-card-shop" />
+              {primeLotConnection.status === "pending" && <p className="notice">Your PrimeLot request is saved. Activation is pending before cards can post.</p>}
+              {primeLotConnection.connected && <p className="notice">Connected to {primeLotConnection.sellerEmail || "PrimeLot"}. You can post selected cards now.</p>}
+              {primeLotConnection.migrationRequired && <p className="errorBox">Connection storage still needs the PrimeLot SQL migration before requests can save.</p>}
+              <div className="rowActions">
+                <button className="primary" type="submit" disabled={savingPrimeLotConnection}>{savingPrimeLotConnection ? "Saving…" : primeLotConnection.connected ? "Update connection" : "Save PrimeLot request"}</button>
+                <button className="secondary" type="button" onClick={() => setPrimeLotModalOpen(false)}>Cancel</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
 
       {tab === "add" && (
         <section className="panel" id="add-inventory-panel">
@@ -2523,7 +2657,7 @@ export default function Home() {
             <div className="rowActions">
               <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.some((card) => card.status !== "Sold")}>Select all shown</button>
               <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCards.length}>Clear selected</button>
-              <button className="secondary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : "Post on PrimeLot"}</button>
+              <button className="secondary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : primeLotButtonLabel}</button>
               <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCards.length}>Send selected to grading</button>
             </div>
           </section>
