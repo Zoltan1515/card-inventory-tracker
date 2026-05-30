@@ -23,6 +23,46 @@ const normalizeStoreSlug = (value: unknown) => typeof value === "string"
   ? value.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60)
   : "";
 
+async function resolvePrimeLotSellerUserId(sellerEmail: string) {
+  const fallbackSellerId = process.env.PRIMELOT_SELLER_USER_ID || "";
+  if (fallbackSellerId) return fallbackSellerId;
+
+  const primeLotSupabaseUrl = process.env.PRIMELOT_SUPABASE_URL;
+  const primeLotServiceRoleKey = process.env.PRIMELOT_SUPABASE_SERVICE_ROLE_KEY;
+  if (!primeLotSupabaseUrl || !primeLotServiceRoleKey || !sellerEmail) return "";
+
+  const primeLotSupabase = createClient(primeLotSupabaseUrl, primeLotServiceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  for (let page = 1; page <= 10; page += 1) {
+    const { data, error } = await primeLotSupabase.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) return "";
+    const user = data.users.find((candidate) => normalizeEmail(candidate.email) === sellerEmail);
+    if (user?.id) return user.id;
+    if (data.users.length < 1000) break;
+  }
+  return "";
+}
+
+async function activateExistingPrimeLotConnection(supabase: any, row: ConnectionRow | null) {
+  if (!row || row.status !== "pending" || row.requested_intent !== "connect") return row;
+  const sellerId = await resolvePrimeLotSellerUserId(normalizeEmail(row.primelot_seller_email));
+  if (!sellerId) return row;
+  const { data, error } = await supabase
+    .from("primelot_connections")
+    .update({
+      primelot_seller_user_id: sellerId,
+      status: "active",
+      connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", row.id)
+    .select("id,user_id,workspace_id,primelot_seller_user_id,primelot_seller_email,primelot_store_slug,status,requested_intent,created_at,connected_at")
+    .single();
+  return error ? row : data as ConnectionRow;
+}
+
 const rowToResponse = (row: ConnectionRow | null, migrationRequired = false) => ({
   connected: row?.status === "active" && Boolean(row.primelot_seller_user_id),
   status: row?.status || "none",
@@ -88,7 +128,8 @@ export async function GET(request: NextRequest) {
     if (missingTable(error.message)) return NextResponse.json(rowToResponse(null, true));
     return jsonError(`Could not load PrimeLot connection: ${error.message}`, 500);
   }
-  return NextResponse.json(rowToResponse(data as ConnectionRow | null));
+  const activatedRow = await activateExistingPrimeLotConnection(supabase, data as ConnectionRow | null);
+  return NextResponse.json(rowToResponse(activatedRow));
 }
 
 export async function POST(request: NextRequest) {
@@ -114,9 +155,11 @@ export async function POST(request: NextRequest) {
   if (existing.error && missingTable(existing.error.message)) return jsonError("PrimeLot connection storage is not set up yet. Run supabase-primelot-connections-migration.sql before enabling self-serve connections.", 503, "PRIMELOT_CONNECTION_MIGRATION_REQUIRED");
 
   const autoApproveEmail = normalizeEmail(process.env.PRIMELOT_AUTO_APPROVE_EMAIL);
-  const fallbackSellerId = process.env.PRIMELOT_SELLER_USER_ID || "";
+  const resolvedSellerId = intent === "connect" || !autoApproveEmail || sellerEmail === autoApproveEmail
+    ? await resolvePrimeLotSellerUserId(sellerEmail)
+    : "";
   const shouldAutoApprove = Boolean(
-    fallbackSellerId && (
+    resolvedSellerId && (
       intent === "connect" ||
       !autoApproveEmail ||
       sellerEmail === autoApproveEmail
@@ -126,7 +169,7 @@ export async function POST(request: NextRequest) {
   const payload = {
     user_id: user.id,
     workspace_id: workspaceId,
-    primelot_seller_user_id: shouldAutoApprove ? fallbackSellerId : null,
+    primelot_seller_user_id: shouldAutoApprove ? resolvedSellerId : null,
     primelot_seller_email: sellerEmail,
     primelot_store_slug: storeSlug || null,
     status: shouldAutoApprove ? "active" : "pending",
