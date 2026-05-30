@@ -213,7 +213,15 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .modalHeader { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 12px; }
 .modalHeader h2 { margin: 0; }
 .compactButton { padding: 8px 10px; min-height: 0; }
-.primeLotModal { display: grid; gap: 14px; }
+.primeLotModal, .primeLotSuccessModal { display: grid; gap: 14px; }
+.primeLotSuccessModal { text-align: center; justify-items: center; }
+.successIcon { width: 68px; height: 68px; border-radius: 999px; display: grid; place-items: center; background: rgba(57,255,156,.16); border: 1px solid rgba(57,255,156,.6); color: var(--neon-green); font-size: 2.2rem; font-weight: 1000; box-shadow: 0 0 34px rgba(57,255,156,.26); }
+.successSummaryGrid { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.successSummaryGrid span { border: 1px solid rgba(57,255,156,.22); border-radius: 16px; background: rgba(15,23,42,.58); padding: 12px; display: grid; gap: 4px; }
+.successSummaryGrid small { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; }
+.postedListingList { width: 100%; display: grid; gap: 8px; }
+.postedListingList article { border: 1px solid rgba(148,163,184,.18); border-radius: 14px; background: rgba(8,15,28,.52); padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }
+.buttonLink { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .primeLotBenefitGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .primeLotBenefitGrid span { border: 1px solid rgba(56,189,248,.24); border-radius: 999px; padding: 8px 10px; color: var(--text); background: rgba(15,23,42,.58); font-size: .88rem; }
 .stackedForm { display: grid; gap: 12px; }

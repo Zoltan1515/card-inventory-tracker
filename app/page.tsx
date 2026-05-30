@@ -56,6 +56,13 @@ type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
 };
+type PrimeLotPostResult = {
+  postedCount: number;
+  totalAmount: number;
+  publicListingCount: number;
+  draftListingCount: number;
+  listings: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string; cardName: string; amount: number; shippingCharge: number }>;
+};
 type PrimeLotConnectionState = {
   connected: boolean;
   status: "none" | "pending" | "active" | "disconnected" | string;
@@ -151,14 +158,22 @@ const normalizePhotoFile = async (file: File) => {
   return new File([blob], `${normalizedName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
 };
 const cleanGradeLabel = (grade: string) => grade.trim().replace(/^grade:\s*/i, "");
+const gradeParts = (value: string) => {
+  const clean = cleanGradeLabel(value);
+  const match = clean.match(/^(PSA|BGS|SGC|CGC|TAG)\s+(.+)$/i);
+  return match ? { company: match[1].toUpperCase(), grade: match[2].trim() } : { company: "", grade: clean };
+};
+const cardGradeValue = (card: Pick<CardRecord, "grade" | "notes">) => card.grade || card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grade:"))?.replace(/^grade:\s*/i, "").trim() || "";
+const cardGradingCompanyValue = (card: Pick<CardRecord, "gradingCompany" | "notes">) => card.gradingCompany || card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grader:"))?.replace(/^grader:\s*/i, "").trim() || "";
 const emptyInventoryExpenseDraft = (): InventoryExpenseDraft => ({ shipping: "", hst: "", duties: "" });
 const inventoryExpenseAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
 const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
-const cardGradeLabel = (card: Pick<CardRecord, "notes">) => card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grade:"))?.replace(/^grade:\s*/i, "").trim() || "";
-const notesWithGrade = (notes: string, grade: string) => {
-  const withoutGrade = notes.split("\n").filter((line) => !line.toLowerCase().startsWith("grade:")).join("\n").trim();
+const cardGradeLabel = (card: Pick<CardRecord, "grade" | "gradingCompany" | "notes">) => [cardGradingCompanyValue(card), cardGradeValue(card)].filter(Boolean).join(" ").trim();
+const notesWithGrade = (notes: string, grade: string, gradingCompany = "") => {
+  const withoutGrade = notes.split("\n").filter((line) => !/^grade:|^grader:/i.test(line.trim())).join("\n").trim();
   const cleanGrade = cleanGradeLabel(grade);
-  return [cleanGrade ? `Grade: ${cleanGrade}` : "", withoutGrade].filter(Boolean).join("\n");
+  const cleanCompany = gradingCompany.trim();
+  return [cleanCompany ? `Grader: ${cleanCompany}` : "", cleanGrade ? `Grade: ${cleanGrade}` : "", withoutGrade].filter(Boolean).join("\n");
 };
 const mergeById = <T extends { id: string }>(primary: T[], fallback: T[]) => {
   const rows = new Map<string, T>();
@@ -235,6 +250,9 @@ const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   status: card.status || "Not Listed",
   askingPrice: Number(card.askingPrice ?? 0) || 0,
   lowestAcceptablePrice: Number(card.lowestAcceptablePrice ?? 0) || 0,
+  shippingCharge: Number(card.shippingCharge ?? 0) || 0,
+  gradingCompany: card.gradingCompany || cardGradingCompanyValue({ gradingCompany: "", notes: card.notes || "" }),
+  grade: card.grade || cardGradeValue({ grade: "", notes: card.notes || "" }),
   listedDate: card.listedDate || "",
   listedAt: card.listedAt || "",
   listedBy: card.listedBy || "",
@@ -249,9 +267,15 @@ const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   updatedBy: card.updatedBy || "",
 });
 const rowHasQuantity = (row: Parameters<typeof rowToCard>[0]) => Object.prototype.hasOwnProperty.call(row, "quantity") && row.quantity !== null && row.quantity !== undefined;
-const rowToCardWithQuantityFallback = (row: Parameters<typeof rowToCard>[0], fallback?: Pick<CardRecord, "quantity">): CardRecord => {
+const rowToCardWithQuantityFallback = (row: Parameters<typeof rowToCard>[0], fallback?: Pick<CardRecord, "quantity" | "shippingCharge" | "gradingCompany" | "grade">): CardRecord => {
   const card = rowToCard(row);
-  return fallback && !rowHasQuantity(row) ? { ...card, quantity: fallback.quantity } : card;
+  return fallback ? {
+    ...card,
+    quantity: !rowHasQuantity(row) ? fallback.quantity : card.quantity,
+    shippingCharge: card.shippingCharge || fallback.shippingCharge || 0,
+    gradingCompany: card.gradingCompany || fallback.gradingCompany || "",
+    grade: card.grade || fallback.grade || "",
+  } : card;
 };
 
 const normalizeStoredExpense = (expense: Partial<ExpenseRecord>): ExpenseRecord => ({
@@ -291,6 +315,7 @@ const prepareCardForStatus = (card: CardRecord, status: CardStatus): CardRecord 
   updatedAt: new Date().toISOString(),
 });
 const isListingPricingColumnError = (message: string) => /asking_price|lowest_acceptable_price|listed_date/i.test(message);
+const isMarketplaceDetailsColumnError = (message: string) => /outbound_shipping|grading_company|grade/i.test(message);
 const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by/i.test(message);
 const isQuantityColumnError = (message: string) => /quantity/i.test(message);
 
@@ -357,6 +382,12 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
   const purchasePrice = parseImportedMoney(csvValue(row, ["purchase price", "price paid", "paid", "buy price", "cost", "amount", "total"]));
   const quantity = Math.max(1, Math.floor(Number(csvValue(row, ["quantity", "qty", "item qty", "items", "count"])) || 1));
   const askingPrice = parseImportedMoney(csvValue(row, ["asking price", "list price", "listing price", "listed price", "sale price"]));
+  const shippingCharge = parseImportedMoney(csvValue(row, ["shipping charge", "shipping", "buyer shipping", "outbound shipping", "shipping price"]));
+  const importedGradingCompany = csvValue(row, ["grading company", "grader", "professional grader"]);
+  const importedGradeRaw = csvValue(row, ["grade", "card grade"]);
+  const importedGradeParts = gradeParts(importedGradeRaw);
+  const gradingCompany = importedGradingCompany || importedGradeParts.company;
+  const grade = importedGradeParts.grade;
   const soldPrice = parseImportedMoney(csvValue(row, ["sold price", "sold for", "final sale price"]));
   const status = normalizeImportedStatus(csvValue(row, ["status", "state"]));
   const listedPlatform = csvValue(row, ["listed platform", "platform", "marketplace", "listed where"]);
@@ -386,6 +417,9 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
     listingUrl,
     askingPrice,
     lowestAcceptablePrice: parseImportedMoney(csvValue(row, ["minimum sale price", "lowest acceptable price", "minimum price", "min price"])),
+    shippingCharge,
+    gradingCompany,
+    grade,
     listedDate: importedStatus === "Listed" ? listedDate || todayIso() : listedDate,
     frontPhotoUrl,
     purchaseDate,
@@ -404,6 +438,7 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
     importedStatus === "Sold" && !soldPrice ? "Sold status needs sold price" : "",
     importedStatus === "Sold" && !salePlatform ? "Sold status needs sale platform" : "",
     importedStatus === "Listed" && !askingPrice ? "Listed status needs asking price" : "",
+    grade && !gradingCompany ? "Grade needs grading company" : "",
   ].filter(Boolean);
 
   return { id: card.id, sourceRow, card, selected: warnings.length === 0, warnings };
@@ -450,6 +485,7 @@ export default function Home() {
   const [gradingSubmissions, setGradingSubmissions] = useState<GradingSubmission[]>([]);
   const [activeCard, setActiveCard] = useState<CardRecord>(emptyCard());
   const [activeCardGrade, setActiveCardGrade] = useState("");
+  const [activeCardGradingCompany, setActiveCardGradingCompany] = useState("");
   const [inventoryExpenseDraft, setInventoryExpenseDraft] = useState<InventoryExpenseDraft>(emptyInventoryExpenseDraft());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
@@ -472,6 +508,7 @@ export default function Home() {
   const [postingToPrimeLot, setPostingToPrimeLot] = useState(false);
   const [primeLotConnection, setPrimeLotConnection] = useState<PrimeLotConnectionState>({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
   const [primeLotModalOpen, setPrimeLotModalOpen] = useState(false);
+  const [primeLotPostResult, setPrimeLotPostResult] = useState<PrimeLotPostResult | null>(null);
   const [primeLotIntent, setPrimeLotIntent] = useState<"create" | "connect">("create");
   const [primeLotEmail, setPrimeLotEmail] = useState("");
   const [primeLotStoreSlug, setPrimeLotStoreSlug] = useState("");
@@ -932,6 +969,7 @@ export default function Home() {
     .map((cardId) => cardById.get(cardId))
     .filter((card): card is CardRecord => Boolean(card))
     .filter((card) => card.status !== "Sold");
+  const selectedPrimeLotCards = selectedCards.filter((card) => card.status === "Not Listed");
   const selectedQuantityForCard = (card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(selectedGradingQuantities[card.id]) || cardQuantity(card))));
   const selectedCardQuantity = selectedCards.reduce((sum, card) => sum + selectedQuantityForCard(card), 0);
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + (card.purchasePrice * selectedQuantityForCard(card)), 0);
@@ -1064,6 +1102,7 @@ export default function Home() {
   };
 
   const validateCardBusinessRules = (card: CardRecord) => {
+    if (card.grade.trim() && !card.gradingCompany.trim()) return "Choose the grading company when entering a grade.";
     if (card.status === "Listed" && !(Number(card.askingPrice) > 0)) return "Add an asking price before marking this card as Listed.";
     if (card.status === "Listed" && !card.listedDate) return "Add a listed date before marking this card as Listed.";
     if (card.status === "Sold") {
@@ -1144,6 +1183,12 @@ export default function Home() {
           .from("cards")
           .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId)))
           .select("*");
+        if (insertResult.error && isMarketplaceDetailsColumnError(insertResult.error.message)) {
+          insertResult = await supabase
+            .from("cards")
+            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, true, true, true, false)))
+            .select("*");
+        }
         if (insertResult.error && isQuantityColumnError(insertResult.error.message)) {
           insertResult = await supabase
             .from("cards")
@@ -1217,7 +1262,9 @@ export default function Home() {
     const preparedCard = activeCard.status === "Listed" || activeCard.status === "Sold" ? prepareCardForStatus(activeCard, activeCard.status) : activeCard;
     const cardToSave: CardRecord = {
       ...preparedCard,
-      notes: notesWithGrade(preparedCard.notes, activeCardGrade),
+      gradingCompany: activeCardGradingCompany.trim(),
+      grade: cleanGradeLabel(activeCardGrade),
+      notes: notesWithGrade(preparedCard.notes, activeCardGrade, activeCardGradingCompany),
       createdBy: preparedCard.createdBy || currentUsername,
       updatedBy: currentUsername,
       listedAt: preparedCard.status === "Listed" ? preparedCard.listedAt || now : preparedCard.listedAt,
@@ -1239,6 +1286,13 @@ export default function Home() {
         .insert(cardToInsert(cardToSave, session.user.id, workspaceId))
         .select("*")
         .single();
+      if (insertResult.error && isMarketplaceDetailsColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, true, true, true, false))
+          .select("*")
+          .single();
+      }
       if (insertResult.error && isQuantityColumnError(insertResult.error.message)) {
         insertResult = await supabase
           .from("cards")
@@ -1285,6 +1339,7 @@ export default function Home() {
     window.setTimeout(() => setShowAddInventoryCheck(true), 0);
     setActiveCard(emptyCard());
     setActiveCardGrade("");
+    setActiveCardGradingCompany("");
     setInventoryExpenseDraft(emptyInventoryExpenseDraft());
     setTab("inventory");
   };
@@ -1298,6 +1353,14 @@ export default function Home() {
         .eq("id", card.id);
       updateQuery = card.workspaceId ? updateQuery.eq("workspace_id", card.workspaceId) : updateQuery.eq("user_id", session.user.id);
       let updateResult = await updateQuery.select("*").single();
+      if (updateResult.error && isMarketplaceDetailsColumnError(updateResult.error.message)) {
+        let legacyMarketplaceQuery = supabase
+          .from("cards")
+          .update(cardToUpdate(card, true, true, true, false))
+          .eq("id", card.id);
+        legacyMarketplaceQuery = card.workspaceId ? legacyMarketplaceQuery.eq("workspace_id", card.workspaceId) : legacyMarketplaceQuery.eq("user_id", session.user.id);
+        updateResult = await legacyMarketplaceQuery.select("*").single();
+      }
       if (updateResult.error && isQuantityColumnError(updateResult.error.message)) {
         let legacyQuantityQuery = supabase
           .from("cards")
@@ -2053,8 +2116,8 @@ export default function Home() {
   const postSelectedCardsToPrimeLot = async () => {
     setError("");
     setNotice("");
-    if (!selectedCards.length) {
-      setError("Select at least one unsold card before posting to PrimeLot.");
+    if (!selectedPrimeLotCards.length) {
+      setError("Select at least one Not Listed card before posting to PrimeLot. Listed cards are blocked so they cannot be posted twice.");
       return;
     }
     if (!primeLotConnection.connected) {
@@ -2065,9 +2128,14 @@ export default function Home() {
       setError("Sign in before posting to PrimeLot.");
       return;
     }
-    const cardsMissingPrice = selectedCards.filter((card) => Number(card.askingPrice || 0) <= 0);
+    const cardsMissingPrice = selectedPrimeLotCards.filter((card) => Number(card.askingPrice || 0) <= 0);
     if (cardsMissingPrice.length) {
       setError("Add an asking price to every selected card before posting to PrimeLot.");
+      return;
+    }
+    const cardsMissingGrader = selectedPrimeLotCards.filter((card) => card.grade.trim() && !card.gradingCompany.trim());
+    if (cardsMissingGrader.length) {
+      setError("Every graded card needs its grading company before posting to PrimeLot.");
       return;
     }
 
@@ -2079,7 +2147,7 @@ export default function Home() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ cards: selectedCards }),
+        body: JSON.stringify({ cards: selectedPrimeLotCards }),
       });
       const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string; code?: string } = await response.json();
       if (!response.ok) {
@@ -2092,7 +2160,7 @@ export default function Home() {
       let updatedCount = 0;
       let publicListingCount = 0;
       let draftListingCount = 0;
-      for (const card of selectedCards) {
+      for (const card of selectedPrimeLotCards) {
         const listing = listingsByCardId.get(card.id);
         if (!listing) continue;
         const isPublicListing = isPrimeLotPublicListing(listing.status);
@@ -2113,6 +2181,22 @@ export default function Home() {
         if (saved) updatedCount += 1;
       }
 
+      const listingDetails = selectedPrimeLotCards.map((card) => {
+        const listing = listingsByCardId.get(card.id);
+        return listing ? {
+          ...listing,
+          cardName: card.name,
+          amount: Number(card.askingPrice || 0) * cardQuantity(card),
+          shippingCharge: Number(card.shippingCharge || 0),
+        } : null;
+      }).filter((listing): listing is PrimeLotPostResult["listings"][number] => Boolean(listing));
+      setPrimeLotPostResult({
+        postedCount: updatedCount,
+        totalAmount: listingDetails.reduce((sum, listing) => sum + listing.amount, 0),
+        publicListingCount,
+        draftListingCount,
+        listings: listingDetails,
+      });
       clearSelectedCards();
       if (draftListingCount && !publicListingCount) {
         setNotice(`Created ${updatedCount} PrimeLot draft${updatedCount === 1 ? "" : "s"}. Card Tracker will keep them Not Listed until they are published on PrimeLot.`);
@@ -2303,6 +2387,40 @@ export default function Home() {
             </form>
           </section>
         </div>
+)}
+
+
+      {primeLotPostResult && (
+        <div className="modalBackdrop" role="presentation">
+          <section className="modalCard primeLotSuccessModal" role="dialog" aria-modal="true" aria-labelledby="primelot-post-success-title">
+            <div className="successIcon" aria-hidden="true">✓</div>
+            <div>
+              <p className="eyebrow">PrimeLot posted live</p>
+              <h2 id="primelot-post-success-title">Posted {primeLotPostResult.postedCount} card{primeLotPostResult.postedCount === 1 ? "" : "s"}</h2>
+              <p className="muted">Total listing amount: <strong>{money(primeLotPostResult.totalAmount)}</strong></p>
+            </div>
+            <div className="successSummaryGrid">
+              <span><small>Live listings</small><strong>{primeLotPostResult.publicListingCount}</strong></span>
+              <span><small>Drafts</small><strong>{primeLotPostResult.draftListingCount}</strong></span>
+              <span><small>Total amount</small><strong>{money(primeLotPostResult.totalAmount)}</strong></span>
+            </div>
+            <div className="postedListingList">
+              {primeLotPostResult.listings.map((listing) => (
+                <article key={listing.primeLotListingId}>
+                  <div>
+                    <strong>{listing.cardName}</strong>
+                    <p className="muted">{money(listing.amount)}{listing.shippingCharge ? ` • Shipping ${money(listing.shippingCharge)}` : " • Free shipping"} • {isPrimeLotPublicListing(listing.status) ? "Listed" : "Draft"}</p>
+                  </div>
+                  <a href={listing.url} target="_blank" rel="noreferrer">Open</a>
+                </article>
+              ))}
+            </div>
+            <div className="rowActions">
+              <button className="primary" type="button" onClick={() => setPrimeLotPostResult(null)}>Done</button>
+              {primeLotPostResult.listings[0]?.url && <a className="secondary buttonLink" href={primeLotPostResult.listings[0].url} target="_blank" rel="noreferrer">Open first listing</a>}
+            </div>
+          </section>
+        </div>
       )}
 
       {tab === "add" && (
@@ -2363,7 +2481,8 @@ export default function Home() {
             <Field label="Item quantity" type="number" value={String(activeCard.quantity)} onChange={(v) => setActiveCard({ ...activeCard, quantity: sanitizeQuantityInput(v) })} />
             <Field label="Purchase price per item" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
             <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
-            <Field label="Grade if already graded" value={activeCardGrade} onChange={setActiveCardGrade} placeholder="PSA 10, BGS 9.5, SGC 9..." />
+            <Field label="Grading company if already graded" value={activeCardGradingCompany} onChange={setActiveCardGradingCompany} placeholder="PSA, BGS, SGC, CGC..." />
+            <Field label="Grade if already graded" value={activeCardGrade} onChange={(v) => { const parsed = gradeParts(v); setActiveCardGrade(parsed.grade); if (parsed.company && !activeCardGradingCompany) setActiveCardGradingCompany(parsed.company); }} placeholder="10, 9.5, 8..." />
             <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard(prepareCardForStatus(activeCard, v as CardStatus))} />
             <Field label="Listed where?" value={activeCard.listedPlatform} onChange={(v) => setActiveCard({ ...activeCard, listedPlatform: v, status: v ? "Listed" : activeCard.status, listedDate: v ? activeCard.listedDate || todayIso() : activeCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
             <Field label="Listing URL" value={activeCard.listingUrl} onChange={(v) => setActiveCard({ ...activeCard, listingUrl: v })} />
@@ -2371,6 +2490,7 @@ export default function Home() {
               <>
                 <Field label="Asking price" type="number" value={String(activeCard.askingPrice)} onChange={(v) => setActiveCard({ ...activeCard, askingPrice: Number(v || 0) })} required />
                 <Field label="Minimum sale price" type="number" value={String(activeCard.lowestAcceptablePrice)} onChange={(v) => setActiveCard({ ...activeCard, lowestAcceptablePrice: Number(v || 0) })} />
+                <Field label="Buyer shipping charge" type="number" value={String(activeCard.shippingCharge)} onChange={(v) => setActiveCard({ ...activeCard, shippingCharge: Number(v || 0) })} />
                 <Field label="Listed date" type="date" value={activeCard.listedDate} onChange={(v) => setActiveCard({ ...activeCard, listedDate: v })} required />
                 <div className="calc">
                   <span>Potential profit: <strong className={listedPotentialProfit(activeCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(activeCard))}</strong></span>
@@ -2675,7 +2795,7 @@ export default function Home() {
             <div className="rowActions">
               <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.some((card) => card.status !== "Sold")}>Select all shown</button>
               <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCards.length}>Clear selected</button>
-              <button className="secondary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : primeLotButtonLabel}</button>
+              <button className="secondary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedPrimeLotCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : selectedPrimeLotCards.length ? primeLotButtonLabel : "Select Not Listed for PrimeLot"}</button>
               <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCards.length}>Send selected to grading</button>
             </div>
           </section>
@@ -2919,6 +3039,7 @@ export default function Home() {
               <Field label="Listed date" type="date" value={listingCard.listedDate || todayIso()} onChange={(v) => setListingCard({ ...listingCard, listedDate: v })} required />
               <Field label={`Quantity to list (available ${cardQuantity(cards.find((card) => card.id === listingCard.id) || listingCard)})`} type="number" value={String(listingCard.quantity)} onChange={(v) => setListingCard({ ...listingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === listingCard.id) || listingCard), sanitizeQuantityInput(v))) })} required />
               <Field label="Minimum sale price per item" type="number" value={String(listingCard.lowestAcceptablePrice)} onChange={(v) => setListingCard({ ...listingCard, lowestAcceptablePrice: Number(v || 0) })} />
+              <Field label="Buyer shipping charge" type="number" value={String(listingCard.shippingCharge)} onChange={(v) => setListingCard({ ...listingCard, shippingCharge: Number(v || 0) })} />
               <Field label="Listing URL" value={listingCard.listingUrl} onChange={(v) => setListingCard({ ...listingCard, listingUrl: v })} placeholder="Optional link to the live listing" />
               <div className="calc full">
                 <span>Purchase cost: <strong>{money(cardPurchaseCost(listingCard))}</strong></span>
@@ -2949,7 +3070,8 @@ export default function Home() {
               <Field label="Item quantity" type="number" value={String(editingCard.quantity)} onChange={(v) => setEditingCard({ ...editingCard, quantity: sanitizeQuantityInput(v) })} />
               <Field label="Purchase price per item" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
               <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
-              <Field label="Grade if already graded" value={cardGradeLabel(editingCard)} onChange={(v) => setEditingCard({ ...editingCard, notes: notesWithGrade(editingCard.notes, v) })} placeholder="PSA 10, BGS 9.5, SGC 9..." />
+              <Field label="Grading company if already graded" value={editingCard.gradingCompany} onChange={(v) => setEditingCard({ ...editingCard, gradingCompany: v, notes: notesWithGrade(editingCard.notes, editingCard.grade, v) })} placeholder="PSA, BGS, SGC, CGC..." />
+              <Field label="Grade if already graded" value={editingCard.grade} onChange={(v) => { const parsed = gradeParts(v); setEditingCard({ ...editingCard, grade: parsed.grade, gradingCompany: parsed.company || editingCard.gradingCompany, notes: notesWithGrade(editingCard.notes, parsed.grade, parsed.company || editingCard.gradingCompany) }); }} placeholder="10, 9.5, 8..." />
               <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard(prepareCardForStatus(editingCard, v as CardStatus))} />
               <Field label="Listed where?" value={editingCard.listedPlatform} onChange={(v) => setEditingCard({ ...editingCard, listedPlatform: v, status: v ? "Listed" : editingCard.status, listedDate: v ? editingCard.listedDate || todayIso() : editingCard.listedDate })} placeholder="eBay, Whatnot, TCGplayer..." />
               <Field label="Listing URL" value={editingCard.listingUrl} onChange={(v) => setEditingCard({ ...editingCard, listingUrl: v })} />
@@ -2957,6 +3079,7 @@ export default function Home() {
                 <>
                   <Field label="Asking price" type="number" value={String(editingCard.askingPrice)} onChange={(v) => setEditingCard({ ...editingCard, askingPrice: Number(v || 0) })} required />
                   <Field label="Minimum sale price" type="number" value={String(editingCard.lowestAcceptablePrice)} onChange={(v) => setEditingCard({ ...editingCard, lowestAcceptablePrice: Number(v || 0) })} />
+                  <Field label="Buyer shipping charge" type="number" value={String(editingCard.shippingCharge)} onChange={(v) => setEditingCard({ ...editingCard, shippingCharge: Number(v || 0) })} />
                   <Field label="Listed date" type="date" value={editingCard.listedDate} onChange={(v) => setEditingCard({ ...editingCard, listedDate: v })} required />
                   <div className="calc">
                     <span>Days listed: <strong>{listedDays(editingCard) ?? 0}</strong></span>

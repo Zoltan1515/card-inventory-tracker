@@ -15,6 +15,9 @@ type CardPayload = {
   listedPlatform?: string;
   askingPrice?: number;
   lowestAcceptablePrice?: number;
+  shippingCharge?: number;
+  gradingCompany?: string;
+  grade?: string;
   listedDate?: string;
   frontPhotoUrl?: string;
   purchaseDate?: string;
@@ -40,6 +43,7 @@ type PrimeLotConnection = {
 const jsonError = (message: string, status = 400, code?: string) => NextResponse.json({ error: message, code }, { status });
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
 const sourceTrackingColumnError = (message = "") => /source_id|source_platform/i.test(message) && /schema cache|column|Could not find/i.test(message);
+const shippingColumnError = (message = "") => /shipping_price/i.test(message) && /schema cache|column|Could not find/i.test(message);
 
 const cardTypeForCategory = (category?: string) => {
   const value = (category || "").toLowerCase();
@@ -50,6 +54,19 @@ const cardTypeForCategory = (category?: string) => {
   return "sports";
 };
 
+const cleanGrade = (value?: string) => (value || "").trim().replace(/^grade:\s*/i, "");
+const gradeParts = (value?: string) => {
+  const clean = cleanGrade(value);
+  const match = clean.match(/^(PSA|BGS|SGC|CGC|TAG)\s+(.+)$/i);
+  return match ? { company: match[1].toUpperCase(), grade: match[2].trim() } : { company: "", grade: clean };
+};
+const noteValue = (notes: string | undefined, label: string) => (notes || "").split("\n").find((line) => line.toLowerCase().startsWith(`${label.toLowerCase()}:`))?.replace(new RegExp(`^${label}:\\s*`, "i"), "").trim() || "";
+const gradingDetailsForCard = (card: CardPayload) => {
+  const parsed = gradeParts(card.grade || noteValue(card.notes, "Grade"));
+  const company = (card.gradingCompany || noteValue(card.notes, "Grader") || parsed.company).trim();
+  return { company, grade: parsed.grade };
+};
+
 const descriptionForCard = (card: CardPayload) => [
   card.setName ? `Set: ${card.setName}` : "",
   card.cardNumber ? `Card Number: ${card.cardNumber}` : "",
@@ -57,6 +74,9 @@ const descriptionForCard = (card: CardPayload) => [
   card.status ? `WickedCardTracker Status: ${card.status}` : "",
   card.listedPlatform ? `Previous Listed Platform: ${card.listedPlatform}` : "",
   card.lowestAcceptablePrice ? `Minimum Sale Price: ${card.lowestAcceptablePrice}` : "",
+  Number(card.shippingCharge || 0) >= 0 ? `Buyer Shipping Charge: ${Number(card.shippingCharge || 0).toFixed(2)}` : "",
+  gradingDetailsForCard(card).company ? `Grading Company: ${gradingDetailsForCard(card).company}` : "",
+  gradingDetailsForCard(card).grade ? `Grade: ${gradingDetailsForCard(card).grade}` : "",
   card.purchaseDate ? `Purchase Date: ${card.purchaseDate}` : "",
   Number.isFinite(card.purchasePrice) ? `Purchase Price: ${card.purchasePrice}` : "",
   card.notes?.trim() ? `Notes: ${card.notes.trim()}` : "",
@@ -149,17 +169,19 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const baseRows = cards.map((card) => ({
+  const baseRows = cards.map((card) => {
+    const grading = gradingDetailsForCard(card);
+    return {
     user_id: primeLotSellerUserId,
     card_type: cardTypeForCategory(card.category),
     card_name: card.name.trim(),
     description: descriptionForCard(card) || null,
     year: card.year?.trim() || null,
     player: null,
-    is_graded: false,
+    is_graded: Boolean(grading.company || grading.grade),
     condition: "near_mint",
-    grading_company: null,
-    grade: null,
+    grading_company: grading.company || null,
+    grade: grading.grade || null,
     price: Number(card.askingPrice || 0),
     image_url_front: card.frontPhotoUrl?.trim() || null,
     image_url_back: null,
@@ -170,21 +192,45 @@ export async function POST(request: NextRequest) {
     is_wishlist_offer: false,
     quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
     quantity_sold: 0,
+  };
+  });
+  const rowsWithShipping = baseRows.map((row, index) => ({
+    ...row,
+    shipping_price: Number(cards[index].shippingCharge || 0),
   }));
-  const rowsWithSourceTracking = baseRows.map((row, index) => ({
+  const rowsWithSourceTracking = rowsWithShipping.map((row, index) => ({
     ...row,
     source_platform: "wickedcardtracker",
     source_id: cards[index].id,
   }));
 
   let insertedUsingSourceTracking = true;
+  let insertedUsingShipping = true;
   let insertResult = await primeLotSupabase
     .from("single_cards")
     .insert(rowsWithSourceTracking)
     .select("id, source_id, status");
 
+  if (insertResult.error && shippingColumnError(insertResult.error.message)) {
+    insertedUsingShipping = false;
+    const rowsWithoutShipping = rowsWithSourceTracking.map(({ shipping_price: _shippingPrice, ...row }) => row);
+    insertResult = await primeLotSupabase
+      .from("single_cards")
+      .insert(rowsWithoutShipping)
+      .select("id, source_id, status");
+  }
+
   if (insertResult.error && sourceTrackingColumnError(insertResult.error.message)) {
     insertedUsingSourceTracking = false;
+    const rowsWithoutSource = insertedUsingShipping ? rowsWithShipping : baseRows;
+    insertResult = await primeLotSupabase
+      .from("single_cards")
+      .insert(rowsWithoutSource)
+      .select("id, status");
+  }
+
+  if (insertResult.error && shippingColumnError(insertResult.error.message)) {
+    insertedUsingShipping = false;
     insertResult = await primeLotSupabase
       .from("single_cards")
       .insert(baseRows)

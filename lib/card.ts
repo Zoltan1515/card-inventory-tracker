@@ -14,6 +14,9 @@ export type CardRecord = {
   listingUrl: string;
   askingPrice: number;
   lowestAcceptablePrice: number;
+  shippingCharge: number;
+  gradingCompany: string;
+  grade: string;
   listedDate: string;
   listedAt: string;
   listedBy: string;
@@ -83,6 +86,9 @@ export const emptyCard = (): CardRecord => {
     listingUrl: "",
     askingPrice: 0,
     lowestAcceptablePrice: 0,
+    shippingCharge: 0,
+    gradingCompany: "",
+    grade: "",
     listedDate: "",
     listedAt: "",
     listedBy: "",
