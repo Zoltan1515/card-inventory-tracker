@@ -508,6 +508,8 @@ export default function Home() {
   const [postingToPrimeLot, setPostingToPrimeLot] = useState(false);
   const [primeLotConnection, setPrimeLotConnection] = useState<PrimeLotConnectionState>({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
   const [primeLotModalOpen, setPrimeLotModalOpen] = useState(false);
+  const [primeLotReviewOpen, setPrimeLotReviewOpen] = useState(false);
+  const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, { askingPrice: string; shippingCharge: string; gradingCompany: string }>>({});
   const [primeLotPostResult, setPrimeLotPostResult] = useState<PrimeLotPostResult | null>(null);
   const [primeLotIntent, setPrimeLotIntent] = useState<"create" | "connect">("create");
   const [primeLotEmail, setPrimeLotEmail] = useState("");
@@ -2132,7 +2134,7 @@ export default function Home() {
     }
   };
 
-  const postSelectedCardsToPrimeLot = async () => {
+  const openPrimeLotReview = () => {
     setError("");
     setNotice("");
     if (!selectedPrimeLotCards.length) {
@@ -2147,14 +2149,58 @@ export default function Home() {
       setError("Sign in before posting to PrimeLot.");
       return;
     }
-    const cardsMissingPrice = selectedPrimeLotCards.filter((card) => Number(card.askingPrice || 0) <= 0);
+
+    setPrimeLotReviewDrafts(Object.fromEntries(selectedPrimeLotCards.map((card) => [card.id, {
+      askingPrice: String(card.askingPrice || ""),
+      shippingCharge: String(card.shippingCharge || 0),
+      gradingCompany: card.gradingCompany || "",
+    }])));
+    setPrimeLotReviewOpen(true);
+  };
+
+  const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge" | "gradingCompany", value: string) => {
+    setPrimeLotReviewDrafts((drafts) => ({
+      ...drafts,
+      [cardId]: {
+        askingPrice: drafts[cardId]?.askingPrice || "",
+        shippingCharge: drafts[cardId]?.shippingCharge || "0",
+        gradingCompany: drafts[cardId]?.gradingCompany || "",
+        [field]: value,
+      },
+    }));
+  };
+
+  const reviewedPrimeLotCards = () => selectedPrimeLotCards.map((card) => {
+    const draft = primeLotReviewDrafts[card.id];
+    return {
+      ...card,
+      askingPrice: Number(draft?.askingPrice || 0),
+      shippingCharge: Number(draft?.shippingCharge || 0),
+      gradingCompany: (draft?.gradingCompany ?? card.gradingCompany).trim(),
+    };
+  });
+
+  const confirmPrimeLotPost = async () => {
+    const cardsToPost = reviewedPrimeLotCards();
+    const cardsMissingPrice = cardsToPost.filter((card) => Number(card.askingPrice || 0) <= 0);
     if (cardsMissingPrice.length) {
       setError("Add an asking price to every selected card before posting to PrimeLot.");
       return;
     }
-    const cardsMissingGrader = selectedPrimeLotCards.filter((card) => card.grade.trim() && !card.gradingCompany.trim());
+    const cardsMissingGrader = cardsToPost.filter((card) => card.grade.trim() && !card.gradingCompany.trim());
     if (cardsMissingGrader.length) {
       setError("Every graded card needs its grading company before posting to PrimeLot.");
+      return;
+    }
+    setPrimeLotReviewOpen(false);
+    await postSelectedCardsToPrimeLot(cardsToPost);
+  };
+
+  const postSelectedCardsToPrimeLot = async (cardsToPost: CardRecord[]) => {
+    setError("");
+    setNotice("");
+    if (!session?.access_token) {
+      setError("Sign in before posting to PrimeLot.");
       return;
     }
 
@@ -2166,7 +2212,7 @@ export default function Home() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ cards: selectedPrimeLotCards }),
+        body: JSON.stringify({ cards: cardsToPost }),
       });
       const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string; code?: string } = await response.json();
       if (!response.ok) {
@@ -2179,7 +2225,7 @@ export default function Home() {
       let updatedCount = 0;
       let publicListingCount = 0;
       let draftListingCount = 0;
-      for (const card of selectedPrimeLotCards) {
+      for (const card of cardsToPost) {
         const listing = listingsByCardId.get(card.id);
         if (!listing) continue;
         const isPublicListing = isPrimeLotPublicListing(listing.status);
@@ -2200,7 +2246,7 @@ export default function Home() {
         if (saved) updatedCount += 1;
       }
 
-      const listingDetails = selectedPrimeLotCards.map((card) => {
+      const listingDetails = cardsToPost.map((card) => {
         const listing = listingsByCardId.get(card.id);
         return listing ? {
           ...listing,
@@ -2408,6 +2454,58 @@ export default function Home() {
         </div>
 )}
 
+
+      {primeLotReviewOpen && (
+        <div className="modalBackdrop" role="presentation">
+          <section className="modalCard primeLotReviewModal" role="dialog" aria-modal="true" aria-labelledby="primelot-review-title">
+            <div className="modalHeader">
+              <div>
+                <p className="eyebrow">Review PrimeLot listings</p>
+                <h2 id="primelot-review-title">Confirm before posting</h2>
+                <p className="muted">Review each selected card, fill in any missing details, then confirm only when you are ready.</p>
+              </div>
+              <button className="secondary compactButton" type="button" onClick={() => setPrimeLotReviewOpen(false)}>Cancel</button>
+            </div>
+            <div className="primeLotIntentNote liveWarning">
+              <strong>This will go live in the PrimeLot marketplace</strong>
+              <p>When you press confirm, these cards will be published to your connected PrimeLot storefront and Card Tracker will mark live listings as Listed.</p>
+            </div>
+            <div className="primeLotReviewList">
+              {selectedPrimeLotCards.map((card) => {
+                const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "" };
+                const quantity = selectedQuantityForCard(card);
+                const total = Number(draft.askingPrice || 0) * quantity;
+                const needsGrader = card.grade.trim() && !draft.gradingCompany.trim();
+                return (
+                  <article className="primeLotReviewRow" key={card.id}>
+                    <div className="primeLotReviewCardHeader">
+                      <div>
+                        <strong>{card.name}</strong>
+                        <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}{quantity > 1 ? ` • Qty ${quantity}` : ""}</p>
+                      </div>
+                      <span className="statusBadge notlisted">Not Listed</span>
+                    </div>
+                    <div className="primeLotReviewFields">
+                      <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
+                      <Field label="Buyer shipping charge" type="number" value={draft.shippingCharge} onChange={(value) => updatePrimeLotReviewDraft(card.id, "shippingCharge", value)} />
+                      {card.grade.trim() && <Field label="Grading company" value={draft.gradingCompany} onChange={(value) => updatePrimeLotReviewDraft(card.id, "gradingCompany", value)} placeholder="PSA, BGS, SGC, CGC..." required />}
+                    </div>
+                    <p className={needsGrader ? "warning" : "muted"}>{needsGrader ? "Missing grading company before this can post." : `PrimeLot listing total: ${money(total)}`}</p>
+                  </article>
+                );
+              })}
+            </div>
+            <div className="primeLotReviewSummary">
+              <span><small>Cards selected</small><strong>{selectedPrimeLotCards.length}</strong></span>
+              <span><small>Estimated total</small><strong>{money(selectedPrimeLotCards.reduce((sum, card) => sum + (Number(primeLotReviewDrafts[card.id]?.askingPrice || card.askingPrice || 0) * selectedQuantityForCard(card)), 0))}</strong></span>
+            </div>
+            <div className="rowActions">
+              <button className="primary" type="button" onClick={confirmPrimeLotPost} disabled={postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : "Confirm — post live on PrimeLot"}</button>
+              <button className="secondary" type="button" onClick={() => setPrimeLotReviewOpen(false)}>Cancel — go back</button>
+            </div>
+          </section>
+        </div>
+      )}
 
       {primeLotPostResult && (
         <div className="modalBackdrop" role="presentation">
@@ -2819,7 +2917,7 @@ export default function Home() {
             <div className="rowActions">
               <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.some((card) => card.status !== "Sold")}>Select all shown</button>
               <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCards.length}>Clear selected</button>
-              <button className="primary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : primeLotButtonLabel}</button>
+              <button className="primary" type="button" onClick={openPrimeLotReview} disabled={!selectedCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : primeLotButtonLabel}</button>
               <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCards.length}>Send selected to grading</button>
             </div>
           </section>
