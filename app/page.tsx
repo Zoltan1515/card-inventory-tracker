@@ -12,6 +12,7 @@ type DashboardAction = { id: string; tab: Tab; label: string; subtitle?: string;
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
+type InventoryMainView = "Not Listed" | "Listed";
 type InventoryDateField = "purchaseDate" | "listedDate" | "saleDate";
 type InventorySort =
   | "newest-purchase"
@@ -517,7 +518,7 @@ export default function Home() {
   const [savingPrimeLotConnection, setSavingPrimeLotConnection] = useState(false);
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("All");
+  const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("Not Listed");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [platformFilter, setPlatformFilter] = useState("All");
   const [photoFilter, setPhotoFilter] = useState<PhotoFilter>("All");
@@ -727,9 +728,9 @@ export default function Home() {
     inventorySort !== "newest-purchase"
   );
 
-  const clearInventoryFilters = () => {
+  const clearInventoryFilters = (nextStatus: CardStatus | "All" = "Not Listed") => {
     setQuery("");
-    setStatusFilter("All");
+    setStatusFilter(nextStatus);
     setCategoryFilter("All");
     setPlatformFilter("All");
     setPhotoFilter("All");
@@ -771,8 +772,13 @@ export default function Home() {
   };
 
   const showActiveInventory = () => {
-    clearInventoryFilters();
+    clearInventoryFilters("Not Listed");
     showDashboardTab("inventory", "inventory-panel");
+  };
+
+  const showInventoryMainView = (view: InventoryMainView) => {
+    clearSelectedCards();
+    clearInventoryFilters(view);
   };
 
   const showAddInventoryForm = () => {
@@ -780,8 +786,7 @@ export default function Home() {
   };
 
   const showSoldInventory = () => {
-    clearInventoryFilters();
-    setStatusFilter("Sold");
+    clearInventoryFilters("Sold");
     showDashboardTab("inventory", "inventory-panel");
   };
 
@@ -828,6 +833,10 @@ export default function Home() {
   }, [activeInventoryCards, categoryFilter, inventoryDateField, inventoryEndDate, inventorySort, inventoryStartDate, listingUrlFilter, photoFilter, platformFilter, query, soldInventoryCards, statusFilter]);
 
   const activeInventoryQuantity = activeInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
+  const notListedInventoryCards = useMemo(() => activeInventoryCards.filter((card) => card.status === "Not Listed"), [activeInventoryCards]);
+  const listedInventoryCards = useMemo(() => activeInventoryCards.filter((card) => card.status === "Listed"), [activeInventoryCards]);
+  const notListedInventoryQuantity = notListedInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
+  const listedInventoryQuantity = listedInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
   const soldInventoryQuantity = soldInventoryCards.reduce((sum, card) => sum + cardQuantity(card), 0);
   const filteredInventoryQuantity = filteredCards.reduce((sum, card) => sum + cardQuantity(card), 0);
 
@@ -1009,6 +1018,7 @@ export default function Home() {
     }));
   };
   const isSoldInventoryView = statusFilter === "Sold";
+  const activeInventoryMainView: InventoryMainView = statusFilter === "Listed" ? "Listed" : "Not Listed";
   const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + card.soldPrice, 0) : 0;
   const soldViewCost = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0) : 0;
   const soldViewProfit = soldViewRevenue - soldViewCost;
@@ -1543,8 +1553,37 @@ export default function Home() {
     if (ok) setNotice(`Updated listing info for ${card.name}.`);
   };
 
+  const removePrimeLotListingIfNeeded = async (card: CardRecord) => {
+    if (!alreadyOnPrimeLot(card)) return true;
+    if (!session?.access_token) {
+      setError("Sign in before clearing a PrimeLot listing.");
+      return false;
+    }
+
+    const response = await fetch("/api/primelot/clear-listing", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        cardTrackerId: card.id,
+        listingUrl: card.listingUrl,
+      }),
+    });
+    const result: { error?: string } = await response.json();
+    if (!response.ok) {
+      setError(result.error || "Could not remove the PrimeLot listing.");
+      return false;
+    }
+    return true;
+  };
+
   const clearListingInfo = async (card: CardRecord) => {
     setError("");
+    setNotice("");
+    const primeLotRemoved = await removePrimeLotListingIfNeeded(card);
+    if (!primeLotRemoved) return;
     const ok = await updateCard({
       ...card,
       status: "Not Listed",
@@ -1557,8 +1596,9 @@ export default function Home() {
       updatedBy: currentUsername,
     });
     if (ok) {
-      setNotice(`Cleared the old listing link for ${card.name}. You can select it and post it to PrimeLot again.`);
+      setNotice(alreadyOnPrimeLot(card) ? `Removed ${card.name} from PrimeLot and moved it back to Not Listed.` : `Cleared the old listing link for ${card.name}. You can select it and post it to PrimeLot again.`);
       setListingCard(null);
+      setStatusFilter("Not Listed");
     }
   };
 
@@ -2177,6 +2217,10 @@ export default function Home() {
   };
 
   const clearPrimeLotListingForCard = async (card: CardRecord) => {
+    setError("");
+    setNotice("");
+    const primeLotRemoved = await removePrimeLotListingIfNeeded(card);
+    if (!primeLotRemoved) return;
     const updatedCard: CardRecord = {
       ...card,
       status: "Not Listed",
@@ -2190,7 +2234,8 @@ export default function Home() {
     };
     const saved = await updateCard(updatedCard);
     if (saved) {
-      setNotice(`${card.name} is no longer marked as already posted on PrimeLot. You can post it from the PrimeLot review modal now.`);
+      setNotice(`Removed ${card.name} from PrimeLot and moved it back to Not Listed.`);
+      setStatusFilter("Not Listed");
       setPrimeLotReviewDrafts((drafts) => ({
         ...drafts,
         [card.id]: {
@@ -2850,15 +2895,22 @@ export default function Home() {
         <section className="panel" id="inventory-panel">
           <div className="panelHeader inventoryHeader">
             <div>
-              <p className="eyebrow">{isSoldInventoryView ? "Sold Inventory" : "Inventory"}</p>
-              <h2>{isSoldInventoryView ? `Sold Inventory: showing ${filteredInventoryQuantity} of ${soldInventoryQuantity} sold cards` : `Showing ${filteredInventoryQuantity} of ${activeInventoryQuantity} active inventory cards`}</h2>
-              <p className="muted">{isSoldInventoryView ? "Sold cards are kept out of active inventory and listed here with sale amount, sold date, and platform." : `${filteredCards.length} inventory ${filteredCards.length === 1 ? "row" : "rows"}`}</p>
+              <p className="eyebrow">{isSoldInventoryView ? "Sold Inventory" : activeInventoryMainView}</p>
+              <h2>{isSoldInventoryView ? `Sold Inventory: showing ${filteredInventoryQuantity} of ${soldInventoryQuantity} sold cards` : activeInventoryMainView === "Listed" ? `Listed: showing ${filteredInventoryQuantity} of ${listedInventoryQuantity} listed cards` : `Not Listed: showing ${filteredInventoryQuantity} of ${notListedInventoryQuantity} cards to list`}</h2>
+              <p className="muted">{isSoldInventoryView ? "Sold cards are kept out of active inventory and listed here with sale amount, sold date, and platform." : activeInventoryMainView === "Listed" ? "Cards you already listed. Use Clear listing to remove them from PrimeLot and move them back to Not Listed." : "Cards not listed yet. Select cards here to list them or post them to PrimeLot."}</p>
             </div>
             <div className="exportActions">
               <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
               {!isSoldInventoryView && <button className="primary" onClick={exportEbayListings} type="button">{selectedCards.length ? `Export ${selectedCards.length} selected to eBay CSV` : "Export eBay upload CSV"}</button>}
             </div>
           </div>
+
+          {!isSoldInventoryView && (
+            <section className="inventoryMainSwitch" aria-label="Inventory listing status">
+              <button className={activeInventoryMainView === "Not Listed" ? "primary" : "secondary"} type="button" onClick={() => showInventoryMainView("Not Listed")}>Not listed <span>{notListedInventoryQuantity}</span></button>
+              <button className={activeInventoryMainView === "Listed" ? "primary" : "secondary"} type="button" onClick={() => showInventoryMainView("Listed")}>Listed <span>{listedInventoryQuantity}</span></button>
+            </section>
+          )}
 
           <div className="inventoryFilterToggleRow">
             <button className="secondary" onClick={() => setInventoryFiltersOpen((open) => !open)} type="button" aria-expanded={inventoryFiltersOpen} aria-controls="inventory-filter-panel">
@@ -2930,7 +2982,7 @@ export default function Home() {
             </label>
             <div className="filterActions">
               <span className="muted">{filtersAreActive ? "Filters active" : "No filters active"}</span>
-              <button className="secondary" disabled={!filtersAreActive} onClick={clearInventoryFilters} type="button">Clear filters</button>
+              <button className="secondary" disabled={!filtersAreActive} onClick={() => clearInventoryFilters(isSoldInventoryView ? "Sold" : activeInventoryMainView)} type="button">Clear filters</button>
             </div>
           </section>
           )}
