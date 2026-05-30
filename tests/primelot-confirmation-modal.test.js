@@ -55,23 +55,43 @@ assert(
 );
 
 assert(
+  page.includes('const canPostCardToPrimeLot = (card: CardRecord) => card.status !== "Sold" && !alreadyOnPrimeLot(card);'),
+  'Generic Listed rows should still be eligible for PrimeLot unless they are already linked to PrimeLot.'
+);
+
+assert(
   page.includes('selectedPrimeLotCards.map((card) => [card.id, {'),
   'Review drafts should be initialized from the same rows that will be posted.'
 );
 
 assert(
   page.includes('const reviewedPrimeLotCards = () => selectedPrimeLotCards.map((card) => {'),
-  'Confirm action should post the same PrimeLot rows shown in the review modal.'
+  'Confirm action should post the same PrimeLot rows counted as postable.'
 );
 
 assert(
-  page.includes('selectedPrimeLotCards.map((card) => {') && page.includes('const canPostToPrimeLot = canPostCardToPrimeLot(card);'),
-  'Review modal should render the same rows that the confirm action will post.'
+  page.includes('selectedCards.map((card) => {') && page.includes('const canPostToPrimeLot = canPostCardToPrimeLot(card);'),
+  'Review modal should render every selected row while marking which rows will post.'
 );
 
 assert(
   page.includes('selectedPrimeLotCards.length}</strong>'),
-  'PrimeLot modal selected count should count rows that will actually be posted, not a different selected-card set or quantity.'
+  'PrimeLot modal selected count should count rows that will actually be posted, not quantity.'
+);
+
+assert(
+  page.includes('Already posted on PrimeLot') && page.includes('Clear PrimeLot listing'),
+  'Rows already linked to PrimeLot should have a clear action directly in the review modal.'
+);
+
+assert(
+  page.includes('clearPrimeLotListingForCard'),
+  'Review modal clear action should call a real handler, not just show copy.'
+);
+
+assert(
+  !page.includes('This selected row is already listed, so it will not be posted again'),
+  'Old misleading generic Listed warning should be removed.'
 );
 
 assert(

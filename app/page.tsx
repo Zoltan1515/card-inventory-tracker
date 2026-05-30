@@ -2176,6 +2176,32 @@ export default function Home() {
     }));
   };
 
+  const clearPrimeLotListingForCard = async (card: CardRecord) => {
+    const updatedCard: CardRecord = {
+      ...card,
+      status: "Not Listed",
+      listedPlatform: "",
+      listingUrl: "",
+      listedDate: "",
+      listedAt: "",
+      listedBy: "",
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUsername,
+    };
+    const saved = await updateCard(updatedCard);
+    if (saved) {
+      setNotice(`${card.name} is no longer marked as already posted on PrimeLot. You can post it from the PrimeLot review modal now.`);
+      setPrimeLotReviewDrafts((drafts) => ({
+        ...drafts,
+        [card.id]: {
+          askingPrice: drafts[card.id]?.askingPrice || String(card.askingPrice || ""),
+          shippingCharge: drafts[card.id]?.shippingCharge || String(card.shippingCharge || 0),
+          gradingCompany: drafts[card.id]?.gradingCompany || card.gradingCompany || "",
+        },
+      }));
+    }
+  };
+
   const reviewedPrimeLotCards = () => selectedPrimeLotCards.map((card) => {
     const draft = primeLotReviewDrafts[card.id];
     return {
@@ -2476,8 +2502,9 @@ export default function Home() {
               <p>When you press confirm, these cards will be published to your connected PrimeLot storefront and Card Tracker will mark live listings as Listed.</p>
             </div>
             <div className="primeLotReviewList">
-              {selectedPrimeLotCards.map((card) => {
+              {selectedCards.map((card) => {
                 const canPostToPrimeLot = canPostCardToPrimeLot(card);
+                const isAlreadyOnPrimeLot = alreadyOnPrimeLot(card);
                 const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "" };
                 const total = Number(draft.askingPrice || 0) * cardQuantity(card);
                 return (
@@ -2487,13 +2514,20 @@ export default function Home() {
                         <strong>{card.name}</strong>
                         <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"} • 1 listing{cardQuantity(card) > 1 ? ` • Qty ${cardQuantity(card)}` : ""}</p>
                       </div>
-                      <span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{canPostToPrimeLot ? "Ready" : card.status}</span>
+                      <span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{canPostToPrimeLot ? "Ready" : "Already posted on PrimeLot"}</span>
                     </div>
                     <div className="primeLotReviewFields compact">
                       <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
                       <Field label="Buyer shipping charge" type="number" value={draft.shippingCharge} onChange={(value) => updatePrimeLotReviewDraft(card.id, "shippingCharge", value)} />
                     </div>
-                    <p className={canPostToPrimeLot ? "muted" : "warning"}>{canPostToPrimeLot ? `PrimeLot listing total: ${money(total)}` : "This selected row is already on PrimeLot, so it will not be posted again."}</p>
+                    {canPostToPrimeLot ? (
+                      <p className="muted">PrimeLot listing total: {money(total)}</p>
+                    ) : (
+                      <div className="primeLotBlockedActions">
+                        <p className="warning">This selected row already has a PrimeLot listing link, so it will not be posted again unless you clear that PrimeLot link first.</p>
+                        {isAlreadyOnPrimeLot && <button className="secondary compactButton" type="button" onClick={() => clearPrimeLotListingForCard(card)}>Clear PrimeLot listing</button>}
+                      </div>
+                    )}
                   </article>
                 );
               })}

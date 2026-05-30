@@ -217,7 +217,10 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .primeLotReviewModal { width: min(860px, 100%); }
 .primeLotReviewList { display: grid; gap: 10px; }
 .primeLotReviewRow { border: 1px solid rgba(148,163,184,.2); border-radius: 16px; background: rgba(8,15,28,.58); padding: 12px; display: grid; gap: 10px; }
+.primeLotReviewRow.blocked { border-color: rgba(250,204,21,.36); background: rgba(250,204,21,.08); }
 .primeLotReviewCardHeader { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.primeLotBlockedActions { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.primeLotBlockedActions .warning { margin: 0; flex: 1 1 260px; }
 .primeLotReviewFields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .primeLotReviewFields.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .primeLotReviewSummary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
