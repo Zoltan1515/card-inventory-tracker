@@ -40,8 +40,18 @@ assert(
 );
 
 assert(
-  page.includes('Grading company is set on the card listing'),
-  'Review modal should show grading company as read-only source data.'
+  page.includes('selectedCards.length}</strong>'),
+  'PrimeLot modal selected count should count selected listing rows, not card quantity.'
+);
+
+assert(
+  page.includes('selectedCards.map((card) => {') && page.includes('const canPostToPrimeLot = card.status === "Not Listed";'),
+  'Review modal should show every selected inventory row and mark whether it can post.'
+);
+
+assert(
+  !page.includes('<span>Grading company</span>') && !page.includes('Grading company is set on the card listing'),
+  'Review modal should not show a grading company box at all.'
 );
 
 assert(
@@ -50,8 +60,8 @@ assert(
 );
 
 assert(
-  page.includes('quantity: selectedQuantityForCard(card)'),
-  'PrimeLot payload should use the selected listing quantity, not silently post the whole inventory row quantity.'
+  !page.includes('quantity: selectedQuantityForCard(card)'),
+  'PrimeLot payload should not convert same-card quantity into separate selected listings.'
 );
 
 console.log('PrimeLot confirmation modal source checks passed.');

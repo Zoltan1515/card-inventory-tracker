@@ -973,7 +973,6 @@ export default function Home() {
     .filter((card) => card.status !== "Sold");
   const selectedPrimeLotCards = selectedCards.filter((card) => card.status === "Not Listed");
   const selectedQuantityForCard = (card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(selectedGradingQuantities[card.id]) || cardQuantity(card))));
-  const selectedPrimeLotListingQuantity = selectedPrimeLotCards.reduce((sum, card) => sum + selectedQuantityForCard(card), 0);
   const selectedCardQuantity = selectedCards.reduce((sum, card) => sum + selectedQuantityForCard(card), 0);
   const selectedPurchaseValue = selectedCards.reduce((sum, card) => sum + (card.purchasePrice * selectedQuantityForCard(card)), 0);
   const selectedImportPreviews = importPreviews.filter((preview) => preview.selected);
@@ -2151,7 +2150,7 @@ export default function Home() {
       return;
     }
 
-    setPrimeLotReviewDrafts(Object.fromEntries(selectedPrimeLotCards.map((card) => [card.id, {
+    setPrimeLotReviewDrafts(Object.fromEntries(selectedCards.map((card) => [card.id, {
       askingPrice: String(card.askingPrice || ""),
       shippingCharge: String(card.shippingCharge || 0),
       gradingCompany: card.gradingCompany || "",
@@ -2175,7 +2174,6 @@ export default function Home() {
     const draft = primeLotReviewDrafts[card.id];
     return {
       ...card,
-      quantity: selectedQuantityForCard(card),
       askingPrice: Number(draft?.askingPrice || 0),
       shippingCharge: Number(draft?.shippingCharge || 0),
     };
@@ -2472,40 +2470,31 @@ export default function Home() {
               <p>When you press confirm, these cards will be published to your connected PrimeLot storefront and Card Tracker will mark live listings as Listed.</p>
             </div>
             <div className="primeLotReviewList">
-              {selectedPrimeLotCards.map((card) => {
+              {selectedCards.map((card) => {
+                const canPostToPrimeLot = card.status === "Not Listed";
                 const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "" };
-                const quantity = selectedQuantityForCard(card);
-                const total = Number(draft.askingPrice || 0) * quantity;
-                const grader = card.gradingCompany.trim();
-                const needsGrader = card.grade.trim() && !grader;
+                const total = Number(draft.askingPrice || 0) * cardQuantity(card);
                 return (
-                  <article className="primeLotReviewRow" key={card.id}>
+                  <article className={canPostToPrimeLot ? "primeLotReviewRow" : "primeLotReviewRow blocked"} key={card.id}>
                     <div className="primeLotReviewCardHeader">
                       <div>
                         <strong>{card.name}</strong>
-                        <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}{quantity > 1 ? ` • ${quantity} listings` : " • 1 listing"}</p>
+                        <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"} • 1 listing{cardQuantity(card) > 1 ? ` • Qty ${cardQuantity(card)}` : ""}</p>
                       </div>
-                      <span className="statusBadge notlisted">Not Listed</span>
+                      <span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{canPostToPrimeLot ? "Ready" : card.status}</span>
                     </div>
-                    <div className="primeLotReviewFields">
+                    <div className="primeLotReviewFields compact">
                       <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
                       <Field label="Buyer shipping charge" type="number" value={draft.shippingCharge} onChange={(value) => updatePrimeLotReviewDraft(card.id, "shippingCharge", value)} />
-                      {card.grade.trim() && (
-                        <div className="readOnlyField">
-                          <span>Grading company</span>
-                          <strong>{grader || "Missing"}</strong>
-                          <small>Grading company is set on the card listing. Edit the original listing to change it.</small>
-                        </div>
-                      )}
                     </div>
-                    <p className={needsGrader ? "warning" : "muted"}>{needsGrader ? "Missing grading company. Cancel and edit the original card listing before posting." : `PrimeLot listing total: ${money(total)}`}</p>
+                    <p className={canPostToPrimeLot ? "muted" : "warning"}>{canPostToPrimeLot ? `PrimeLot listing total: ${money(total)}` : "This selected row is already listed, so it will not be posted again. Clear its old listing first if you need to repost it."}</p>
                   </article>
                 );
               })}
             </div>
             <div className="primeLotReviewSummary">
-              <span><small>Listings selected</small><strong>{selectedPrimeLotListingQuantity}</strong></span>
-              <span><small>Estimated total</small><strong>{money(selectedPrimeLotCards.reduce((sum, card) => sum + (Number(primeLotReviewDrafts[card.id]?.askingPrice || card.askingPrice || 0) * selectedQuantityForCard(card)), 0))}</strong></span>
+              <span><small>Listings selected</small><strong>{selectedCards.length}</strong></span>
+              <span><small>Estimated total</small><strong>{money(selectedPrimeLotCards.reduce((sum, card) => sum + (Number(primeLotReviewDrafts[card.id]?.askingPrice || card.askingPrice || 0) * cardQuantity(card)), 0))}</strong></span>
             </div>
             <div className="rowActions">
               <button className="primary" type="button" onClick={confirmPrimeLotPost} disabled={postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : "Confirm — post live on PrimeLot"}</button>
