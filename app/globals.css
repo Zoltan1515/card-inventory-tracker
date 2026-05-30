@@ -249,6 +249,8 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
 .inventoryControls input, .inventoryControls select { padding: 10px; }
 .listingEditButton { width: 100%; justify-content: center; }
+.listingLinkRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+.inlineLinkButton { border: 0; background: transparent; color: var(--warning); padding: 0; min-height: 0; text-decoration: underline; font: inherit; font-weight: 800; cursor: pointer; box-shadow: none; }
 .expenseRow { border-radius: 16px; padding: 16px; display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 16px; }
 .positive { color: var(--good); }
 .warning { color: var(--warning); }

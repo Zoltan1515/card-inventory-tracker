@@ -79,8 +79,8 @@ const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
-const primeLotPublicStatuses = new Set(["active", "listed", "published", "live"]);
-const isPrimeLotPublicListing = (status = "") => primeLotPublicStatuses.has(status.toLowerCase());
+const primeLotDraftStatuses = new Set(["draft", "pending", "inactive", "archived", "deleted", "removed"]);
+const isPrimeLotPublicListing = (status = "") => !primeLotDraftStatuses.has(status.toLowerCase());
 const currentMonthStart = () => `${todayIso().slice(0, 7)}-01`;
 const currentYearStart = () => `${todayIso().slice(0, 4)}-01-01`;
 const dateInRange = (date: string, start: string, end: string) => {
@@ -1535,6 +1535,25 @@ export default function Home() {
     if (ok) setNotice(`Updated listing info for ${card.name}.`);
   };
 
+  const clearListingInfo = async (card: CardRecord) => {
+    setError("");
+    const ok = await updateCard({
+      ...card,
+      status: "Not Listed",
+      listedPlatform: "",
+      listingUrl: "",
+      listedDate: "",
+      listedAt: "",
+      listedBy: "",
+      updatedAt: new Date().toISOString(),
+      updatedBy: currentUsername,
+    });
+    if (ok) {
+      setNotice(`Cleared the old listing link for ${card.name}. You can select it and post it to PrimeLot again.`);
+      setListingCard(null);
+    }
+  };
+
   const saveListing = async (event: FormEvent) => {
     event.preventDefault();
     if (!listingCard) return;
@@ -2601,7 +2620,12 @@ export default function Home() {
                   {activeGradingCardIds.has(card.id) && (
                     <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
                   )}
-                  {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
+                  {card.listingUrl && (
+                    <div className="listingLinkRow">
+                      <a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a>
+                      <button className="inlineLinkButton" type="button" onClick={() => clearListingInfo(card)}>Clear listing</button>
+                    </div>
+                  )}
                 </div>
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit card</button>
@@ -2795,7 +2819,7 @@ export default function Home() {
             <div className="rowActions">
               <button className="secondary" type="button" onClick={selectAllFilteredCards} disabled={!filteredCards.some((card) => card.status !== "Sold")}>Select all shown</button>
               <button className="secondary" type="button" onClick={clearSelectedCards} disabled={!selectedCards.length}>Clear selected</button>
-              <button className="secondary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedPrimeLotCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : selectedPrimeLotCards.length ? primeLotButtonLabel : "Select Not Listed for PrimeLot"}</button>
+              <button className="primary" type="button" onClick={postSelectedCardsToPrimeLot} disabled={!selectedCards.length || postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : primeLotButtonLabel}</button>
               <button className="primary" type="button" onClick={beginGradingSubmission} disabled={!selectedCards.length}>Send selected to grading</button>
             </div>
           </section>
@@ -2865,7 +2889,12 @@ export default function Home() {
                       Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
                     </p>
                   )}
-                  {card.listingUrl && <p><a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a></p>}
+                  {card.listingUrl && (
+                    <div className="listingLinkRow">
+                      <a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a>
+                      <button className="inlineLinkButton" type="button" onClick={() => clearListingInfo(card)}>Clear listing</button>
+                    </div>
+                  )}
                 </div>
                 <div className="rowMoney">
                   <span>{money(card.status === "Sold" ? card.soldPrice : card.purchasePrice)}</span>
@@ -3046,6 +3075,9 @@ export default function Home() {
                 <span>Potential profit: <strong className={listedPotentialProfit(listingCard) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(listingCard))}</strong></span>
               </div>
               <button className="primary full" type="submit">Save listing</button>
+              {(listingCard.listingUrl || listingCard.listedPlatform || listingCard.status === "Listed") && (
+                <button className="secondary full" type="button" onClick={() => clearListingInfo(listingCard)}>Clear old listing / make Not Listed</button>
+              )}
             </div>
           </form>
         </div>
