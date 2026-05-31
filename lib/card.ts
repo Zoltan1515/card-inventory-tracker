@@ -21,6 +21,7 @@ export type CardRecord = {
   listedAt: string;
   listedBy: string;
   frontPhotoUrl: string;
+  backPhotoUrl: string;
   purchaseDate: string;
   purchasePrice: number;
   saleDate: string;
@@ -93,6 +94,7 @@ export const emptyCard = (): CardRecord => {
     listedAt: "",
     listedBy: "",
     frontPhotoUrl: "",
+    backPhotoUrl: "",
     purchaseDate: new Date().toISOString().slice(0, 10),
     purchasePrice: 0,
     saleDate: "",

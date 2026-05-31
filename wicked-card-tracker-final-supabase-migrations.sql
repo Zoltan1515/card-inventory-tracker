@@ -77,7 +77,8 @@ where status in ('Purchased', 'Ready to List', 'Shipped');
 -- Paste this into Supabase Dashboard > SQL Editor > New query > Run.
 
 alter table public.cards
-add column if not exists front_photo_url text default '';
+add column if not exists front_photo_url text default '',
+add column if not exists back_photo_url text default '';
 
 insert into storage.buckets (id, name, public)
 values ('card-photos', 'card-photos', true)

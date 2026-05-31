@@ -20,6 +20,7 @@ type CardPayload = {
   grade?: string;
   listedDate?: string;
   frontPhotoUrl?: string;
+  backPhotoUrl?: string;
   purchaseDate?: string;
   purchasePrice?: number;
   soldPrice?: number;
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
     grade: grading.grade || null,
     price: Number(card.askingPrice || 0),
     image_url_front: card.frontPhotoUrl?.trim() || null,
-    image_url_back: null,
+    image_url_back: card.backPhotoUrl?.trim() || null,
     status: primeLotPostStatus,
     commission_rate: 0,
     transaction_id: null,

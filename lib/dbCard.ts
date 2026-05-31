@@ -22,6 +22,7 @@ type CardRow = {
   listed_at?: string | null;
   listed_by?: string | null;
   front_photo_url: string | null;
+  back_photo_url?: string | null;
   purchase_date: string | null;
   purchase_price: number | string | null;
   sale_date: string | null;
@@ -130,6 +131,7 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   listedAt: text(row.listed_at),
   listedBy: text(row.listed_by),
   frontPhotoUrl: text(row.front_photo_url),
+  backPhotoUrl: text(row.back_photo_url),
   purchaseDate: text(row.purchase_date),
   purchasePrice: num(row.purchase_price),
   saleDate: text(row.sale_date),
@@ -144,7 +146,7 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   updatedBy: text(row.updated_by),
 });
 
-export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true, includeAudit = true, includeQuantity = true, includeMarketplaceDetails = true) => ({
+export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true, includeAudit = true, includeQuantity = true, includeMarketplaceDetails = true, includeBackPhoto = true) => ({
   user_id: userId,
   ...(workspaceId ? { workspace_id: workspaceId } : {}),
   name: card.name,
@@ -158,6 +160,7 @@ export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: str
   listing_url: card.listingUrl,
   ...(includeListingPricing ? listingPricingFields(card, includeMarketplaceDetails) : {}),
   front_photo_url: card.frontPhotoUrl,
+  ...(includeBackPhoto ? { back_photo_url: card.backPhotoUrl } : {}),
   purchase_date: dateOrNull(card.purchaseDate),
   purchase_price: card.purchasePrice,
   sale_date: dateOrNull(card.saleDate),
@@ -167,7 +170,7 @@ export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: str
   notes: card.notes,
 });
 
-export const cardToUpdate = (card: CardRecord, includeListingPricing = true, includeAudit = true, includeQuantity = true, includeMarketplaceDetails = true) => ({
+export const cardToUpdate = (card: CardRecord, includeListingPricing = true, includeAudit = true, includeQuantity = true, includeMarketplaceDetails = true, includeBackPhoto = true) => ({
   name: card.name,
   category: card.category,
   year: card.year,
@@ -179,6 +182,7 @@ export const cardToUpdate = (card: CardRecord, includeListingPricing = true, inc
   listing_url: card.listingUrl,
   ...(includeListingPricing ? listingPricingFields(card, includeMarketplaceDetails) : {}),
   front_photo_url: card.frontPhotoUrl,
+  ...(includeBackPhoto ? { back_photo_url: card.backPhotoUrl } : {}),
   purchase_date: dateOrNull(card.purchaseDate),
   purchase_price: card.purchasePrice,
   sale_date: dateOrNull(card.saleDate),

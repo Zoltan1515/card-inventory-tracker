@@ -268,7 +268,7 @@ const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   updatedBy: card.updatedBy || "",
 });
 const rowHasQuantity = (row: Parameters<typeof rowToCard>[0]) => Object.prototype.hasOwnProperty.call(row, "quantity") && row.quantity !== null && row.quantity !== undefined;
-const rowToCardWithQuantityFallback = (row: Parameters<typeof rowToCard>[0], fallback?: Pick<CardRecord, "quantity" | "shippingCharge" | "gradingCompany" | "grade">): CardRecord => {
+const rowToCardWithQuantityFallback = (row: Parameters<typeof rowToCard>[0], fallback?: Pick<CardRecord, "quantity" | "shippingCharge" | "gradingCompany" | "grade" | "backPhotoUrl">): CardRecord => {
   const card = rowToCard(row);
   return fallback ? {
     ...card,
@@ -276,6 +276,7 @@ const rowToCardWithQuantityFallback = (row: Parameters<typeof rowToCard>[0], fal
     shippingCharge: card.shippingCharge || fallback.shippingCharge || 0,
     gradingCompany: card.gradingCompany || fallback.gradingCompany || "",
     grade: card.grade || fallback.grade || "",
+    backPhotoUrl: card.backPhotoUrl || fallback.backPhotoUrl || "",
   } : card;
 };
 
@@ -319,6 +320,7 @@ const isListingPricingColumnError = (message: string) => /asking_price|lowest_ac
 const isMarketplaceDetailsColumnError = (message: string) => /outbound_shipping|grading_company|grade/i.test(message);
 const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by/i.test(message);
 const isQuantityColumnError = (message: string) => /quantity/i.test(message);
+const isBackPhotoColumnError = (message: string) => /back_photo_url/i.test(message);
 
 const csvValue = (row: CsvRow, aliases: string[]) => {
   for (const alias of aliases) {
@@ -400,6 +402,7 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
   const category = csvValue(row, ["category", "sport", "type", "game"]) || "Sports";
   const listingUrl = csvValue(row, ["listing url", "url", "link"]);
   const frontPhotoUrl = csvValue(row, ["front photo url", "photo url", "image", "image url", "picture"]);
+  const backPhotoUrl = csvValue(row, ["back photo url", "back image url", "reverse photo url", "back picture"]);
   const hasAnyCardDetail = [name, setName, year, cardNumber, notes].some(Boolean);
   if (!hasAnyCardDetail) return null;
 
@@ -423,6 +426,7 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
     grade,
     listedDate: importedStatus === "Listed" ? listedDate || todayIso() : listedDate,
     frontPhotoUrl,
+    backPhotoUrl,
     purchaseDate,
     purchasePrice,
     quantity,
@@ -1073,21 +1077,23 @@ export default function Home() {
     scrollToSection("grading-panel");
   };
 
-  const uploadFrontPhoto = async (file: File, target: "active" | "editing" = "active") => {
+  const uploadCardPhoto = async (file: File, target: "active" | "editing" = "active", side: "front" | "back" = "front") => {
     setError("");
     setNotice("");
     setPhotoUploading(true);
+    const photoField = side === "front" ? "frontPhotoUrl" : "backPhotoUrl";
+    const sideLabel = side === "front" ? "Front" : "Back";
 
     const applyPhoto = (url: string) => {
-      if (target === "editing") setEditingCard((card) => (card ? { ...card, frontPhotoUrl: url } : card));
-      else setActiveCard((card) => ({ ...card, frontPhotoUrl: url }));
+      if (target === "editing") setEditingCard((card) => (card ? { ...card, [photoField]: url } : card));
+      else setActiveCard((card) => ({ ...card, [photoField]: url }));
     };
 
     try {
       const uploadFile = await normalizePhotoFile(file);
 
       if (usingSupabase && supabase && session?.user.id) {
-        const path = `${session.user.id}/${crypto.randomUUID()}.jpg`;
+        const path = `${session.user.id}/${side}-${crypto.randomUUID()}.jpg`;
         const { error: uploadError } = await supabase.storage.from("card-photos").upload(path, uploadFile, {
           cacheControl: "3600",
           contentType: uploadFile.type,
@@ -1101,7 +1107,7 @@ export default function Home() {
 
         const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
         applyPhoto(data.publicUrl);
-        setNotice("Front photo uploaded.");
+        setNotice(`${sideLabel} photo uploaded.`);
       } else {
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
@@ -1110,7 +1116,7 @@ export default function Home() {
           reader.readAsDataURL(uploadFile);
         });
         applyPhoto(dataUrl);
-        setNotice("Front photo added locally.");
+        setNotice(`${sideLabel} photo added locally.`);
       }
     } catch (photoError) {
       setError(photoError instanceof Error ? photoError.message : "Photo upload failed. Try taking the photo again.");
@@ -1201,6 +1207,13 @@ export default function Home() {
           .from("cards")
           .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId)))
           .select("*");
+        if (insertResult.error && isBackPhotoColumnError(insertResult.error.message)) {
+          insertResult = await supabase
+            .from("cards")
+            .insert(cardsToImport.map((card) => cardToInsert(card, session.user.id, workspaceId, true, true, true, true, false)))
+            .select("*");
+          if (!insertResult.error) setNotice("Inventory imported. Run the back-photo SQL migration so back photos save to account storage.");
+        }
         if (insertResult.error && isMarketplaceDetailsColumnError(insertResult.error.message)) {
           insertResult = await supabase
             .from("cards")
@@ -1232,7 +1245,7 @@ export default function Home() {
           setError(insertResult.error.message);
           return;
         }
-        setCards((current) => [...(insertResult.data ?? []).map(rowToCard), ...current]);
+        setCards((current) => [...(insertResult.data ?? []).map((row, index) => rowToCardWithQuantityFallback(row, cardsToImport[index])), ...current]);
       } else {
         setCards((current) => [...cardsToImport, ...current]);
       }
@@ -1304,6 +1317,14 @@ export default function Home() {
         .insert(cardToInsert(cardToSave, session.user.id, workspaceId))
         .select("*")
         .single();
+      if (insertResult.error && isBackPhotoColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(cardToSave, session.user.id, workspaceId, true, true, true, true, false))
+          .select("*")
+          .single();
+        if (!insertResult.error) setNotice("Inventory added. Run the back-photo SQL migration so back photos save to account storage.");
+      }
       if (insertResult.error && isMarketplaceDetailsColumnError(insertResult.error.message)) {
         insertResult = await supabase
           .from("cards")
@@ -1371,6 +1392,15 @@ export default function Home() {
         .eq("id", card.id);
       updateQuery = card.workspaceId ? updateQuery.eq("workspace_id", card.workspaceId) : updateQuery.eq("user_id", session.user.id);
       let updateResult = await updateQuery.select("*").single();
+      if (updateResult.error && isBackPhotoColumnError(updateResult.error.message)) {
+        let legacyBackPhotoQuery = supabase
+          .from("cards")
+          .update(cardToUpdate(card, true, true, true, true, false))
+          .eq("id", card.id);
+        legacyBackPhotoQuery = card.workspaceId ? legacyBackPhotoQuery.eq("workspace_id", card.workspaceId) : legacyBackPhotoQuery.eq("user_id", session.user.id);
+        updateResult = await legacyBackPhotoQuery.select("*").single();
+        if (!updateResult.error) setNotice("Card updated. Run the back-photo SQL migration so back photos save to account storage.");
+      }
       if (updateResult.error && isMarketplaceDetailsColumnError(updateResult.error.message)) {
         let legacyMarketplaceQuery = supabase
           .from("cards")
@@ -1425,6 +1455,14 @@ export default function Home() {
         .insert(cardToInsert(card, session.user.id, workspaceId))
         .select("*")
         .single();
+      if (insertResult.error && isBackPhotoColumnError(insertResult.error.message)) {
+        insertResult = await supabase
+          .from("cards")
+          .insert(cardToInsert(card, session.user.id, workspaceId, true, true, true, true, false))
+          .select("*")
+          .single();
+        if (!insertResult.error) setNotice("Card saved. Run the back-photo SQL migration so back photos save to account storage.");
+      }
       if (insertResult.error && isQuantityColumnError(insertResult.error.message)) {
         insertResult = await supabase
           .from("cards")
@@ -2703,14 +2741,32 @@ export default function Home() {
                 <Field label="Sold where?" value={activeCard.salePlatform} onChange={(v) => setActiveCard({ ...activeCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               </>
             )}
-            <PhotoUploadControl
-              helpText="Take a new card photo, or choose one from your gallery."
-              onPick={(file) => uploadFrontPhoto(file)}
-            />
-            {activeCard.frontPhotoUrl && (
+            <div className="photoUploadGrid full">
+              <PhotoUploadControl
+                helpText="Front photo"
+                onPick={(file) => uploadCardPhoto(file, "active", "front")}
+              />
+              <PhotoUploadControl
+                helpText="Back photo for eBay"
+                onPick={(file) => uploadCardPhoto(file, "active", "back")}
+              />
+            </div>
+            {(activeCard.frontPhotoUrl || activeCard.backPhotoUrl) && (
               <div className="photoPreview full">
-                <img src={activeCard.frontPhotoUrl} alt="Front of card preview" />
-                <button className="secondary" type="button" onClick={() => setActiveCard({ ...activeCard, frontPhotoUrl: "" })}>Remove photo</button>
+                {activeCard.frontPhotoUrl && (
+                  <div className="photoPreviewItem">
+                    <span>Front</span>
+                    <img src={activeCard.frontPhotoUrl} alt="Front of card preview" />
+                    <button className="secondary" type="button" onClick={() => setActiveCard({ ...activeCard, frontPhotoUrl: "" })}>Remove front</button>
+                  </div>
+                )}
+                {activeCard.backPhotoUrl && (
+                  <div className="photoPreviewItem">
+                    <span>Back</span>
+                    <img src={activeCard.backPhotoUrl} alt="Back of card preview" />
+                    <button className="secondary" type="button" onClick={() => setActiveCard({ ...activeCard, backPhotoUrl: "" })}>Remove back</button>
+                  </div>
+                )}
               </div>
             )}
             <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => setActiveCard({ ...activeCard, notes: e.target.value })} /></label>
@@ -3020,9 +3076,10 @@ export default function Home() {
                   <input type="checkbox" checked={selectedCardIds.includes(card.id)} disabled={card.status === "Sold" || activeGradingCardIds.has(card.id)} onChange={() => toggleSelectedCard(card.id)} />
                 </label>
                 )}
-                {card.frontPhotoUrl ? (
-                  <button className="photoThumbButton" type="button" onClick={() => setEnlargedPhotoCard(card)} aria-label={`Enlarge photo of ${card.name || "card"}`}>
-                    <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} />
+                {card.frontPhotoUrl || card.backPhotoUrl ? (
+                  <button className="photoThumbButton photoThumbStack" type="button" onClick={() => setEnlargedPhotoCard(card)} aria-label={`Enlarge photos of ${card.name || "card"}`}>
+                    {card.frontPhotoUrl ? <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} /> : <div className="cardThumb placeholderThumb">No front</div>}
+                    {card.backPhotoUrl && <span className="backPhotoDot">Back</span>}
                   </button>
                 ) : (
                   <div className="cardThumb placeholderThumb">No photo</div>
@@ -3313,14 +3370,32 @@ export default function Home() {
                   <Field label="Sold where?" value={editingCard.salePlatform} onChange={(v) => setEditingCard({ ...editingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
                 </>
               )}
-              <PhotoUploadControl
-                helpText="Take a new card photo, or choose a replacement from your gallery."
-                onPick={(file) => uploadFrontPhoto(file, "editing")}
-              />
-              {editingCard.frontPhotoUrl && (
+              <div className="photoUploadGrid full">
+                <PhotoUploadControl
+                  helpText="Replace front photo"
+                  onPick={(file) => uploadCardPhoto(file, "editing", "front")}
+                />
+                <PhotoUploadControl
+                  helpText="Add/replace back photo for eBay"
+                  onPick={(file) => uploadCardPhoto(file, "editing", "back")}
+                />
+              </div>
+              {(editingCard.frontPhotoUrl || editingCard.backPhotoUrl) && (
                 <div className="photoPreview full">
-                  <img src={editingCard.frontPhotoUrl} alt={`Front of ${editingCard.name}`} />
-                  <button className="secondary" type="button" onClick={() => setEditingCard({ ...editingCard, frontPhotoUrl: "" })}>Remove photo</button>
+                  {editingCard.frontPhotoUrl && (
+                    <div className="photoPreviewItem">
+                      <span>Front</span>
+                      <img src={editingCard.frontPhotoUrl} alt={`Front of ${editingCard.name}`} />
+                      <button className="secondary" type="button" onClick={() => setEditingCard({ ...editingCard, frontPhotoUrl: "" })}>Remove front</button>
+                    </div>
+                  )}
+                  {editingCard.backPhotoUrl && (
+                    <div className="photoPreviewItem">
+                      <span>Back</span>
+                      <img src={editingCard.backPhotoUrl} alt={`Back of ${editingCard.name}`} />
+                      <button className="secondary" type="button" onClick={() => setEditingCard({ ...editingCard, backPhotoUrl: "" })}>Remove back</button>
+                    </div>
+                  )}
                 </div>
               )}
               <label className="full textareaLabel">Notes<textarea value={editingCard.notes} onChange={(e) => setEditingCard({ ...editingCard, notes: e.target.value })} /></label>
@@ -3457,7 +3532,7 @@ export default function Home() {
         </div>
       )}
 
-      {enlargedPhotoCard?.frontPhotoUrl && (
+      {enlargedPhotoCard && (enlargedPhotoCard.frontPhotoUrl || enlargedPhotoCard.backPhotoUrl) && (
         <div className="modalBackdrop photoLightboxBackdrop" role="dialog" aria-modal="true" aria-label={`Photo preview for ${enlargedPhotoCard.name || "card"}`} onClick={() => setEnlargedPhotoCard(null)}>
           <div className="photoLightbox" onClick={(event) => event.stopPropagation()}>
             <div className="photoLightboxHeader">
@@ -3468,7 +3543,20 @@ export default function Home() {
               </div>
               <button className="secondary" type="button" onClick={() => setEnlargedPhotoCard(null)}>Close</button>
             </div>
-            <img src={enlargedPhotoCard.frontPhotoUrl} alt={`Enlarged front of ${enlargedPhotoCard.name || "card"}`} />
+            <div className="photoLightboxGrid">
+              {enlargedPhotoCard.frontPhotoUrl && (
+                <figure>
+                  <figcaption>Front</figcaption>
+                  <img src={enlargedPhotoCard.frontPhotoUrl} alt={`Enlarged front of ${enlargedPhotoCard.name || "card"}`} />
+                </figure>
+              )}
+              {enlargedPhotoCard.backPhotoUrl && (
+                <figure>
+                  <figcaption>Back</figcaption>
+                  <img src={enlargedPhotoCard.backPhotoUrl} alt={`Enlarged back of ${enlargedPhotoCard.name || "card"}`} />
+                </figure>
+              )}
+            </div>
           </div>
         </div>
       )}

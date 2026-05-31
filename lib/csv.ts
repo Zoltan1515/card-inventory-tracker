@@ -33,6 +33,7 @@ const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["lowestAcceptablePrice", "Minimum Sale Price"],
   ["listedDate", "Listed Date"],
   ["frontPhotoUrl", "Front Photo URL"],
+  ["backPhotoUrl", "Back Photo URL"],
   ["purchaseDate", "Purchase Date"],
   ["purchasePrice", "Purchase Price"],
   ["saleDate", "Sale Date"],
@@ -180,7 +181,8 @@ export const ebayListingsToCsv = (cards: CardRecord[]) => {
     const grade = cardGrade(card);
     const grader = professionalGrader(card);
     const reviewNotes = [
-      !card.frontPhotoUrl ? "Missing PicURL" : "",
+      !card.frontPhotoUrl ? "Missing front PicURL" : "",
+      !card.backPhotoUrl ? "Missing back photo for eBay" : "",
       !ebayPrice(card) || ebayPrice(card) === "0.00" ? "Missing price" : "",
       !card.name ? "Missing card/player name" : "",
       !card.year ? "Missing season/year" : "",
@@ -194,7 +196,7 @@ export const ebayListingsToCsv = (cards: CardRecord[]) => {
       ebayCategoryId(card.category),
       ebayTitle(card),
       ebayConditionId(card),
-      card.frontPhotoUrl,
+      [card.frontPhotoUrl, card.backPhotoUrl].filter(Boolean).join("|"),
       ebayDescription(card),
       "FixedPrice",
       "GTC",
