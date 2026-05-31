@@ -77,6 +77,7 @@ type PrimeLotConnectionState = {
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
 const CASH_STORAGE_KEY = "card-inventory-tracker.cash-adjustments.v1";
+const CASH_ONBOARDING_DISMISSED_KEY = "card-inventory-tracker.cash-onboarding-dismissed.v1";
 const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
@@ -529,6 +530,7 @@ export default function Home() {
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
   const [activeCashAdjustment, setActiveCashAdjustment] = useState<CashAdjustmentRecord>(emptyCashAdjustment());
   const [editingCashAdjustmentId, setEditingCashAdjustmentId] = useState<string | null>(null);
+  const [cashOnboardingDismissed, setCashOnboardingDismissed] = useState(false);
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
@@ -764,6 +766,11 @@ export default function Home() {
     }
   }, [cards, cashAdjustments, dataLoaded, expenses, gradingSubmissions, loading, usingSupabase]);
 
+
+  useEffect(() => {
+    setCashOnboardingDismissed(window.localStorage.getItem(CASH_ONBOARDING_DISMISSED_KEY) === "true");
+  }, []);
+
   const activeInventoryCards = useMemo(() => cards.filter((card) => card.status !== "Sold"), [cards]);
   const soldInventoryCards = useMemo(() => cards.filter((card) => card.status === "Sold"), [cards]);
   const inventoryCategories = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.category)), [activeInventoryCards]);
@@ -836,6 +843,13 @@ export default function Home() {
 
   const showAddInventoryForm = () => {
     showDashboardTab("add", "add-inventory-form");
+  };
+
+  const scrollToDashboardCashEntry = () => scrollToSection("dashboard-cash-entry");
+
+  const dismissCashOnboarding = () => {
+    setCashOnboardingDismissed(true);
+    window.localStorage.setItem(CASH_ONBOARDING_DISMISSED_KEY, "true");
   };
 
   const showSoldInventory = () => {
@@ -2635,6 +2649,38 @@ export default function Home() {
           <button type="button" onClick={() => setTab("expenses")}><small>Expenses</small><strong>{money(totals.expensesTotal)}</strong></button>
           <button type="button" onClick={() => setTab("listingReview")}><small>Listed Value</small><strong>{money(listedValue)}</strong></button>
           <button type="button" onClick={() => setTab("attention")}><small>Needs Attention</small><strong>{totalAttentionItems}</strong></button>
+        </section>
+      )}
+
+      {session && !cashAdjustments.length && !cashOnboardingDismissed && (
+        <section className="cashOnboardingCard" aria-label="Cash on hand onboarding">
+          <div>
+            <p className="eyebrow">Getting started</p>
+            <h2>Add your starting cash first</h2>
+            <p className="muted">Cash on hand is most useful when you tell Wicked Card Tracker how much business cash you started with before buying inventory. Add it now so purchases, sales, and expenses show the real cash picture.</p>
+          </div>
+          <div className="rowActions">
+            <button className="primary" type="button" onClick={scrollToDashboardCashEntry}>Add starting cash</button>
+            <button className="secondary" type="button" onClick={dismissCashOnboarding}>I'll do this later</button>
+          </div>
+        </section>
+      )}
+
+      {session && (
+        <section className="dashboardCashEntryPanel" id="dashboard-cash-entry" aria-label="Enter cash on hand from dashboard">
+          <div>
+            <p className="eyebrow">Cash on hand</p>
+            <h2>Enter starting cash or cash added</h2>
+            <p className="muted">Use this when you begin, add more business money, or remove cash. Current cash on hand: <strong>{money(totals.cash)}</strong>.</p>
+          </div>
+          <form className="formGrid dashboardCashForm" onSubmit={saveCashAdjustment}>
+            <Select label="Cash type" value={activeCashAdjustment.adjustmentType} options={["Starting Cash", "Cash Added", "Cash Removed"]} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentType: v as CashAdjustmentRecord["adjustmentType"] })} required />
+            <Field label="Amount" type="number" value={String(activeCashAdjustment.amount)} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, amount: Number(v || 0) })} required />
+            <Field label="Date" type="date" value={activeCashAdjustment.adjustmentDate} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentDate: v })} required />
+            <Field label="Note" value={activeCashAdjustment.description} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, description: v })} placeholder="Starting money for first card buys" required />
+            <button className="primary" type="submit">{editingCashAdjustmentId ? "Save cash entry" : "Add cash entry"}</button>
+            {editingCashAdjustmentId && <button className="secondary" type="button" onClick={() => { setActiveCashAdjustment(emptyCashAdjustment()); setEditingCashAdjustmentId(null); }}>Cancel edit</button>}
+          </form>
         </section>
       )}
 

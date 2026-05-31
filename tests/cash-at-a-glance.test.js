@@ -29,6 +29,13 @@ assert(page.includes('Total Inventory Value'), 'At a Glance should show total in
 assert(page.includes('Total Sold'), 'At a Glance should show total sold.');
 assert(page.includes('onClick={() => window.print()}'), 'At a Glance should include print action.');
 assert(page.includes('saveCashAdjustment'), 'Cash entry save handler should exist.');
+assert(page.includes('id="dashboard-cash-entry"'), 'Dashboard should expose a front-page cash entry form, not hide it only in At a Glance.');
+assert(page.includes('Enter starting cash or cash added'), 'Dashboard cash entry should be clearly labeled for starting cash.');
+assert(page.includes('Getting started') && page.includes('Add your starting cash first'), 'Dashboard should onboard new users to add starting cash.');
+assert(page.includes('CASH_ONBOARDING_DISMISSED_KEY'), 'Cash onboarding dismissal should persist locally.');
+assert(page.includes('Add starting cash') && page.includes('scrollToDashboardCashEntry'), 'Cash onboarding should send users directly to the dashboard cash form.');
+assert(css.includes('.dashboardCashEntryPanel'), 'Dashboard cash entry layout styles should exist.');
+assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
 assert(page.includes('cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal'), 'Cash on hand should include cash entries plus sales minus purchases and expenses.');
 assert(page.includes('unlistedInventoryValue + listedInventoryValue'), 'Total inventory value should include unlisted and listed inventory.');
 assert(page.includes('DateFilterControls'), 'At a Glance should reuse date filters.');
