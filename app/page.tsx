@@ -2716,6 +2716,7 @@ export default function Home() {
             <Field label="Set" value={activeCard.setName} onChange={(v) => setActiveCard({ ...activeCard, setName: v })} />
             <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => setActiveCard({ ...activeCard, cardNumber: v })} />
             <Field label="Item quantity" type="number" value={String(activeCard.quantity)} onChange={(v) => setActiveCard({ ...activeCard, quantity: sanitizeQuantityInput(v) })} />
+            <p className="muted full quantityPhotoNote">One front/back photo set applies to every copy in this row. If copies have different condition/photos, add or split them as separate rows.</p>
             <Field label="Purchase price per item" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
             <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
             <Field label="Grading company if already graded" value={activeCardGradingCompany} onChange={setActiveCardGradingCompany} placeholder="PSA, BGS, SGC, CGC..." />
@@ -2747,7 +2748,7 @@ export default function Home() {
                 onPick={(file) => uploadCardPhoto(file, "active", "front")}
               />
               <PhotoUploadControl
-                helpText="Back photo for eBay"
+                helpText="Back photo"
                 onPick={(file) => uploadCardPhoto(file, "active", "back")}
               />
             </div>
@@ -3344,6 +3345,7 @@ export default function Home() {
               <Field label="Set" value={editingCard.setName} onChange={(v) => setEditingCard({ ...editingCard, setName: v })} />
               <Field label="Card #" value={editingCard.cardNumber} onChange={(v) => setEditingCard({ ...editingCard, cardNumber: v })} />
               <Field label="Item quantity" type="number" value={String(editingCard.quantity)} onChange={(v) => setEditingCard({ ...editingCard, quantity: sanitizeQuantityInput(v) })} />
+              <p className="muted full quantityPhotoNote">One front/back photo set applies to every copy in this row. Split the row if each copy needs its own photos.</p>
               <Field label="Purchase price per item" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
               <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
               <Field label="Grading company if already graded" value={editingCard.gradingCompany} onChange={(v) => setEditingCard({ ...editingCard, gradingCompany: v, notes: notesWithGrade(editingCard.notes, editingCard.grade, v) })} placeholder="PSA, BGS, SGC, CGC..." />
@@ -3376,7 +3378,7 @@ export default function Home() {
                   onPick={(file) => uploadCardPhoto(file, "editing", "front")}
                 />
                 <PhotoUploadControl
-                  helpText="Add/replace back photo for eBay"
+                  helpText="Add/replace back photo"
                   onPick={(file) => uploadCardPhoto(file, "editing", "back")}
                 />
               </div>

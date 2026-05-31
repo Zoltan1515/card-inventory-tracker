@@ -45,6 +45,18 @@ const jsonError = (message: string, status = 400, code?: string) => NextResponse
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
 const sourceTrackingColumnError = (message = "") => /source_id|source_platform/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const shippingColumnError = (message = "") => /shipping_cost/i.test(message) && /schema cache|column|Could not find/i.test(message);
+const photoColumnError = (message = "") => /image_url_front|image_url_back/i.test(message) && /schema cache|column|Could not find/i.test(message);
+
+const normalizePrimeLotImageUrl = (value?: string) => {
+  const trimmed = value?.trim() || "";
+  if (!trimmed) return null;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : "";
+  } catch {
+    return "";
+  }
+};
 
 const cardTypeForCategory = (category?: string) => {
   const value = (category || "").toLowerCase();
@@ -165,7 +177,13 @@ export async function POST(request: NextRequest) {
 
   const invalidCard = cards.find((card) => !card.id || !card.name?.trim() || Number(card.askingPrice || 0) <= 0);
   if (invalidCard) return jsonError("Every PrimeLot post needs a card name and asking price.");
+  const cardWithInvalidPhoto = cards.find((card) => (
+    (card.frontPhotoUrl?.trim() && !normalizePrimeLotImageUrl(card.frontPhotoUrl))
+    || (card.backPhotoUrl?.trim() && !normalizePrimeLotImageUrl(card.backPhotoUrl))
+  ));
+  if (cardWithInvalidPhoto) return jsonError(`PrimeLot needs public http/https photo URLs. Re-upload the front/back photos for ${cardWithInvalidPhoto.name || "that card"} before posting.`, 400, "PRIMELOT_INVALID_PHOTO_URL");
   const hasRequestedShipping = cards.some((card) => Number(card.shippingCharge || 0) > 0);
+  const hasRequestedPhotos = cards.some((card) => Boolean(normalizePrimeLotImageUrl(card.frontPhotoUrl) || normalizePrimeLotImageUrl(card.backPhotoUrl)));
 
   const primeLotSupabase = createClient(primeLotSupabaseUrl, primeLotServiceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -185,8 +203,8 @@ export async function POST(request: NextRequest) {
     grading_company: grading.company || null,
     grade: grading.grade || null,
     price: Number(card.askingPrice || 0),
-    image_url_front: card.frontPhotoUrl?.trim() || null,
-    image_url_back: card.backPhotoUrl?.trim() || null,
+    image_url_front: normalizePrimeLotImageUrl(card.frontPhotoUrl),
+    image_url_back: normalizePrimeLotImageUrl(card.backPhotoUrl),
     status: primeLotPostStatus,
     commission_rate: 0,
     transaction_id: null,
@@ -213,6 +231,15 @@ export async function POST(request: NextRequest) {
     .insert(rowsWithSourceTracking)
     .select("id, source_id, status");
 
+  if (insertResult.error && photoColumnError(insertResult.error.message)) {
+    if (hasRequestedPhotos) return jsonError("PrimeLot could not save the front/back photos because its image_url_front/image_url_back fields are missing. The listings were not posted without your photos.", 502, "PRIMELOT_PHOTOS_NOT_CONFIGURED");
+    const rowsWithoutPhotos = rowsWithSourceTracking.map(({ image_url_front: _frontPhoto, image_url_back: _backPhoto, ...row }) => row);
+    insertResult = await primeLotSupabase
+      .from("single_cards")
+      .insert(rowsWithoutPhotos)
+      .select("id, source_id, status");
+  }
+
   if (insertResult.error && shippingColumnError(insertResult.error.message)) {
     insertedUsingShipping = false;
     if (hasRequestedShipping) return jsonError("PrimeLot could not save buyer shipping because its shipping_cost field is missing. The listings were not posted without your shipping charges.", 502, "PRIMELOT_SHIPPING_NOT_CONFIGURED");
@@ -229,6 +256,16 @@ export async function POST(request: NextRequest) {
     insertResult = await primeLotSupabase
       .from("single_cards")
       .insert(rowsWithoutSource)
+      .select("id, status");
+  }
+
+  if (insertResult.error && photoColumnError(insertResult.error.message)) {
+    if (hasRequestedPhotos) return jsonError("PrimeLot could not save the front/back photos because its image_url_front/image_url_back fields are missing. The listings were not posted without your photos.", 502, "PRIMELOT_PHOTOS_NOT_CONFIGURED");
+    const sourceRows = insertedUsingShipping ? rowsWithShipping : baseRows;
+    const rowsWithoutPhotos = sourceRows.map(({ image_url_front: _frontPhoto, image_url_back: _backPhoto, ...row }) => row);
+    insertResult = await primeLotSupabase
+      .from("single_cards")
+      .insert(rowsWithoutPhotos)
       .select("id, status");
   }
 
