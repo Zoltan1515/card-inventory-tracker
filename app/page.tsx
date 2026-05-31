@@ -533,6 +533,7 @@ export default function Home() {
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
+  const [confirmingClearListing, setConfirmingClearListing] = useState<CardRecord | null>(null);
   const [enlargedPhotoCard, setEnlargedPhotoCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
@@ -1679,6 +1680,19 @@ export default function Home() {
       return false;
     }
     return true;
+  };
+
+  const requestClearListing = (card: CardRecord) => {
+    setError("");
+    setNotice("");
+    setConfirmingClearListing(card);
+  };
+
+  const confirmClearListing = async () => {
+    if (!confirmingClearListing) return;
+    const card = confirmingClearListing;
+    setConfirmingClearListing(null);
+    await clearListingInfo(card);
   };
 
   const clearListingInfo = async (card: CardRecord) => {
@@ -3070,7 +3084,7 @@ export default function Home() {
                   {card.status === "Listed" && (
                     <div className="listingLinkRow">
                       {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
-                      <button className="inlineLinkButton" type="button" onClick={() => clearListingInfo(card)}>Clear listing</button>
+                      <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
                     </div>
                   )}
                 </div>
@@ -3347,7 +3361,7 @@ export default function Home() {
                   {card.status === "Listed" && (
                     <div className="listingLinkRow">
                       {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
-                      <button className="inlineLinkButton" type="button" onClick={() => clearListingInfo(card)}>Clear listing</button>
+                      <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
                     </div>
                   )}
                 </div>
@@ -3481,6 +3495,31 @@ export default function Home() {
         </section>
       )}
 
+
+      {confirmingClearListing && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Confirm clear listing">
+          <div className="modal panel confirmDeleteModal">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow dangerEyebrow">Clear listing</p>
+                <h2>Clear listing for {confirmingClearListing.name || "this card"}?</h2>
+                <p className="muted">This moves the card back to Not Listed and removes the saved marketplace link/details from Card Tracker. If it is linked to PrimeLot, Card Tracker will try to remove the PrimeLot listing first.</p>
+              </div>
+              <button className="secondary" type="button" onClick={() => setConfirmingClearListing(null)}>Cancel</button>
+            </div>
+            <div className="confirmSummary">
+              <span>Status: <strong>{confirmingClearListing.status}</strong></span>
+              <span>Listed on: <strong>{listingPlatformLabel(confirmingClearListing)}</strong></span>
+              {listingHref(confirmingClearListing) && <span>Listing URL: <strong>{listingHref(confirmingClearListing)}</strong></span>}
+            </div>
+            <div className="confirmActions">
+              <button className="secondary" type="button" onClick={() => setConfirmingClearListing(null)}>Keep listing</button>
+              <button className="danger" type="button" onClick={confirmClearListing}>Yes, clear listing</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {deletingCard && (
         <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Confirm delete card">
           <div className="modal panel confirmDeleteModal">
@@ -3531,7 +3570,7 @@ export default function Home() {
               </div>
               <button className="primary full" type="submit">Save listing</button>
               {(listingCard.listingUrl || listingCard.listedPlatform || listingCard.status === "Listed") && (
-                <button className="secondary full" type="button" onClick={() => clearListingInfo(listingCard)}>Clear old listing / make Not Listed</button>
+                <button className="secondary full" type="button" onClick={() => requestClearListing(listingCard)}>Clear old listing / make Not Listed</button>
               )}
             </div>
           </form>
