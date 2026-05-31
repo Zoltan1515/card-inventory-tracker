@@ -52,6 +52,21 @@ export type ExpenseRecord = {
   updatedBy: string;
 };
 
+export type CashAdjustmentType = "Starting Cash" | "Cash Added" | "Cash Removed";
+
+export type CashAdjustmentRecord = {
+  id: string;
+  workspaceId?: string;
+  adjustmentType: CashAdjustmentType;
+  amount: number;
+  adjustmentDate: string;
+  description: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  updatedBy: string;
+};
+
 export type GradingSubmissionStatus = "At Grading" | "Returned";
 
 export type GradingSubmission = {
@@ -119,6 +134,21 @@ export const emptyExpense = (): ExpenseRecord => {
     expenseDate: new Date().toISOString().slice(0, 10),
     description: "",
     vendor: "",
+    createdAt: now,
+    createdBy: "",
+    updatedAt: now,
+    updatedBy: "",
+  };
+};
+
+export const emptyCashAdjustment = (): CashAdjustmentRecord => {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    adjustmentType: "Starting Cash",
+    amount: 0,
+    adjustmentDate: new Date().toISOString().slice(0, 10),
+    description: "",
     createdAt: now,
     createdBy: "",
     updatedAt: now,

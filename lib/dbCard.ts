@@ -1,4 +1,4 @@
-import type { CardRecord, ExpenseRecord, GradingSubmission } from "./card";
+import type { CardRecord, CashAdjustmentRecord, ExpenseRecord, GradingSubmission } from "./card";
 
 type CardRow = {
   id: string;
@@ -46,6 +46,20 @@ type ExpenseRow = {
   expense_date: string | null;
   description: string | null;
   vendor: string | null;
+  created_at: string | null;
+  created_by?: string | null;
+  updated_at: string | null;
+  updated_by?: string | null;
+};
+
+type CashAdjustmentRow = {
+  id: string;
+  user_id: string;
+  workspace_id?: string | null;
+  adjustment_type: CashAdjustmentRecord["adjustmentType"] | string | null;
+  amount: number | string | null;
+  adjustment_date: string | null;
+  description: string | null;
   created_at: string | null;
   created_by?: string | null;
   updated_at: string | null;
@@ -103,6 +117,11 @@ const normalizeStatus = (status: string | null | undefined): CardRecord["status"
 const normalizeExpenseCategory = (category: string | null | undefined): ExpenseRecord["category"] => {
   if (category === "HST" || category === "Duties" || category === "Grading Fees" || category === "Shipping" || category === "Card Show Table" || category === "Supplies" || category === "Gas" || category === "Airfare" || category === "Other") return category;
   return "Other";
+};
+
+const normalizeCashAdjustmentType = (value: string | null | undefined): CashAdjustmentRecord["adjustmentType"] => {
+  if (value === "Cash Added" || value === "Cash Removed" || value === "Starting Cash") return value;
+  return "Cash Added";
 };
 
 const normalizeGradingStatus = (status: string | null | undefined): GradingSubmission["status"] => {
@@ -190,6 +209,37 @@ export const cardToUpdate = (card: CardRecord, includeListingPricing = true, inc
   sold_price: card.soldPrice,
   ...(includeAudit ? { listed_at: dateOrNull(card.listedAt), listed_by: card.listedBy, sold_at: dateOrNull(card.soldAt), sold_by: card.soldBy, updated_by: card.updatedBy } : {}),
   notes: card.notes,
+});
+
+export const rowToCashAdjustment = (row: CashAdjustmentRow): CashAdjustmentRecord => ({
+  id: row.id,
+  workspaceId: row.workspace_id ?? undefined,
+  adjustmentType: normalizeCashAdjustmentType(row.adjustment_type),
+  amount: num(row.amount),
+  adjustmentDate: text(row.adjustment_date),
+  description: text(row.description),
+  createdAt: row.created_at ?? new Date().toISOString(),
+  createdBy: text(row.created_by),
+  updatedAt: row.updated_at ?? new Date().toISOString(),
+  updatedBy: text(row.updated_by),
+});
+
+export const cashAdjustmentToInsert = (entry: CashAdjustmentRecord, userId: string, workspaceId?: string | null, includeAudit = true) => ({
+  user_id: userId,
+  ...(workspaceId ? { workspace_id: workspaceId } : {}),
+  adjustment_type: entry.adjustmentType,
+  amount: entry.amount,
+  adjustment_date: dateOrNull(entry.adjustmentDate),
+  description: entry.description,
+  ...(includeAudit ? { created_by: entry.createdBy, updated_by: entry.updatedBy } : {}),
+});
+
+export const cashAdjustmentToUpdate = (entry: CashAdjustmentRecord, includeAudit = true) => ({
+  adjustment_type: entry.adjustmentType,
+  amount: entry.amount,
+  adjustment_date: dateOrNull(entry.adjustmentDate),
+  description: entry.description,
+  ...(includeAudit ? { updated_by: entry.updatedBy } : {}),
 });
 
 export const rowToExpense = (row: ExpenseRow): ExpenseRecord => ({

@@ -2,12 +2,12 @@
 
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { CardRecord, CardStatus, ExpenseCategory, ExpenseRecord, GradingSubmission, cardProfit, cardPurchaseCost, cardQuantity, cardRoi, emptyCard, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, percent } from "@/lib/card";
+import { CardRecord, CardStatus, CashAdjustmentRecord, ExpenseCategory, ExpenseRecord, GradingSubmission, cardProfit, cardPurchaseCost, cardQuantity, cardRoi, emptyCard, emptyCashAdjustment, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, percent } from "@/lib/card";
 import { cardsToCsv, ebayListingsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
-import { cardToInsert, cardToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
+import { cardToInsert, cardToUpdate, cashAdjustmentToInsert, cashAdjustmentToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToCashAdjustment, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit";
+type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit" | "glance";
 type DashboardAction = { id: string; tab: Tab; label: string; subtitle?: string; badge?: number; apply?: () => void };
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
@@ -76,6 +76,7 @@ type PrimeLotConnectionState = {
 
 const CARD_STORAGE_KEY = "card-inventory-tracker.cards.v2";
 const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
+const CASH_STORAGE_KEY = "card-inventory-tracker.cash-adjustments.v1";
 const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
@@ -198,6 +199,14 @@ const localExpenses = () => {
     return [];
   }
 };
+const localCashAdjustments = () => {
+  try {
+    const rawCash = window.localStorage.getItem(CASH_STORAGE_KEY);
+    return rawCash ? JSON.parse(rawCash).map(normalizeStoredCashAdjustment) as CashAdjustmentRecord[] : [];
+  } catch {
+    return [];
+  }
+};
 const localGradingSubmissions = () => {
   try {
     const rawGrading = window.localStorage.getItem(GRADING_STORAGE_KEY);
@@ -280,6 +289,20 @@ const rowToCardWithQuantityFallback = (row: Parameters<typeof rowToCard>[0], fal
   } : card;
 };
 
+const normalizeStoredCashAdjustment = (entry: Partial<CashAdjustmentRecord>): CashAdjustmentRecord => ({
+  ...emptyCashAdjustment(),
+  ...entry,
+  id: entry.id || crypto.randomUUID(),
+  adjustmentType: entry.adjustmentType === "Cash Removed" || entry.adjustmentType === "Starting Cash" ? entry.adjustmentType : "Cash Added",
+  amount: Number(entry.amount ?? 0) || 0,
+  adjustmentDate: entry.adjustmentDate || todayIso(),
+  description: entry.description || "",
+  createdAt: entry.createdAt || new Date().toISOString(),
+  createdBy: entry.createdBy || "",
+  updatedAt: entry.updatedAt || new Date().toISOString(),
+  updatedBy: entry.updatedBy || "",
+});
+
 const normalizeStoredExpense = (expense: Partial<ExpenseRecord>): ExpenseRecord => ({
   ...emptyExpense(),
   ...expense,
@@ -321,6 +344,7 @@ const isMarketplaceDetailsColumnError = (message: string) => /outbound_shipping|
 const isAuditColumnError = (message: string) => /created_by|updated_by|listed_at|listed_by|sold_at|sold_by|returned_by/i.test(message);
 const isQuantityColumnError = (message: string) => /quantity/i.test(message);
 const isBackPhotoColumnError = (message: string) => /back_photo_url/i.test(message);
+const isMissingCashAdjustmentsTable = (message: string) => /cash_adjustments|relation .* does not exist|schema cache|Could not find the table/i.test(message);
 
 const csvValue = (row: CsvRow, aliases: string[]) => {
   for (const alias of aliases) {
@@ -487,12 +511,15 @@ const sampleCards = (): CardRecord[] => [
 export default function Home() {
   const [cards, setCards] = useState<CardRecord[]>([]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>([]);
+  const [cashAdjustments, setCashAdjustments] = useState<CashAdjustmentRecord[]>([]);
   const [gradingSubmissions, setGradingSubmissions] = useState<GradingSubmission[]>([]);
   const [activeCard, setActiveCard] = useState<CardRecord>(emptyCard());
   const [activeCardGrade, setActiveCardGrade] = useState("");
   const [activeCardGradingCompany, setActiveCardGradingCompany] = useState("");
   const [inventoryExpenseDraft, setInventoryExpenseDraft] = useState<InventoryExpenseDraft>(emptyInventoryExpenseDraft());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
+  const [activeCashAdjustment, setActiveCashAdjustment] = useState<CashAdjustmentRecord>(emptyCashAdjustment());
+  const [editingCashAdjustmentId, setEditingCashAdjustmentId] = useState<string | null>(null);
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
@@ -602,7 +629,7 @@ export default function Home() {
       const activeWorkspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
       setWorkspaceId(activeWorkspaceId);
 
-      const [workspaceCardsResult, userCardsResult, workspaceExpensesResult, userExpensesResult, workspaceGradingResult, userGradingResult] = await Promise.all([
+      const [workspaceCardsResult, userCardsResult, workspaceExpensesResult, userExpensesResult, workspaceCashResult, userCashResult, workspaceGradingResult, userGradingResult] = await Promise.all([
         activeWorkspaceId
           ? supabase.from("cards").select("*").eq("workspace_id", activeWorkspaceId).order("created_at", { ascending: false })
           : Promise.resolve({ data: [], error: null }),
@@ -611,6 +638,10 @@ export default function Home() {
           ? supabase.from("expenses").select("*").eq("workspace_id", activeWorkspaceId).order("expense_date", { ascending: false })
           : Promise.resolve({ data: [], error: null }),
         supabase.from("expenses").select("*").eq("user_id", userId).order("expense_date", { ascending: false }),
+        activeWorkspaceId
+          ? supabase.from("cash_adjustments").select("*").eq("workspace_id", activeWorkspaceId).order("adjustment_date", { ascending: false })
+          : Promise.resolve({ data: [], error: null }),
+        supabase.from("cash_adjustments").select("*").eq("user_id", userId).order("adjustment_date", { ascending: false }),
         activeWorkspaceId
           ? supabase.from("grading_submissions").select("*").eq("workspace_id", activeWorkspaceId).order("sent_date", { ascending: false })
           : Promise.resolve({ data: [], error: null }),
@@ -626,6 +657,11 @@ export default function Home() {
       const expenseRows = mergeById(workspaceExpensesResult.data ?? [], userExpensesResult.data ?? []);
       if (workspaceExpensesResult.error && userExpensesResult.error) setError(`Expenses table needs setup: ${workspaceExpensesResult.error.message || userExpensesResult.error.message}`);
       else setExpenses(mergeById(expenseRows.map(rowToExpense), localExpenses()));
+
+      const cashRows = mergeById(workspaceCashResult.data ?? [], userCashResult.data ?? []);
+      const cashErrorMessage = workspaceCashResult.error?.message || userCashResult.error?.message || "";
+      if (workspaceCashResult.error && userCashResult.error && !isMissingCashAdjustmentsTable(cashErrorMessage)) setError(`Cash adjustments need setup: ${cashErrorMessage}`);
+      setCashAdjustments(cashRows.length ? mergeById(cashRows.map(rowToCashAdjustment), localCashAdjustments()) : localCashAdjustments());
 
       const gradingResult = {
         data: mergeById(workspaceGradingResult.data ?? [], userGradingResult.data ?? []),
@@ -661,6 +697,7 @@ export default function Home() {
       const storedCards = localCards();
       setCards(storedCards.length ? storedCards : sampleCards());
       setExpenses(localExpenses());
+      setCashAdjustments(localCashAdjustments());
       setGradingSubmissions(localGradingSubmissions());
       setDataLoaded(true);
       setLoading(false);
@@ -696,6 +733,7 @@ export default function Home() {
         setPrimeLotConnection({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
         setCards(localCards());
         setExpenses(localExpenses());
+        setCashAdjustments(localCashAdjustments());
         setGradingSubmissions(localGradingSubmissions());
         setDataLoaded(true);
         setLoading(false);
@@ -709,11 +747,12 @@ export default function Home() {
     if (!loading && dataLoaded) {
       window.localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards));
       window.localStorage.setItem(GRADING_STORAGE_KEY, JSON.stringify(gradingSubmissions));
+      window.localStorage.setItem(CASH_STORAGE_KEY, JSON.stringify(cashAdjustments));
     }
     if (!usingSupabase && !loading && dataLoaded) {
       window.localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(expenses));
     }
-  }, [cards, dataLoaded, expenses, gradingSubmissions, loading, usingSupabase]);
+  }, [cards, cashAdjustments, dataLoaded, expenses, gradingSubmissions, loading, usingSupabase]);
 
   const activeInventoryCards = useMemo(() => cards.filter((card) => card.status !== "Sold"), [cards]);
   const soldInventoryCards = useMemo(() => cards.filter((card) => card.status === "Sold"), [cards]);
@@ -857,6 +896,7 @@ export default function Home() {
     const purchasedInRange = (card: CardRecord) => isAllTime || dateInRange(card.purchaseDate, dateRange.start, dateRange.end);
     const soldInRange = (card: CardRecord) => card.status === "Sold" && (isAllTime || dateInRange(card.saleDate, dateRange.start, dateRange.end));
     const expenseInRange = (expense: ExpenseRecord) => isAllTime || dateInRange(expense.expenseDate, dateRange.start, dateRange.end);
+    const cashInRange = (entry: CashAdjustmentRecord) => isAllTime || dateInRange(entry.adjustmentDate, dateRange.start, dateRange.end);
 
     const notListedCards = cards.filter((card) => card.status === "Not Listed" && purchasedInRange(card));
     const listedCards = cards.filter((card) => card.status === "Listed" && purchasedInRange(card));
@@ -867,8 +907,9 @@ export default function Home() {
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const listedInventoryCost = listedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
-    const listedInventoryValue = listedCards.reduce((sum, card) => sum + (card.askingPrice * cardQuantity(card)), 0);
-    const totalInventoryValue = listedInventoryValue;
+    const unlistedInventoryValue = notListedCards.reduce((sum, card) => sum + ((card.askingPrice || card.purchasePrice) * cardQuantity(card)), 0);
+    const listedInventoryValue = listedCards.reduce((sum, card) => sum + ((card.askingPrice || card.purchasePrice) * cardQuantity(card)), 0);
+    const totalInventoryValue = unlistedInventoryValue + listedInventoryValue;
     const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const expenseBreakdown = expenseCategories.map((category) => {
       const categoryExpenses = filteredExpenses.filter((expense) => expense.category === category);
@@ -878,9 +919,11 @@ export default function Home() {
         count: categoryExpenses.length,
       };
     });
+    const filteredCashAdjustments = cashAdjustments.filter(cashInRange);
+    const cashAdjustmentsTotal = filteredCashAdjustments.reduce((sum, entry) => sum + (entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount), 0);
     const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
     const soldCardProfit = revenue - soldInventoryCost;
-    const cash = revenue - totalInventoryCost - expensesTotal;
+    const cash = cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal;
     const profit = soldCardProfit;
     return {
       revenue,
@@ -889,6 +932,8 @@ export default function Home() {
       cash,
       unlistedInventoryCost,
       listedInventoryCost,
+      unlistedInventoryValue,
+      listedInventoryValue,
       totalInventoryValue,
       totalInventoryCost,
       inventoryCostCards,
@@ -899,11 +944,13 @@ export default function Home() {
       listedCards,
       soldCards,
       filteredExpenses,
+      filteredCashAdjustments,
+      cashAdjustmentsTotal,
       soldCount: soldCards.reduce((sum, card) => sum + cardQuantity(card), 0),
       listedCount: listedCards.reduce((sum, card) => sum + cardQuantity(card), 0),
       notListedCount: notListedCards.reduce((sum, card) => sum + cardQuantity(card), 0),
     };
-  }, [cards, dateRange.end, dateRange.start, expenses, isAllTime]);
+  }, [cards, cashAdjustments, dateRange.end, dateRange.start, expenses, isAllTime]);
 
   const attentionGroups = useMemo<AttentionGroup[]>(() => {
     const cardsMissingPhotos = cards
@@ -1034,7 +1081,7 @@ export default function Home() {
 
   const totalAttentionItems = attentionGroups.reduce((sum, group) => sum + group.count, 0);
   const listedReviewTotal = listingReviewCounts.warning + listingReviewCounts.urgent;
-  const listedValue = totals.listedCards.reduce((sum, card) => sum + (card.askingPrice * cardQuantity(card)), 0);
+  const listedValue = totals.listedInventoryValue;
   const topSoldCandidates = useMemo(() => {
     const soldCards = cards.filter((card) => card.status === "Sold" && card.soldPrice > 0);
     if (topSoldMode === "month") return soldCards.filter((card) => card.saleDate.startsWith(topSoldMonth));
@@ -1047,6 +1094,7 @@ export default function Home() {
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
     { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
+    { id: "glance", tab: "glance", label: "At a Glance", subtitle: money(totals.cash), apply: () => showDashboardTab("glance", "at-a-glance-panel") },
     { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
     { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
     { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal, apply: () => showDashboardTab("listingReview", "listing-review-panel") },
@@ -1142,6 +1190,13 @@ export default function Home() {
     if (!(Number(expense.amount) > 0)) return "Add an expense amount before saving.";
     if (!expense.expenseDate) return "Add an expense date before saving.";
     if (!expense.vendor.trim() && !expense.description.trim()) return "Add a vendor/source or description before saving the expense.";
+    return "";
+  };
+
+  const validateCashAdjustmentBusinessRules = (entry: CashAdjustmentRecord) => {
+    if (!(Number(entry.amount) > 0)) return "Add a cash amount before saving.";
+    if (!entry.adjustmentDate) return "Add the cash date before saving.";
+    if (!entry.description.trim()) return "Add a short note so you know why cash changed.";
     return "";
   };
 
@@ -1872,6 +1927,70 @@ export default function Home() {
       }
     }
     setExpenses((current) => current.filter((expenseRecord) => expenseRecord.id !== expense.id));
+  };
+
+  const saveCashAdjustment = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    const now = new Date().toISOString();
+    const entryToSave: CashAdjustmentRecord = {
+      ...activeCashAdjustment,
+      createdAt: activeCashAdjustment.createdAt || now,
+      createdBy: activeCashAdjustment.createdBy || currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
+    };
+    const validationError = validateCashAdjustmentBusinessRules(entryToSave);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (usingSupabase && supabase && session?.user.id) {
+      if (editingCashAdjustmentId) {
+        let updateQuery = supabase.from("cash_adjustments").update(cashAdjustmentToUpdate(entryToSave)).eq("id", entryToSave.id);
+        updateQuery = entryToSave.workspaceId ? updateQuery.eq("workspace_id", entryToSave.workspaceId) : updateQuery.eq("user_id", session.user.id);
+        const updateResult = await updateQuery.select("*").single();
+        if (updateResult.error) {
+          if (isMissingCashAdjustmentsTable(updateResult.error.message)) setError("Run the cash-on-hand SQL migration before saving cash entries to account storage.");
+          else setError(updateResult.error.message);
+          return;
+        }
+        setCashAdjustments((current) => current.map((entry) => (entry.id === entryToSave.id ? rowToCashAdjustment(updateResult.data) : entry)));
+      } else {
+        const insertResult = await supabase.from("cash_adjustments").insert(cashAdjustmentToInsert(entryToSave, session.user.id, workspaceId)).select("*").single();
+        if (insertResult.error) {
+          if (isMissingCashAdjustmentsTable(insertResult.error.message)) setError("Run the cash-on-hand SQL migration before saving cash entries to account storage.");
+          else setError(insertResult.error.message);
+          return;
+        }
+        setCashAdjustments((current) => [rowToCashAdjustment(insertResult.data), ...current]);
+      }
+    } else {
+      setCashAdjustments((current) => {
+        const exists = current.some((entry) => entry.id === entryToSave.id);
+        return exists ? current.map((entry) => (entry.id === entryToSave.id ? entryToSave : entry)) : [{ ...entryToSave, id: crypto.randomUUID() }, ...current];
+      });
+    }
+
+    setNotice("Cash entry saved.");
+    setActiveCashAdjustment(emptyCashAdjustment());
+    setEditingCashAdjustmentId(null);
+  };
+
+  const deleteCashAdjustment = async (entry: CashAdjustmentRecord) => {
+    setError("");
+    if (usingSupabase && supabase && session?.user.id) {
+      let deleteQuery = supabase.from("cash_adjustments").delete().eq("id", entry.id);
+      deleteQuery = entry.workspaceId ? deleteQuery.eq("workspace_id", entry.workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      const { error: deleteError } = await deleteQuery;
+      if (deleteError) {
+        setError(deleteError.message);
+        return;
+      }
+    }
+    setCashAdjustments((current) => current.filter((cashEntry) => cashEntry.id !== entry.id));
   };
 
   const toggleSelectedCard = (cardId: string) => {
@@ -2658,6 +2777,84 @@ export default function Home() {
             </div>
           </section>
         </div>
+      )}
+
+      {tab === "glance" && (
+        <section className="panel atAGlancePanel printableReport" id="at-a-glance-panel">
+          <div className="panelHeader inventoryHeader">
+            <div>
+              <p className="eyebrow">At a Glance</p>
+              <h2>Clean business snapshot</h2>
+              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Cash starts with your cash entries, then adds sold revenue and subtracts inventory purchases and expenses.</p>
+            </div>
+            <button className="secondary noPrint" type="button" onClick={() => window.print()}>Print report</button>
+          </div>
+          <DateFilterControls
+            mode={dateFilterMode}
+            startDate={customStartDate}
+            endDate={customEndDate}
+            selectedLabel={selectedDateLabel}
+            onModeChange={setDateFilterMode}
+            onStartDateChange={setCustomStartDate}
+            onEndDateChange={setCustomEndDate}
+          />
+          <section className="glanceHeroGrid" aria-label="At a glance totals">
+            <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
+            <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
+            <Stat label="Total Sold" value={money(totals.revenue)} />
+          </section>
+          <section className="glanceBreakdown" aria-label="Report breakdown">
+            <div>
+              <p className="eyebrow">Cash math</p>
+              <h3>{money(totals.cash)}</h3>
+              <p className="muted">Cash entries {money(totals.cashAdjustmentsTotal)} + sold revenue {money(totals.revenue)} − inventory purchases {money(totals.totalInventoryCost)} − expenses {money(totals.expensesTotal)}</p>
+            </div>
+            <div>
+              <p className="eyebrow">Inventory value</p>
+              <h3>{money(totals.totalInventoryValue)}</h3>
+              <p className="muted">Unlisted {money(totals.unlistedInventoryValue)} + listed {money(totals.listedInventoryValue)}. Unlisted uses asking price when entered, otherwise purchase cost.</p>
+            </div>
+            <div>
+              <p className="eyebrow">Sold</p>
+              <h3>{money(totals.revenue)}</h3>
+              <p className="muted">{totals.soldCount} sold cards • Sold-card profit {money(totals.soldCardProfit)}</p>
+            </div>
+          </section>
+          <section className="cashEntryPanel noPrint" aria-label="Add cash on hand">
+            <div>
+              <p className="eyebrow">Cash on hand</p>
+              <h3>Add starting cash or cash adjustments</h3>
+              <p className="muted">Use this for money you already had before buying cards, extra owner cash added later, or cash removed from the business.</p>
+            </div>
+            <form className="formGrid simpleForm" onSubmit={saveCashAdjustment}>
+              <Select label="Cash type" value={activeCashAdjustment.adjustmentType} options={["Starting Cash", "Cash Added", "Cash Removed"]} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentType: v as CashAdjustmentRecord["adjustmentType"] })} required />
+              <Field label="Amount" type="number" value={String(activeCashAdjustment.amount)} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, amount: Number(v || 0) })} required />
+              <Field label="Date" type="date" value={activeCashAdjustment.adjustmentDate} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentDate: v })} required />
+              <Field label="Note" value={activeCashAdjustment.description} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, description: v })} placeholder="Starting money for first card buys" required />
+              <button className="primary" type="submit">{editingCashAdjustmentId ? "Save cash entry" : "Add cash entry"}</button>
+              {editingCashAdjustmentId && <button className="secondary" type="button" onClick={() => { setActiveCashAdjustment(emptyCashAdjustment()); setEditingCashAdjustmentId(null); }}>Cancel edit</button>}
+            </form>
+          </section>
+          <section className="cashEntryList noPrint" aria-label="Cash entries">
+            <div className="rowTitle"><strong>Cash entries for {selectedDateLabel.toLowerCase()}</strong></div>
+            {totals.filteredCashAdjustments.map((entry) => (
+              <article className="expenseRow" key={entry.id}>
+                <div className="expenseDetails">
+                  <div className="rowTitle"><strong>{entry.adjustmentType}</strong></div>
+                  <p>{entry.description}</p>
+                  <p className="muted auditTrail">Added {formatDateTimeLabel(entry.createdAt)} by {actorLabel(entry.createdBy, currentUsername)}{entry.updatedAt !== entry.createdAt ? ` • Updated ${formatDateTimeLabel(entry.updatedAt)} by ${actorLabel(entry.updatedBy, currentUsername)}` : ""}</p>
+                </div>
+                <span>{entry.adjustmentDate}</span>
+                <strong>{entry.adjustmentType === "Cash Removed" ? "-" : "+"}{money(entry.amount)}</strong>
+                <div className="rowActions">
+                  <button className="secondary" type="button" onClick={() => { setActiveCashAdjustment(entry); setEditingCashAdjustmentId(entry.id); }}>Edit</button>
+                  <button className="danger" type="button" onClick={() => deleteCashAdjustment(entry)}>Delete</button>
+                </div>
+              </article>
+            ))}
+            {!totals.filteredCashAdjustments.length && <p className="empty">No cash entries for {selectedDateLabel.toLowerCase()}.</p>}
+          </section>
+        </section>
       )}
 
       {tab === "add" && (

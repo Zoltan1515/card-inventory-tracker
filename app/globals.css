@@ -66,6 +66,14 @@ h3 { margin-bottom: 14px; }
 .navButton { border: 1px solid transparent; border-radius: 14px; padding: 14px 16px; background: transparent; color: var(--muted); font-weight: 900; }
 .navButton.active, .navButton:hover { background: var(--panel-2); color: var(--text); border-color: var(--primary); }
 .statsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
+.glanceHeroGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
+.glanceHeroGrid .stat { min-height: 132px; align-content: center; }
+.glanceHeroGrid .stat strong { font-size: clamp(1.7rem, 4vw, 2.8rem); }
+.glanceBreakdown { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
+.glanceBreakdown > div, .cashEntryPanel, .cashEntryList { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.55); padding: 16px; }
+.glanceBreakdown h3 { margin: 4px 0 8px; font-size: 1.4rem; }
+.cashEntryPanel { display: grid; gap: 14px; margin-top: 18px; }
+.cashEntryList { display: grid; gap: 12px; margin-top: 18px; }
 .listingReviewStats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .attentionStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
 .attentionStat { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(15,23,42,.55); color: var(--text); text-align: left; display: grid; gap: 8px; }
@@ -384,6 +392,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 
 @media (max-width: 1000px) {
   .statsGrid, .profitGrid, .expenseBreakdown, .attentionStats, .listingReviewStats, .gradingStats { grid-template-columns: repeat(2, 1fr); }
+  .glanceHeroGrid, .glanceBreakdown { grid-template-columns: 1fr; }
   .inventoryFilterPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .filterSearch { grid-column: 1 / -1; }
   .formGrid, .simpleForm, .expenseForm { grid-template-columns: repeat(2, 1fr); }
@@ -432,6 +441,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .heroActions { align-items: stretch; }
   .navBar:not(.quickActionGrid) { grid-template-columns: 1fr 1fr; }
   .statsGrid, .profitGrid, .expenseBreakdown, .attentionStats, .listingReviewStats, .gradingStats, .formGrid, .simpleForm, .expenseForm { grid-template-columns: 1fr; }
+  .glanceHeroGrid, .glanceBreakdown { grid-template-columns: 1fr; }
   .inventoryFilterPanel { grid-template-columns: 1fr; }
   .saleSnapshot { grid-template-columns: 1fr; }
   .filterSearch { grid-column: auto; }
@@ -477,4 +487,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .bottomMobileNav span { font-size: 1.3rem; }
   .bottomMobileNav .active { color: var(--neon-green); text-shadow: 0 0 12px rgba(57,255,156,.45); }
   .bottomMobileNav .centerAdd span { width: 52px; height: 52px; display: grid; place-items: center; margin-top: -26px; border-radius: 999px; color: var(--primary); border: 1px solid rgba(103,232,249,.62); background: rgba(8,16,34,.94); box-shadow: 0 0 24px rgba(103,232,249,.28); font-size: 2rem; }
+}
+
+
+@media print {
+  body { background: #fff; color: #111827; }
+  .shell > :not(.printableReport), .noPrint { display: none !important; }
+  .shell { max-width: none; padding: 0; }
+  .printableReport { display: block !important; border: 0; box-shadow: none; background: #fff; color: #111827; padding: 0; }
+  .printableReport .muted, .printableReport .eyebrow { color: #374151; }
+  .printableReport .stat, .printableReport .glanceBreakdown > div { border: 1px solid #d1d5db; background: #fff; color: #111827; box-shadow: none; }
+  .printableReport .dateFilterBar { border: 1px solid #d1d5db; background: #fff; color: #111827; }
 }
