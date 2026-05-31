@@ -251,6 +251,15 @@ const listingReviewTone = (age: number): ListedReviewItem["tone"] => {
 };
 const dateValue = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() || 0 : 0);
 const uniqueSorted = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+const firstUrlInText = (value: string) => value.match(/https?:\/\/\S+/i)?.[0]?.replace(/[),.;]+$/, "") || "";
+const listingHref = (card: Pick<CardRecord, "listingUrl" | "listedPlatform">) => card.listingUrl.trim() || firstUrlInText(card.listedPlatform || "");
+const listingPlatformLabel = (card: Pick<CardRecord, "listedPlatform" | "listingUrl">) => {
+  const platform = card.listedPlatform.trim();
+  const href = listingHref(card);
+  if (!platform || platform === href) return href ? "Listed online" : "Listed";
+  return platform.replace(href, "").trim().replace(/^[-•|]+|[-•|]+$/g, "").trim() || "Listed online";
+};
 const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   ...emptyCard(),
   ...card,
@@ -1698,20 +1707,24 @@ export default function Home() {
   const saveListing = async (event: FormEvent) => {
     event.preventDefault();
     if (!listingCard) return;
-    const sourceCard = cards.find((card) => card.id === listingCard.id) || listingCard;
+    const platformUrl = firstUrlInText(listingCard.listedPlatform || "");
+    const normalizedListingCard = platformUrl && !listingCard.listingUrl.trim()
+      ? { ...listingCard, listingUrl: platformUrl, listedPlatform: listingPlatformLabel({ ...listingCard, listingUrl: platformUrl }) }
+      : listingCard;
+    const sourceCard = cards.find((card) => card.id === normalizedListingCard.id) || normalizedListingCard;
     const availableQty = cardQuantity(sourceCard);
-    const listingQty = Math.max(1, Math.min(availableQty, cardQuantity(listingCard)));
+    const listingQty = Math.max(1, Math.min(availableQty, cardQuantity(normalizedListingCard)));
     const now = new Date().toISOString();
     const nextListedCard: CardRecord = {
-      ...listingCard,
+      ...normalizedListingCard,
       id: listingQty < availableQty ? crypto.randomUUID() : sourceCard.id,
       workspaceId: sourceCard.workspaceId,
       quantity: listingQty,
       status: "Listed",
-      listedPlatform: listingCard.listedPlatform.trim(),
-      listedDate: listingCard.listedDate || todayIso(),
-      listedAt: sourceCard.status !== "Listed" ? now : (listingCard.listedAt || now),
-      listedBy: sourceCard.status !== "Listed" ? currentUsername : (listingCard.listedBy || currentUsername),
+      listedPlatform: normalizedListingCard.listedPlatform.trim(),
+      listedDate: normalizedListingCard.listedDate || todayIso(),
+      listedAt: sourceCard.status !== "Listed" ? now : (normalizedListingCard.listedAt || now),
+      listedBy: sourceCard.status !== "Listed" ? currentUsername : (normalizedListingCard.listedBy || currentUsername),
       saleDate: "",
       salePlatform: "",
       soldPrice: 0,
@@ -3046,7 +3059,7 @@ export default function Home() {
                     <span className={`listingAgeBadge ${tone}`}>{age} days listed</span>
                   </div>
                   <p className="muted">
-                    Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{card.listedPlatform ? ` • ${card.listedPlatform}` : ""}
+                    Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{listingPlatformLabel(card) ? ` • ${listingPlatformLabel(card)}` : ""}
                   </p>
                   <p className="muted">
                     Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
@@ -3054,9 +3067,9 @@ export default function Home() {
                   {activeGradingCardIds.has(card.id) && (
                     <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
                   )}
-                  {card.listingUrl && (
+                  {card.status === "Listed" && (
                     <div className="listingLinkRow">
-                      <a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a>
+                      {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
                       <button className="inlineLinkButton" type="button" onClick={() => clearListingInfo(card)}>Clear listing</button>
                     </div>
                   )}
@@ -3322,7 +3335,7 @@ export default function Home() {
                     </>
                   ) : (
                     <>
-                      {card.status === "Listed" && <p className="muted">{card.listedPlatform || "Listed"}{listedDays(card) !== null ? ` • ${listedDays(card)}d` : ""}</p>}
+                      {card.status === "Listed" && <p className="muted">{listingPlatformLabel(card)}{listedDays(card) !== null ? ` • ${listedDays(card)}d` : ""}</p>}
                       <p className="muted auditTrail">Added {formatDateLabel(card.createdAt.slice(0, 10))}</p>
                     </>
                   )}
@@ -3331,9 +3344,9 @@ export default function Home() {
                       Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
                     </p>
                   )}
-                  {card.listingUrl && (
+                  {card.status === "Listed" && (
                     <div className="listingLinkRow">
-                      <a href={card.listingUrl} target="_blank" rel="noreferrer">Open listing</a>
+                      {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
                       <button className="inlineLinkButton" type="button" onClick={() => clearListingInfo(card)}>Clear listing</button>
                     </div>
                   )}
