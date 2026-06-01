@@ -31,10 +31,16 @@ assert(page.includes('onClick={() => window.print()}'), 'At a Glance should incl
 assert(page.includes('saveCashAdjustment'), 'Cash entry save handler should exist.');
 assert(page.includes('id="dashboard-cash-entry"'), 'Dashboard should expose a front-page cash entry form, not hide it only in At a Glance.');
 assert(page.includes('Enter starting cash or cash added'), 'Dashboard cash entry should be clearly labeled for starting cash.');
+assert(page.includes('dashboardCashEntryOpen'), 'Dashboard cash entry should be collapsible instead of always taking up the full dashboard.');
+assert(page.includes('dashboardCashEntryAutoOpened') && page.includes('!cashAdjustments.length'), 'Cash entry should auto-open the first time before any cash entries exist.');
+assert(page.includes('aria-expanded={dashboardCashEntryOpen}'), 'Cash entry toggle should expose expanded/collapsed state accessibly.');
+assert(page.includes('setDashboardCashEntryOpen(false);'), 'Cash entry should collapse after saving or canceling an edit.');
 assert(page.includes('Getting started') && page.includes('Add your starting cash first'), 'Dashboard should onboard new users to add starting cash.');
 assert(page.includes('CASH_ONBOARDING_DISMISSED_KEY'), 'Cash onboarding dismissal should persist locally.');
 assert(page.includes('Add starting cash') && page.includes('scrollToDashboardCashEntry'), 'Cash onboarding should send users directly to the dashboard cash form.');
 assert(css.includes('.dashboardCashEntryPanel'), 'Dashboard cash entry layout styles should exist.');
+assert(css.includes('.cashEntryToggle'), 'Dashboard cash entry should have compact toggle styles.');
+assert(css.includes('.dashboardCashEntryBody'), 'Dashboard cash entry body should be separate from the compact toggle.');
 assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
 assert(page.includes('cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal'), 'Cash on hand should include cash entries plus sales minus purchases and expenses.');
 assert(page.includes('unlistedInventoryValue + listedInventoryValue'), 'Total inventory value should include unlisted and listed inventory.');

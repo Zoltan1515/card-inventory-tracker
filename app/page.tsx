@@ -531,6 +531,8 @@ export default function Home() {
   const [activeCashAdjustment, setActiveCashAdjustment] = useState<CashAdjustmentRecord>(emptyCashAdjustment());
   const [editingCashAdjustmentId, setEditingCashAdjustmentId] = useState<string | null>(null);
   const [cashOnboardingDismissed, setCashOnboardingDismissed] = useState(false);
+  const [dashboardCashEntryOpen, setDashboardCashEntryOpen] = useState(false);
+  const [dashboardCashEntryAutoOpened, setDashboardCashEntryAutoOpened] = useState(false);
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
@@ -771,6 +773,13 @@ export default function Home() {
     setCashOnboardingDismissed(window.localStorage.getItem(CASH_ONBOARDING_DISMISSED_KEY) === "true");
   }, []);
 
+  useEffect(() => {
+    if (session && dataLoaded && !cashAdjustments.length && !dashboardCashEntryAutoOpened) {
+      setDashboardCashEntryOpen(true);
+      setDashboardCashEntryAutoOpened(true);
+    }
+  }, [cashAdjustments.length, dashboardCashEntryAutoOpened, dataLoaded, session]);
+
   const activeInventoryCards = useMemo(() => cards.filter((card) => card.status !== "Sold"), [cards]);
   const soldInventoryCards = useMemo(() => cards.filter((card) => card.status === "Sold"), [cards]);
   const inventoryCategories = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.category)), [activeInventoryCards]);
@@ -845,7 +854,10 @@ export default function Home() {
     showDashboardTab("add", "add-inventory-form");
   };
 
-  const scrollToDashboardCashEntry = () => scrollToSection("dashboard-cash-entry");
+  const scrollToDashboardCashEntry = () => {
+    setDashboardCashEntryOpen(true);
+    scrollToSection("dashboard-cash-entry");
+  };
 
   const dismissCashOnboarding = () => {
     setCashOnboardingDismissed(true);
@@ -2018,6 +2030,7 @@ export default function Home() {
     setNotice("Cash entry saved.");
     setActiveCashAdjustment(emptyCashAdjustment());
     setEditingCashAdjustmentId(null);
+    setDashboardCashEntryOpen(false);
   };
 
   const deleteCashAdjustment = async (entry: CashAdjustmentRecord) => {
@@ -2667,20 +2680,31 @@ export default function Home() {
       )}
 
       {session && (
-        <section className="dashboardCashEntryPanel" id="dashboard-cash-entry" aria-label="Enter cash on hand from dashboard">
-          <div>
-            <p className="eyebrow">Cash on hand</p>
-            <h2>Enter starting cash or cash added</h2>
-            <p className="muted">Use this when you begin, add more business money, or remove cash. Current cash on hand: <strong>{money(totals.cash)}</strong>.</p>
-          </div>
-          <form className="formGrid dashboardCashForm" onSubmit={saveCashAdjustment}>
-            <Select label="Cash type" value={activeCashAdjustment.adjustmentType} options={["Starting Cash", "Cash Added", "Cash Removed"]} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentType: v as CashAdjustmentRecord["adjustmentType"] })} required />
-            <Field label="Amount" type="number" value={String(activeCashAdjustment.amount)} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, amount: Number(v || 0) })} required />
-            <Field label="Date" type="date" value={activeCashAdjustment.adjustmentDate} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentDate: v })} required />
-            <Field label="Note" value={activeCashAdjustment.description} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, description: v })} placeholder="Starting money for first card buys" required />
-            <button className="primary" type="submit">{editingCashAdjustmentId ? "Save cash entry" : "Add cash entry"}</button>
-            {editingCashAdjustmentId && <button className="secondary" type="button" onClick={() => { setActiveCashAdjustment(emptyCashAdjustment()); setEditingCashAdjustmentId(null); }}>Cancel edit</button>}
-          </form>
+        <section className={`dashboardCashEntryPanel ${dashboardCashEntryOpen ? "isOpen" : "isCollapsed"}`} id="dashboard-cash-entry" aria-label="Enter cash on hand from dashboard">
+          <button className="cashEntryToggle" type="button" onClick={() => setDashboardCashEntryOpen((open) => !open)} aria-expanded={dashboardCashEntryOpen} aria-controls="dashboard-cash-entry-form">
+            <span>
+              <span className="eyebrow">Cash on hand</span>
+              <strong>{cashAdjustments.length ? "Add or adjust cash" : "Enter starting cash"}</strong>
+              <small>{dashboardCashEntryOpen ? "Collapse this form after adding cash." : `Current cash: ${money(totals.cash)}. Tap to add or edit cash.`}</small>
+            </span>
+            <span className="cashEntryToggleIcon" aria-hidden="true">{dashboardCashEntryOpen ? "−" : "+"}</span>
+          </button>
+          {dashboardCashEntryOpen && (
+            <div className="dashboardCashEntryBody" id="dashboard-cash-entry-form">
+              <div>
+                <h2>Enter starting cash or cash added</h2>
+                <p className="muted">Use this when you begin, add more business money, or remove cash. Current cash on hand: <strong>{money(totals.cash)}</strong>.</p>
+              </div>
+              <form className="formGrid dashboardCashForm" onSubmit={saveCashAdjustment}>
+                <Select label="Cash type" value={activeCashAdjustment.adjustmentType} options={["Starting Cash", "Cash Added", "Cash Removed"]} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentType: v as CashAdjustmentRecord["adjustmentType"] })} required />
+                <Field label="Amount" type="number" value={String(activeCashAdjustment.amount)} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, amount: Number(v || 0) })} required />
+                <Field label="Date" type="date" value={activeCashAdjustment.adjustmentDate} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentDate: v })} required />
+                <Field label="Note" value={activeCashAdjustment.description} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, description: v })} placeholder="Starting money for first card buys" required />
+                <button className="primary" type="submit">{editingCashAdjustmentId ? "Save cash entry" : "Add cash entry"}</button>
+                {editingCashAdjustmentId && <button className="secondary" type="button" onClick={() => { setActiveCashAdjustment(emptyCashAdjustment()); setEditingCashAdjustmentId(null); setDashboardCashEntryOpen(false); }}>Cancel edit</button>}
+              </form>
+            </div>
+          )}
         </section>
       )}
 
@@ -2920,7 +2944,7 @@ export default function Home() {
                 <span>{entry.adjustmentDate}</span>
                 <strong>{entry.adjustmentType === "Cash Removed" ? "-" : "+"}{money(entry.amount)}</strong>
                 <div className="rowActions">
-                  <button className="secondary" type="button" onClick={() => { setActiveCashAdjustment(entry); setEditingCashAdjustmentId(entry.id); }}>Edit</button>
+                  <button className="secondary" type="button" onClick={() => { setActiveCashAdjustment(entry); setEditingCashAdjustmentId(entry.id); setDashboardCashEntryOpen(true); scrollToSection("dashboard-cash-entry"); }}>Edit</button>
                   <button className="danger" type="button" onClick={() => deleteCashAdjustment(entry)}>Delete</button>
                 </div>
               </article>
