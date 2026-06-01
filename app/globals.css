@@ -30,6 +30,8 @@ button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .6; }
 .shell { width: min(1240px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 92px; }
+input[type="date"] { color-scheme: dark; }
+input[type="date"]::-webkit-calendar-picker-indicator { opacity: .65; filter: invert(1) hue-rotate(145deg) saturate(1.5); }
 .hero, .panel, .stat, .cardRow, .expenseRow, .navBar {
   border: 1px solid var(--line);
   background: linear-gradient(145deg, rgba(8,16,34,.88), rgba(4,9,20,.86));
@@ -411,7 +413,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .rowActions { justify-content: flex-start; }
 }
 @media (max-width: 720px) {
-  .shell { width: min(100% - 24px, 1240px); padding-top: 18px; padding-bottom: 96px; }
+  .shell { width: min(100% - 24px, 1240px); padding-top: 18px; padding-bottom: calc(152px + env(safe-area-inset-bottom)); }
   .hero, .panelHeader, .inventoryHeader { flex-direction: column; align-items: stretch; }
   .mobileTopHeader { grid-template-columns: 44px 1fr auto; gap: 8px; }
   .mobileTopHeader .brandLogo img { width: min(255px, 58vw); }
@@ -434,7 +436,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .slabArt span { font-size: 2.8rem; }
   .slabBase strong { font-size: .82rem; }
   .slabBase small { font-size: .54rem; }
-  .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; }
+  .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; scrollbar-width: none; }
+  .secondaryStatStrip::-webkit-scrollbar { display: none; }
   .secondaryStatStrip button { min-width: 116px; padding: 12px 10px; }
   .quickActionsPanel { padding: 14px; border-radius: 22px; }
   .quickActionGrid.navBar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -491,7 +494,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .attentionItem { grid-template-columns: 1fr; }
   .attentionItem span { text-align: left; }
   .filters, .customDateRange { flex-direction: column; display: flex; }
-  .bottomMobileNav { position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 15; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 4px; padding: 8px; border: 1px solid rgba(103,232,249,.24); border-radius: 22px; background: rgba(3,7,18,.86); backdrop-filter: blur(16px); box-shadow: 0 -10px 38px rgba(0,0,0,.44), 0 0 22px rgba(103,232,249,.12); }
+  .bottomMobileNav { position: fixed; left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 15; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 4px; padding: 8px; border: 1px solid rgba(103,232,249,.24); border-radius: 22px; background: rgba(3,7,18,.86); backdrop-filter: blur(16px); box-shadow: 0 -10px 38px rgba(0,0,0,.44), 0 0 22px rgba(103,232,249,.12); }
   .bottomMobileNav button { border: 0; background: transparent; color: var(--muted); display: grid; gap: 3px; justify-items: center; font-size: .8rem; padding: 4px 2px; }
   .bottomMobileNav span { font-size: 1.3rem; }
   .bottomMobileNav .active { color: var(--neon-green); text-shadow: 0 0 12px rgba(57,255,156,.45); }
