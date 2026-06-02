@@ -23,6 +23,18 @@ assert(page.includes('const savedSaleExpenses = await insertExpenseRecords(saleE
 assert(page.includes('setSaleExpenseDraft(emptySaleExpenseDraft())'), 'Sale expense inputs should reset after opening/canceling/saving.');
 assert(page.includes('Optional HST and marketplace/payment fees. These save to Expenses and expense reports with this sale date.'), 'Sale modal should explain that sale expenses hit reports.');
 assert(page.includes('Net after sale expenses'), 'Sale modal should show net sale profit after HST/fees.');
+assert(page.includes('type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string }'), 'Saved sale should have a typed celebration summary.');
+assert(page.includes('const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);'), 'Sale save should track the celebration modal state.');
+assert(page.includes('const showSaleCelebration = (card: CardRecord, savedSaleExpenses: ExpenseRecord[], remainingQuantity?: number)'), 'Sale save should prepare a celebration modal after saving.');
+assert(page.includes('showSaleCelebration(soldCard, savedSaleExpenses)'), 'Full sale save should open the celebration modal.');
+assert(page.includes('showSaleCelebration(insertedSold, savedSaleExpenses, availableQty - saleQty)'), 'Partial quantity sale save should open the celebration modal with remaining quantity.');
+assert(page.includes('aria-label="Sale congratulations"'), 'Sale celebration modal should be accessible as a dialog.');
+assert(page.includes('Congrats — you made a sale!'), 'Sale celebration modal should congratulate the user.');
+assert(page.includes('Nice — continue'), 'Sale celebration modal should have a themed continue action.');
+assert(page.includes('View expenses'), 'Sale celebration modal should link to expense reports/details.');
 assert(css.includes('.saleExpenseBox'), 'Sale expense fields should have dedicated modal styling.');
+assert(css.includes('.saleCelebrationModal'), 'Sale celebration modal should have dedicated themed styling.');
+assert(css.includes('radial-gradient(circle at 50% 20%'), 'Sale celebration backdrop should have neon themed glow.');
+assert(css.includes('.saleCelebrationCard, .saleCelebrationActions { grid-template-columns: 1fr; }'), 'Sale celebration modal should collapse cleanly on mobile.');
 
 console.log('Sale expense modal checks passed.');

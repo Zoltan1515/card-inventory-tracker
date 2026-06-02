@@ -54,6 +54,7 @@ type CsvRow = Record<string, string>;
 type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string };
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string };
+type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
@@ -539,6 +540,7 @@ export default function Home() {
   const [dashboardCashEntryOpen, setDashboardCashEntryOpen] = useState(false);
   const [dashboardCashEntryAutoOpened, setDashboardCashEntryAutoOpened] = useState(false);
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
+  const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
@@ -1866,8 +1868,22 @@ export default function Home() {
   };
 
   const openSaleModal = (card: CardRecord) => {
+    setSaleCelebration(null);
     setSaleExpenseDraft(emptySaleExpenseDraft());
     setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || todayIso() });
+  };
+
+  const showSaleCelebration = (card: CardRecord, savedSaleExpenses: ExpenseRecord[], remainingQuantity?: number) => {
+    const savedSaleExpenseTotal = savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    setSaleCelebration({
+      cardName: card.name,
+      quantity: cardQuantity(card),
+      saleTotal: card.soldPrice,
+      saleExpenseTotal: savedSaleExpenseTotal,
+      netProfit: cardProfit(card) - savedSaleExpenseTotal,
+      remainingQuantity,
+      platform: card.salePlatform || "Sale",
+    });
   };
 
   const saveSale = async (event: FormEvent) => {
@@ -1917,6 +1933,7 @@ export default function Home() {
       setCards((current) => [insertedSold, ...current.map((item) => (item.id === remainingCard.id ? remainingCard : item))]);
       const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(insertedSold));
       if (savedSaleExpenses === null) return;
+      showSaleCelebration(insertedSold, savedSaleExpenses, availableQty - saleQty);
       setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(soldCard.soldPrice)}${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. ${availableQty - saleQty} left in inventory.`);
       setSellingCard(null);
       setSaleExpenseDraft(emptySaleExpenseDraft());
@@ -1928,6 +1945,7 @@ export default function Home() {
     if (ok) {
       const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(soldCard));
       if (savedSaleExpenses === null) return;
+      showSaleCelebration(soldCard, savedSaleExpenses);
       setNotice(`Sold ${soldCard.name} for ${money(soldCard.soldPrice)}${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}.`);
       setSellingCard(null);
       setSaleExpenseDraft(emptySaleExpenseDraft());
@@ -3865,6 +3883,30 @@ export default function Home() {
               <button className="primary full" type="submit">Mark order returned</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {saleCelebration && (
+        <div className="modalBackdrop saleCelebrationBackdrop" role="dialog" aria-modal="true" aria-label="Sale congratulations">
+          <div className="modal panel saleCelebrationModal">
+            <div className="celebrationGlow" aria-hidden="true">✦</div>
+            <div className="successIcon saleCelebrationIcon" aria-hidden="true">✓</div>
+            <p className="eyebrow">Sale saved</p>
+            <h2>Congrats — you made a sale!</h2>
+            <p className="muted">{saleCelebration.cardName} is now marked Sold and your sale expenses are logged.</p>
+            <div className="saleCelebrationCard">
+              <span>Sale total <strong>{money(saleCelebration.saleTotal)}</strong></span>
+              <span>Quantity <strong>{saleCelebration.quantity}</strong></span>
+              <span>Platform <strong>{saleCelebration.platform}</strong></span>
+              <span>Sale expenses <strong>{money(saleCelebration.saleExpenseTotal)}</strong></span>
+              <span>Net after expenses <strong className={saleCelebration.netProfit >= 0 ? "positive" : "negative"}>{money(saleCelebration.netProfit)}</strong></span>
+              {saleCelebration.remainingQuantity !== undefined && <span>Still in inventory <strong>{saleCelebration.remainingQuantity}</strong></span>}
+            </div>
+            <div className="saleCelebrationActions">
+              <button className="primary full" type="button" onClick={() => setSaleCelebration(null)}>Nice — continue</button>
+              <button className="secondary" type="button" onClick={() => { setSaleCelebration(null); setTab("expenses"); window.setTimeout(() => document.getElementById("expenses-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }}>View expenses</button>
+            </div>
+          </div>
         </div>
       )}
 
