@@ -53,6 +53,7 @@ type ImportCardPreview = {
 type CsvRow = Record<string, string>;
 type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string };
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
+type SaleExpenseDraft = { hst: string; fees: string };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
@@ -80,7 +81,7 @@ const CASH_STORAGE_KEY = "card-inventory-tracker.cash-adjustments.v1";
 const CASH_ONBOARDING_DISMISSED_KEY = "card-inventory-tracker.cash-onboarding-dismissed.v1";
 const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
-const expenseCategories: ExpenseCategory[] = ["HST", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
+const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const primeLotDraftStatuses = new Set(["draft", "pending", "inactive", "archived", "deleted", "removed"]);
 const isPrimeLotPublicListing = (status = "") => !primeLotDraftStatuses.has(status.toLowerCase());
@@ -169,8 +170,11 @@ const gradeParts = (value: string) => {
 const cardGradeValue = (card: Pick<CardRecord, "grade" | "notes">) => card.grade || card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grade:"))?.replace(/^grade:\s*/i, "").trim() || "";
 const cardGradingCompanyValue = (card: Pick<CardRecord, "gradingCompany" | "notes">) => card.gradingCompany || card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grader:"))?.replace(/^grader:\s*/i, "").trim() || "";
 const emptyInventoryExpenseDraft = (): InventoryExpenseDraft => ({ shipping: "", hst: "", duties: "" });
-const inventoryExpenseAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
+const emptySaleExpenseDraft = (): SaleExpenseDraft => ({ hst: "", fees: "" });
+const expenseDraftAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
+const inventoryExpenseAmount = expenseDraftAmount;
 const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
+const saleExpenseDraftTotal = (draft: SaleExpenseDraft) => expenseDraftAmount(draft.hst) + expenseDraftAmount(draft.fees);
 const cardGradeLabel = (card: Pick<CardRecord, "grade" | "gradingCompany" | "notes">) => [cardGradingCompanyValue(card), cardGradeValue(card)].filter(Boolean).join(" ").trim();
 const notesWithGrade = (notes: string, grade: string, gradingCompany = "") => {
   const withoutGrade = notes.split("\n").filter((line) => !/^grade:|^grader:/i.test(line.trim())).join("\n").trim();
@@ -527,6 +531,7 @@ export default function Home() {
   const [activeCardGrade, setActiveCardGrade] = useState("");
   const [activeCardGradingCompany, setActiveCardGradingCompany] = useState("");
   const [inventoryExpenseDraft, setInventoryExpenseDraft] = useState<InventoryExpenseDraft>(emptyInventoryExpenseDraft());
+  const [saleExpenseDraft, setSaleExpenseDraft] = useState<SaleExpenseDraft>(emptySaleExpenseDraft());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
   const [activeCashAdjustment, setActiveCashAdjustment] = useState<CashAdjustmentRecord>(emptyCashAdjustment());
   const [editingCashAdjustmentId, setEditingCashAdjustmentId] = useState<string | null>(null);
@@ -1081,6 +1086,7 @@ export default function Home() {
   const importReadyCount = selectedImportPreviews.length;
   const importWarningCount = importPreviews.filter((preview) => preview.warnings.length).length;
   const inventoryExpenseTotal = inventoryExpenseDraftTotal(inventoryExpenseDraft);
+  const saleExpenseTotal = saleExpenseDraftTotal(saleExpenseDraft);
   const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
     const now = new Date().toISOString();
     const expenseDate = card.purchaseDate || todayIso();
@@ -1098,6 +1104,28 @@ export default function Home() {
       expenseDate,
       vendor: "",
       description: `Inventory add: ${card.name}`,
+      createdAt: now,
+      createdBy: currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
+    }));
+  };
+  const saleExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
+    const now = new Date().toISOString();
+    const expenseDate = card.saleDate || todayIso();
+    const rows: Array<{ category: ExpenseCategory; amount: number; label: string }> = [
+      { category: "HST", amount: expenseDraftAmount(saleExpenseDraft.hst), label: "Sale HST" },
+      { category: "Marketplace Fees", amount: expenseDraftAmount(saleExpenseDraft.fees), label: "Sale fees" },
+    ];
+    return rows.filter((row) => row.amount > 0).map((row) => ({
+      ...emptyExpense(),
+      id: crypto.randomUUID(),
+      workspaceId: workspaceId || undefined,
+      category: row.category,
+      amount: row.amount,
+      expenseDate,
+      vendor: card.salePlatform || "Sale",
+      description: `${row.label}: ${card.name}`,
       createdAt: now,
       createdBy: currentUsername,
       updatedAt: now,
@@ -1360,10 +1388,10 @@ export default function Home() {
           .from("expenses")
           .insert(records.map((expense) => expenseToInsert(expense, session.user.id, workspaceId, false)))
           .select("*");
-        if (!insertResult.error) setNotice("Inventory added. Run the audit SQL migration so expense usernames save to account storage.");
+        if (!insertResult.error) setNotice("Record saved. Run the audit SQL migration so expense usernames save to account storage.");
       }
       if (insertResult.error) {
-        setError(`Inventory was added, but the expense rows did not save: ${insertResult.error.message}`);
+        setError(`The main record saved, but the expense rows did not save: ${insertResult.error.message}`);
         return null;
       }
       const savedRows = (insertResult.data ?? []).map(rowToExpense);
@@ -1653,7 +1681,7 @@ export default function Home() {
 
     if (status === "Sold") {
       setError("");
-      setSellingCard({ ...nextCard, quantity: 1 });
+      openSaleModal(nextCard);
       return;
     }
 
@@ -1837,8 +1865,15 @@ export default function Home() {
     }
   };
 
+  const openSaleModal = (card: CardRecord) => {
+    setSaleExpenseDraft(emptySaleExpenseDraft());
+    setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || todayIso() });
+  };
+
   const saveSale = async (event: FormEvent) => {
     event.preventDefault();
+    setError("");
+    setNotice("");
     if (!sellingCard) return;
     const sourceCard = cards.find((card) => card.id === sellingCard.id) || sellingCard;
     const availableQty = cardQuantity(sourceCard);
@@ -1880,16 +1915,22 @@ export default function Home() {
       const insertedSold = await insertCardRecord(soldCard);
       if (!insertedSold) return;
       setCards((current) => [insertedSold, ...current.map((item) => (item.id === remainingCard.id ? remainingCard : item))]);
-      setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(soldCard.soldPrice)}. ${availableQty - saleQty} left in inventory.`);
+      const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(insertedSold));
+      if (savedSaleExpenses === null) return;
+      setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(soldCard.soldPrice)}${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. ${availableQty - saleQty} left in inventory.`);
       setSellingCard(null);
+      setSaleExpenseDraft(emptySaleExpenseDraft());
       setTab("inventory");
       return;
     }
 
     const ok = await updateCard(soldCard);
     if (ok) {
-      setNotice(`Sold ${soldCard.name} for ${money(soldCard.soldPrice)}.`);
+      const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(soldCard));
+      if (savedSaleExpenses === null) return;
+      setNotice(`Sold ${soldCard.name} for ${money(soldCard.soldPrice)}${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}.`);
       setSellingCard(null);
+      setSaleExpenseDraft(emptySaleExpenseDraft());
       setTab("profit");
     }
   };
@@ -3448,7 +3489,7 @@ export default function Home() {
                 )}
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
-                  <button className="secondary" onClick={() => setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || new Date().toISOString().slice(0, 10) })} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
+                  <button className="secondary" onClick={() => openSaleModal(card)} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
                   {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
@@ -3835,17 +3876,29 @@ export default function Home() {
                 <p className="eyebrow">Enter sale</p>
                 <h2>{sellingCard.name}</h2>
               </div>
-              <button className="secondary" type="button" onClick={() => setSellingCard(null)}>Cancel</button>
+              <button className="secondary" type="button" onClick={() => { setSellingCard(null); setSaleExpenseDraft(emptySaleExpenseDraft()); }}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
               <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => setSellingCard({ ...sellingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), sanitizeQuantityInput(v))) })} required />
               <Field label="Sold total" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
               <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
               <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
+              <div className="saleExpenseBox full" aria-label="Sale expenses">
+                <div>
+                  <p className="eyebrow">Sale expenses</p>
+                  <p className="muted">Optional HST and marketplace/payment fees. These save to Expenses and expense reports with this sale date.</p>
+                </div>
+                <div className="splitRow">
+                  <Field label="HST" type="number" value={saleExpenseDraft.hst} onChange={(v) => setSaleExpenseDraft((draft) => ({ ...draft, hst: v }))} />
+                  <Field label="Fees" type="number" value={saleExpenseDraft.fees} onChange={(v) => setSaleExpenseDraft((draft) => ({ ...draft, fees: v }))} />
+                </div>
+              </div>
               <div className="calc full">
                 <span>Available quantity: <strong>{cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)}</strong></span>
                 <span>Purchase cost: <strong>{money(cardPurchaseCost(sellingCard))}</strong></span>
                 <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
+                <span>Sale expenses: <strong>{money(saleExpenseTotal)}</strong></span>
+                <span>Net after sale expenses: <strong className={cardProfit(sellingCard) - saleExpenseTotal >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard) - saleExpenseTotal)}</strong></span>
               </div>
               <button className="primary full" type="submit">Save sale</button>
             </div>

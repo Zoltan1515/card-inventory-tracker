@@ -115,7 +115,7 @@ const normalizeStatus = (status: string | null | undefined): CardRecord["status"
 };
 
 const normalizeExpenseCategory = (category: string | null | undefined): ExpenseRecord["category"] => {
-  if (category === "HST" || category === "Duties" || category === "Grading Fees" || category === "Shipping" || category === "Card Show Table" || category === "Supplies" || category === "Gas" || category === "Airfare" || category === "Other") return category;
+  if (category === "HST" || category === "Marketplace Fees" || category === "Duties" || category === "Grading Fees" || category === "Shipping" || category === "Card Show Table" || category === "Supplies" || category === "Gas" || category === "Airfare" || category === "Other") return category;
   return "Other";
 };
 
