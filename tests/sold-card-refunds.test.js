@@ -33,6 +33,13 @@ assert(page.includes('Net sold after this refund'), 'Refund modal should preview
 assert(page.includes('cardRefundTotal(card)'), 'Sold rows should show refunded amount.');
 assert(page.includes('parseCardRefunds(card.notes).map'), 'Sold rows should display refund history.');
 assert(page.includes('cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"'), 'Fully refunded cards should disable further refunds.');
+assert(page.includes('const reverseSoldToListed = async (card: CardRecord)'), 'Sold cards should have a reverse-to-listed handler.');
+assert(page.includes('status: "Listed",'), 'Reverse sale should move the card back to Listed.');
+assert(page.includes('saleDate: "",') && page.includes('salePlatform: "",') && page.includes('soldPrice: 0,'), 'Reverse sale should clear sold fields so dashboard revenue updates.');
+assert(page.includes('setStatusFilter("Listed")'), 'Reverse sale should take the user back to the Listed tab.');
+assert(page.includes('Move back to Listed'), 'Sold card rows should expose a Move back to Listed action.');
+assert(page.includes('saleExpenseMatchesCard'), 'Reverse sale should identify sale expense rows tied to the sale.');
+assert(page.includes('for (const expense of saleExpensesToRemove) await deleteExpense(expense);'), 'Reverse sale should remove matching sale HST/fee expense rows from reports.');
 
 assert(csv.includes('["refundTotal", "Refund Total"]'), 'Sales CSV should include refund total.');
 assert(csv.includes('["netSoldPrice", "Net Sold Price"]'), 'Sales CSV should include net sold amount.');

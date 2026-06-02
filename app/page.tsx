@@ -55,7 +55,7 @@ type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: str
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string };
 type RefundDraft = { amount: string; refundDate: string; note: string };
-type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
+type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
@@ -1883,6 +1883,7 @@ export default function Home() {
       cardName: card.name,
       quantity: cardQuantity(card),
       saleTotal: card.soldPrice,
+      purchaseCost: cardPurchaseCost(card),
       saleExpenseTotal: savedSaleExpenseTotal,
       netProfit: cardProfit(card) - savedSaleExpenseTotal,
       remainingQuantity,
@@ -1966,6 +1967,42 @@ export default function Home() {
   const closeRefundModal = () => {
     setRefundingCard(null);
     setRefundDraft(emptyRefundDraft());
+  };
+
+  const saleExpenseMatchesCard = (expense: ExpenseRecord, card: CardRecord) => {
+    const isSaleExpense = expense.category === "HST" || expense.category === "Marketplace Fees";
+    if (!isSaleExpense) return false;
+    const matchesDescription = expense.description === `Sale HST: ${card.name}` || expense.description === `Sale fees: ${card.name}`;
+    const matchesDate = !card.saleDate || expense.expenseDate === card.saleDate;
+    const matchesVendor = !card.salePlatform || expense.vendor === card.salePlatform;
+    return matchesDescription && matchesDate && matchesVendor;
+  };
+
+  const reverseSoldToListed = async (card: CardRecord) => {
+    setError("");
+    setNotice("");
+    const now = new Date().toISOString();
+    const relistedCard: CardRecord = {
+      ...card,
+      status: "Listed",
+      saleDate: "",
+      salePlatform: "",
+      soldPrice: 0,
+      soldAt: "",
+      soldBy: "",
+      listedDate: card.listedDate || todayIso(),
+      listedAt: card.listedAt || now,
+      listedBy: card.listedBy || currentUsername,
+      updatedAt: now,
+      updatedBy: currentUsername,
+    };
+    const ok = await updateCard(relistedCard);
+    if (!ok) return;
+    const saleExpensesToRemove = expenses.filter((expense) => saleExpenseMatchesCard(expense, card));
+    for (const expense of saleExpensesToRemove) await deleteExpense(expense);
+    setStatusFilter("Listed");
+    setTab("inventory");
+    setNotice(`${card.name} moved back to Listed${saleExpensesToRemove.length ? ` and ${saleExpensesToRemove.length} sale expense${saleExpensesToRemove.length === 1 ? "" : "s"} removed` : ""}.`);
   };
 
   const saveRefund = async (event: FormEvent) => {
@@ -3566,6 +3603,7 @@ export default function Home() {
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
                   <button className="secondary" onClick={() => openSaleModal(card)} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
                   {card.status === "Sold" && <button className="secondary" onClick={() => openRefundModal(card)} type="button" disabled={cardNetSoldPrice(card) <= 0}>{cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"}</button>}
+                  {card.status === "Sold" && <button className="secondary" onClick={() => reverseSoldToListed(card)} type="button">Move back to Listed</button>}
                   {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
@@ -3984,14 +4022,15 @@ export default function Home() {
             <div className="successIcon saleCelebrationIcon" aria-hidden="true">✓</div>
             <p className="eyebrow">Sale saved</p>
             <h2>Congrats — you made a sale!</h2>
-            <p className="muted">{saleCelebration.cardName} is now marked Sold and your sale expenses are logged.</p>
-            <div className="saleCelebrationCard">
-              <span>Sale total <strong>{money(saleCelebration.saleTotal)}</strong></span>
-              <span>Quantity <strong>{saleCelebration.quantity}</strong></span>
-              <span>Platform <strong>{saleCelebration.platform}</strong></span>
-              <span>Sale expenses <strong>{money(saleCelebration.saleExpenseTotal)}</strong></span>
-              <span>Net after expenses <strong className={saleCelebration.netProfit >= 0 ? "positive" : "negative"}>{money(saleCelebration.netProfit)}</strong></span>
-              {saleCelebration.remainingQuantity !== undefined && <span>Still in inventory <strong>{saleCelebration.remainingQuantity}</strong></span>}
+            <p className="muted">{saleCelebration.cardName} is now marked Sold. Here’s the sale breakdown.</p>
+            <div className="saleCelebrationCard saleCelebrationList" aria-label="Sale price expenses and total profit">
+              <span><small>Sale price</small><strong>{money(saleCelebration.saleTotal)}</strong></span>
+              <span><small>Card cost</small><strong>{money(saleCelebration.purchaseCost)}</strong></span>
+              <span><small>Expenses</small><strong>{money(saleCelebration.saleExpenseTotal)}</strong></span>
+              <span className="saleCelebrationProfit"><small>Total profit</small><strong className={saleCelebration.netProfit >= 0 ? "positive" : "negative"}>{money(saleCelebration.netProfit)}</strong></span>
+              <span><small>Quantity</small><strong>{saleCelebration.quantity}</strong></span>
+              <span><small>Platform</small><strong>{saleCelebration.platform}</strong></span>
+              {saleCelebration.remainingQuantity !== undefined && <span><small>Still in inventory</small><strong>{saleCelebration.remainingQuantity}</strong></span>}
             </div>
             <div className="saleCelebrationActions">
               <button className="primary full" type="button" onClick={() => setSaleCelebration(null)}>Nice — continue</button>
