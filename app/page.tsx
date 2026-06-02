@@ -545,6 +545,7 @@ export default function Home() {
   const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);
   const [refundingCard, setRefundingCard] = useState<CardRecord | null>(null);
   const [refundDraft, setRefundDraft] = useState<RefundDraft>(emptyRefundDraft());
+  const [confirmingMoveBackToListed, setConfirmingMoveBackToListed] = useState<CardRecord | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
@@ -1978,6 +1979,17 @@ export default function Home() {
     return matchesDescription && matchesDate && matchesVendor;
   };
 
+  const requestMoveBackToListed = (card: CardRecord) => {
+    setError("");
+    setNotice("");
+    setConfirmingMoveBackToListed(card);
+  };
+
+  const confirmMoveBackToListed = async () => {
+    if (!confirmingMoveBackToListed) return;
+    await reverseSoldToListed(confirmingMoveBackToListed);
+  };
+
   const reverseSoldToListed = async (card: CardRecord) => {
     setError("");
     setNotice("");
@@ -2000,6 +2012,7 @@ export default function Home() {
     if (!ok) return;
     const saleExpensesToRemove = expenses.filter((expense) => saleExpenseMatchesCard(expense, card));
     for (const expense of saleExpensesToRemove) await deleteExpense(expense);
+    setConfirmingMoveBackToListed(null);
     setStatusFilter("Listed");
     setTab("inventory");
     setNotice(`${card.name} moved back to Listed${saleExpensesToRemove.length ? ` and ${saleExpensesToRemove.length} sale expense${saleExpensesToRemove.length === 1 ? "" : "s"} removed` : ""}.`);
@@ -3603,7 +3616,7 @@ export default function Home() {
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
                   <button className="secondary" onClick={() => openSaleModal(card)} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
                   {card.status === "Sold" && <button className="secondary" onClick={() => openRefundModal(card)} type="button" disabled={cardNetSoldPrice(card) <= 0}>{cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"}</button>}
-                  {card.status === "Sold" && <button className="secondary" onClick={() => reverseSoldToListed(card)} type="button">Move back to Listed</button>}
+                  {card.status === "Sold" && <button className="secondary" onClick={() => requestMoveBackToListed(card)} type="button">Move back to Listed</button>}
                   {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
@@ -3720,6 +3733,33 @@ export default function Home() {
         </section>
       )}
 
+
+      {confirmingMoveBackToListed && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Confirm move back to Listed">
+          <div className="modal panel moveBackListedModal">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow moveBackEyebrow">Move back to Listed</p>
+                <h2>Move {confirmingMoveBackToListed.name || "this card"} back to Listed?</h2>
+                <p className="muted">This will undo the sold status, clear the sale date/platform/price, and put the card back in your Listed inventory. Any sale HST or marketplace fee rows tied to this sale will be removed from expenses.</p>
+              </div>
+              <button className="secondary" type="button" onClick={() => setConfirmingMoveBackToListed(null)}>Cancel</button>
+            </div>
+            <div className="moveBackSummary">
+              <span>Current status: <strong>{confirmingMoveBackToListed.status}</strong></span>
+              <span>Net sold: <strong>{money(cardNetSoldPrice(confirmingMoveBackToListed))}</strong></span>
+              <span>Sold on: <strong>{confirmingMoveBackToListed.saleDate ? formatDateLabel(confirmingMoveBackToListed.saleDate) : "Not entered"}</strong></span>
+              <span>Platform: <strong>{confirmingMoveBackToListed.salePlatform || "Not entered"}</strong></span>
+              <span>Will become: <strong>Listed</strong></span>
+              <span>Sale expenses to remove: <strong>{expenses.filter((expense) => saleExpenseMatchesCard(expense, confirmingMoveBackToListed)).length}</strong></span>
+            </div>
+            <div className="confirmActions">
+              <button className="secondary" type="button" onClick={() => setConfirmingMoveBackToListed(null)}>Keep as Sold</button>
+              <button className="primary" type="button" onClick={confirmMoveBackToListed}>Yes, move back to Listed</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {confirmingClearListing && (
         <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Confirm clear listing">

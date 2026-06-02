@@ -341,6 +341,11 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .deleteSummary { border: 1px solid rgba(248,113,113,.22); background: rgba(15,23,42,.64); border-radius: 16px; padding: 14px; display: grid; gap: 8px; margin-bottom: 18px; }
 .deleteSummary span { color: var(--muted); }
 .deleteSummary strong { color: var(--text); }
+.moveBackListedModal { width: min(600px, 100%); border-color: rgba(103,232,249,.38); background: linear-gradient(145deg, rgba(5,18,29,.98), rgba(8,16,34,.98) 58%, rgba(6,43,47,.92)); box-shadow: 0 24px 80px rgba(0,0,0,.58), 0 0 34px rgba(103,232,249,.16), inset 0 1px 0 rgba(255,255,255,.08); }
+.moveBackEyebrow { color: var(--neon-green) !important; text-shadow: 0 0 16px rgba(57,255,156,.28) !important; }
+.moveBackSummary { border: 1px solid rgba(103,232,249,.24); background: rgba(8,16,34,.66); border-radius: 16px; padding: 14px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
+.moveBackSummary span { color: var(--muted); display: grid; gap: 3px; font-size: .8rem; font-weight: 800; }
+.moveBackSummary strong { color: var(--text); font-size: .98rem; }
 .confirmActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .confirmActions button { min-height: 44px; }
 

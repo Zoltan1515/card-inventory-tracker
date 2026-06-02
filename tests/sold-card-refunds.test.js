@@ -33,11 +33,18 @@ assert(page.includes('Net sold after this refund'), 'Refund modal should preview
 assert(page.includes('cardRefundTotal(card)'), 'Sold rows should show refunded amount.');
 assert(page.includes('parseCardRefunds(card.notes).map'), 'Sold rows should display refund history.');
 assert(page.includes('cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"'), 'Fully refunded cards should disable further refunds.');
+assert(page.includes('const [confirmingMoveBackToListed, setConfirmingMoveBackToListed] = useState<CardRecord | null>(null);'), 'Move back to Listed should use confirmation modal state.');
+assert(page.includes('const requestMoveBackToListed = (card: CardRecord) =>'), 'Sold cards should open a themed confirmation modal before moving back to Listed.');
+assert(page.includes('const confirmMoveBackToListed = async () =>'), 'Confirmation modal should have a proceed handler.');
 assert(page.includes('const reverseSoldToListed = async (card: CardRecord)'), 'Sold cards should have a reverse-to-listed handler.');
 assert(page.includes('status: "Listed",'), 'Reverse sale should move the card back to Listed.');
 assert(page.includes('saleDate: "",') && page.includes('salePlatform: "",') && page.includes('soldPrice: 0,'), 'Reverse sale should clear sold fields so dashboard revenue updates.');
 assert(page.includes('setStatusFilter("Listed")'), 'Reverse sale should take the user back to the Listed tab.');
+assert(page.includes('onClick={() => requestMoveBackToListed(card)}'), 'Move back to Listed button should open confirmation, not immediately change status.');
 assert(page.includes('Move back to Listed'), 'Sold card rows should expose a Move back to Listed action.');
+assert(page.includes('Confirm move back to Listed'), 'Move back to Listed modal should be accessible and clearly labeled.');
+assert(page.includes('Yes, move back to Listed'), 'Move back to Listed modal should require a clear proceed action.');
+assert(page.includes('onClick={confirmMoveBackToListed}'), 'Move back to Listed modal should call the proceed handler only after confirmation.');
 assert(page.includes('saleExpenseMatchesCard'), 'Reverse sale should identify sale expense rows tied to the sale.');
 assert(page.includes('for (const expense of saleExpensesToRemove) await deleteExpense(expense);'), 'Reverse sale should remove matching sale HST/fee expense rows from reports.');
 
@@ -45,5 +52,7 @@ assert(csv.includes('["refundTotal", "Refund Total"]'), 'Sales CSV should includ
 assert(csv.includes('["netSoldPrice", "Net Sold Price"]'), 'Sales CSV should include net sold amount.');
 assert(css.includes('.refundModal'), 'Refund modal should have themed styling.');
 assert(css.includes('.refundSummaryGrid'), 'Refund summary should have themed styling.');
+assert(css.includes('.moveBackListedModal'), 'Move back to Listed confirmation should have themed modal styling.');
+assert(css.includes('.moveBackSummary'), 'Move back to Listed confirmation should have themed summary styling.');
 
 console.log('Sold card refund checks passed.');
