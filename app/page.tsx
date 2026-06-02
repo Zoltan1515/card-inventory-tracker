@@ -2,7 +2,7 @@
 
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { CardRecord, CardStatus, CashAdjustmentRecord, ExpenseCategory, ExpenseRecord, GradingSubmission, cardProfit, cardPurchaseCost, cardQuantity, cardRoi, emptyCard, emptyCashAdjustment, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, percent } from "@/lib/card";
+import { CardRecord, CardStatus, CashAdjustmentRecord, ExpenseCategory, ExpenseRecord, GradingSubmission, appendCardRefundNote, cardNetSoldPrice, cardProfit, cardPurchaseCost, cardQuantity, cardRefundTotal, cardRoi, emptyCard, emptyCashAdjustment, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, parseCardRefunds, percent } from "@/lib/card";
 import { cardsToCsv, ebayListingsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, cashAdjustmentToInsert, cashAdjustmentToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToCashAdjustment, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
@@ -54,6 +54,7 @@ type CsvRow = Record<string, string>;
 type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string };
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string };
+type RefundDraft = { amount: string; refundDate: string; note: string };
 type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
@@ -172,6 +173,7 @@ const cardGradeValue = (card: Pick<CardRecord, "grade" | "notes">) => card.grade
 const cardGradingCompanyValue = (card: Pick<CardRecord, "gradingCompany" | "notes">) => card.gradingCompany || card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grader:"))?.replace(/^grader:\s*/i, "").trim() || "";
 const emptyInventoryExpenseDraft = (): InventoryExpenseDraft => ({ shipping: "", hst: "", duties: "" });
 const emptySaleExpenseDraft = (): SaleExpenseDraft => ({ hst: "", fees: "" });
+const emptyRefundDraft = (): RefundDraft => ({ amount: "", refundDate: todayIso(), note: "" });
 const expenseDraftAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
 const inventoryExpenseAmount = expenseDraftAmount;
 const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
@@ -541,6 +543,8 @@ export default function Home() {
   const [dashboardCashEntryAutoOpened, setDashboardCashEntryAutoOpened] = useState(false);
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);
+  const [refundingCard, setRefundingCard] = useState<CardRecord | null>(null);
+  const [refundDraft, setRefundDraft] = useState<RefundDraft>(emptyRefundDraft());
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
@@ -906,7 +910,7 @@ export default function Home() {
         case "lowest-purchase":
           return a.purchasePrice - b.purchasePrice;
         case "highest-sold":
-          return b.soldPrice - a.soldPrice;
+          return cardNetSoldPrice(b) - cardNetSoldPrice(a);
         case "highest-profit":
           return cardProfit(b) - cardProfit(a);
         case "name-az":
@@ -946,7 +950,7 @@ export default function Home() {
     const soldCards = cards.filter(soldInRange);
     const inventoryCostCards = cards.filter(purchasedInRange);
     const filteredExpenses = expenses.filter(expenseInRange);
-    const revenue = soldCards.reduce((sum, card) => sum + card.soldPrice, 0);
+    const revenue = soldCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0);
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const listedInventoryCost = listedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
@@ -1136,7 +1140,7 @@ export default function Home() {
   };
   const isSoldInventoryView = statusFilter === "Sold";
   const activeInventoryMainView: InventoryMainView = statusFilter === "Listed" ? "Listed" : "Not Listed";
-  const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + card.soldPrice, 0) : 0;
+  const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0) : 0;
   const soldViewCost = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0) : 0;
   const soldViewProfit = soldViewRevenue - soldViewCost;
 
@@ -1155,7 +1159,7 @@ export default function Home() {
   }, [cards, topSoldMode, topSoldMonth]);
   const mostExpensiveSoldCard = topSoldCandidates.reduce<CardRecord | null>((best, card) => {
     if (!best) return card;
-    return card.soldPrice > best.soldPrice ? card : best;
+    return cardNetSoldPrice(card) > cardNetSoldPrice(best) ? card : best;
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
@@ -1953,6 +1957,50 @@ export default function Home() {
     }
   };
 
+  const openRefundModal = (card: CardRecord) => {
+    const remainingRefundable = cardNetSoldPrice(card);
+    setRefundingCard(card);
+    setRefundDraft({ amount: remainingRefundable > 0 ? String(remainingRefundable) : "", refundDate: todayIso(), note: "" });
+  };
+
+  const closeRefundModal = () => {
+    setRefundingCard(null);
+    setRefundDraft(emptyRefundDraft());
+  };
+
+  const saveRefund = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!refundingCard) return;
+    setError("");
+    setNotice("");
+    const currentCard = cards.find((card) => card.id === refundingCard.id) || refundingCard;
+    const remainingRefundable = cardNetSoldPrice(currentCard);
+    const refundAmount = Math.max(0, Number(refundDraft.amount || 0) || 0);
+    if (refundAmount <= 0) {
+      setError("Enter a refund amount greater than $0.");
+      return;
+    }
+    if (refundAmount > remainingRefundable) {
+      setError(`Refund amount cannot be more than the remaining sold amount (${money(remainingRefundable)}).`);
+      return;
+    }
+    const now = new Date().toISOString();
+    const refundedCard: CardRecord = {
+      ...currentCard,
+      notes: appendCardRefundNote(currentCard.notes, refundAmount, refundDraft.refundDate || todayIso(), refundDraft.note),
+      updatedAt: now,
+      updatedBy: currentUsername,
+    };
+    const ok = await updateCard(refundedCard);
+    if (ok) {
+      const totalRefunded = cardRefundTotal(refundedCard);
+      setNotice(`${money(refundAmount)} refund recorded for ${refundedCard.name}. Net sold amount is now ${money(cardNetSoldPrice(refundedCard))}.`);
+      closeRefundModal();
+      setTab("inventory");
+      if (totalRefunded >= refundedCard.soldPrice) setStatusFilter("Sold");
+    }
+  };
+
   const saveExpense = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -2683,7 +2731,7 @@ export default function Home() {
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
           </div>
-          <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} sold for ${money(mostExpensiveSoldCard.soldPrice)}` : "Top sold card placeholder"}>
+          <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} sold for ${money(cardNetSoldPrice(mostExpensiveSoldCard))}` : "Top sold card placeholder"}>
             <div className="slabControls" aria-label="Top sold card period">
               <button className={topSoldMode === "all" ? "active" : ""} type="button" onClick={() => setTopSoldMode("all")}>All time</button>
               <button className={topSoldMode === "month" ? "active" : ""} type="button" onClick={() => setTopSoldMode("month")}>Month</button>
@@ -2700,7 +2748,7 @@ export default function Home() {
             <div className="slabBase">
               {mostExpensiveSoldCard ? (
                 <>
-                  <strong>{money(mostExpensiveSoldCard.soldPrice)}</strong>
+                  <strong>{money(cardNetSoldPrice(mostExpensiveSoldCard))}</strong>
                   <small>{mostExpensiveSoldCard.name}</small>
                   <small>Sold {formatDateLabel(mostExpensiveSoldCard.saleDate) || "date not set"}</small>
                 </>
@@ -3400,7 +3448,7 @@ export default function Home() {
           {isSoldInventoryView && (
             <section className="statsGrid soldInventoryStats" aria-label="Sold inventory totals">
               <Stat label="Sold cards shown" value={String(filteredInventoryQuantity)} />
-              <Stat label="Sold amount shown" value={money(soldViewRevenue)} tone="positive" />
+              <Stat label="Net sold amount shown" value={money(soldViewRevenue)} tone="positive" />
               <Stat label="Original cost shown" value={money(soldViewCost)} />
               <Stat label="Profit from shown sold cards" value={money(soldViewProfit)} tone={soldViewProfit >= 0 ? "positive" : "negative"} />
             </section>
@@ -3456,10 +3504,18 @@ export default function Home() {
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
-                      <div className="saleSnapshot" aria-label={`Sold for ${money(card.soldPrice)} on ${card.salePlatform || "unknown platform"}`}>
+                      <div className="saleSnapshot" aria-label={`Sold for ${money(cardNetSoldPrice(card))} on ${card.salePlatform || "unknown platform"}`}>
                         <div>
-                          <small>Sold price</small>
+                          <small>Net sold</small>
+                          <strong>{money(cardNetSoldPrice(card))}</strong>
+                        </div>
+                        <div>
+                          <small>Original sold</small>
                           <strong>{money(card.soldPrice)}</strong>
+                        </div>
+                        <div>
+                          <small>Refunded</small>
+                          <strong>{money(cardRefundTotal(card))}</strong>
                         </div>
                         <div>
                           <small>Sold date</small>
@@ -3474,6 +3530,7 @@ export default function Home() {
                         <span>Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} × ${money(card.purchasePrice)})` : ""}</span>
                         <span>Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}</span>
                         <span>Sold {formatDateTimeLabel(card.soldAt || card.updatedAt)} by {actorLabel(card.soldBy || card.updatedBy, currentUsername)}</span>
+                        {parseCardRefunds(card.notes).map((refund, index) => <span key={`${card.id}-refund-${index}`}>Refunded {money(refund.amount)}{refund.refundDate ? ` on ${formatDateLabel(refund.refundDate)}` : ""}{refund.note ? ` • ${refund.note}` : ""}</span>)}
                       </div>
                     </>
                   ) : (
@@ -3495,8 +3552,8 @@ export default function Home() {
                   )}
                 </div>
                 <div className="rowMoney">
-                  <span>{money(card.status === "Sold" ? card.soldPrice : card.purchasePrice)}</span>
-                  <small>{card.status === "Sold" ? cardQuantity(card) > 1 ? `sold total • ${cardQuantity(card)}` : "sold" : cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
+                  <span>{money(card.status === "Sold" ? cardNetSoldPrice(card) : card.purchasePrice)}</span>
+                  <small>{card.status === "Sold" ? cardRefundTotal(card) > 0 ? `net sold • refunded ${money(cardRefundTotal(card))}` : cardQuantity(card) > 1 ? `net sold total • ${cardQuantity(card)}` : "net sold" : cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
                 </div>
                 {!isSoldInventoryView && (
                   <div className="inventoryControls">
@@ -3508,6 +3565,7 @@ export default function Home() {
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
                   <button className="secondary" onClick={() => openSaleModal(card)} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
+                  {card.status === "Sold" && <button className="secondary" onClick={() => openRefundModal(card)} type="button" disabled={cardNetSoldPrice(card) <= 0}>{cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"}</button>}
                   {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
                 </div>
               </article>
@@ -3881,6 +3939,39 @@ export default function Home() {
                 })}
               </div>
               <button className="primary full" type="submit">Mark order returned</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {refundingCard && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Record refund">
+          <form className="modal panel refundModal" onSubmit={saveRefund}>
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Refund sale</p>
+                <h2>{refundingCard.name}</h2>
+                <p className="muted">Record a full or partial refund. Dashboard sold revenue, cash, and sold-card profit will use the net sold amount.</p>
+              </div>
+              <button className="secondary" type="button" onClick={closeRefundModal}>Cancel</button>
+            </div>
+            <div className="refundSummaryGrid full">
+              <span>Original sale <strong>{money(refundingCard.soldPrice)}</strong></span>
+              <span>Already refunded <strong>{money(cardRefundTotal(refundingCard))}</strong></span>
+              <span>Remaining refundable <strong>{money(cardNetSoldPrice(refundingCard))}</strong></span>
+            </div>
+            <div className="formGrid simpleForm">
+              <Field label="Refund amount" type="number" value={refundDraft.amount} onChange={(v) => setRefundDraft((draft) => ({ ...draft, amount: v }))} required />
+              <Field label="Refund date" type="date" value={refundDraft.refundDate} onChange={(v) => setRefundDraft((draft) => ({ ...draft, refundDate: v }))} required />
+              <Field label="Reason / note" value={refundDraft.note} onChange={(v) => setRefundDraft((draft) => ({ ...draft, note: v }))} placeholder="Return, damage, partial goodwill..." />
+              <div className="rowActions full refundQuickActions">
+                <button className="secondary" type="button" onClick={() => setRefundDraft((draft) => ({ ...draft, amount: String(cardNetSoldPrice(refundingCard)) }))}>Refund full remaining amount</button>
+                <button className="secondary" type="button" onClick={() => setRefundDraft((draft) => ({ ...draft, amount: "" }))}>Enter partial amount</button>
+              </div>
+              <div className="calc full">
+                <span>Net sold after this refund: <strong className={Math.max(0, cardNetSoldPrice(refundingCard) - (Number(refundDraft.amount || 0) || 0)) >= 0 ? "positive" : "negative"}>{money(Math.max(0, cardNetSoldPrice(refundingCard) - (Number(refundDraft.amount || 0) || 0)))}</strong></span>
+              </div>
+              <button className="primary full" type="submit">Save refund</button>
             </div>
           </form>
         </div>

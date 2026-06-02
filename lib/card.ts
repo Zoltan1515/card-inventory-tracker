@@ -36,6 +36,12 @@ export type CardRecord = {
   updatedBy: string;
 };
 
+export type CardRefund = {
+  amount: number;
+  refundDate: string;
+  note: string;
+};
+
 export type ExpenseCategory = "HST" | "Marketplace Fees" | "Duties" | "Grading Fees" | "Shipping" | "Card Show Table" | "Supplies" | "Gas" | "Airfare" | "Other";
 
 export type ExpenseRecord = {
@@ -185,7 +191,30 @@ export const cardQuantity = (card: Pick<CardRecord, "quantity">) => Math.max(1, 
 
 export const cardPurchaseCost = (card: Pick<CardRecord, "purchasePrice" | "quantity">) => card.purchasePrice * cardQuantity(card);
 
-export const cardProfit = (card: CardRecord) => card.soldPrice - cardPurchaseCost(card);
+export const parseCardRefunds = (notes = ""): CardRefund[] => notes
+  .split("\n")
+  .map((line) => line.trim())
+  .filter((line) => line.startsWith("Refund: "))
+  .map((line) => {
+    const [amountText = "0", refundDate = "", note = ""] = line.replace(/^Refund:\s*/, "").split(" | ");
+    return {
+      amount: Math.max(0, Number(amountText.replace(/[^0-9.-]/g, "")) || 0),
+      refundDate,
+      note,
+    };
+  })
+  .filter((refund) => refund.amount > 0);
+
+export const cardRefundTotal = (card: Pick<CardRecord, "notes" | "soldPrice">) => Math.min(card.soldPrice, parseCardRefunds(card.notes).reduce((sum, refund) => sum + refund.amount, 0));
+
+export const cardNetSoldPrice = (card: Pick<CardRecord, "notes" | "soldPrice">) => Math.max(0, card.soldPrice - cardRefundTotal(card));
+
+export const appendCardRefundNote = (notes: string, amount: number, refundDate: string, note = "") => [
+  notes.trim(),
+  `Refund: ${Math.max(0, amount).toFixed(2)} | ${refundDate} | ${note.trim()}`.trim(),
+].filter(Boolean).join("\n");
+
+export const cardProfit = (card: CardRecord) => cardNetSoldPrice(card) - cardPurchaseCost(card);
 
 export const listedPotentialProfit = (card: CardRecord) => (card.askingPrice - card.purchasePrice) * cardQuantity(card);
 

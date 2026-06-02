@@ -1,5 +1,5 @@
 import type { CardRecord, ExpenseRecord } from "./card";
-import { cardProfit, cardPurchaseCost, cardQuantity, listedPotentialProfit } from "./card";
+import { cardNetSoldPrice, cardProfit, cardPurchaseCost, cardQuantity, cardRefundTotal, listedPotentialProfit } from "./card";
 
 export type ProfitSummaryCsvInput = {
   periodLabel: string;
@@ -42,7 +42,7 @@ const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["notes", "Notes"],
 ];
 
-const salesHeaders: Array<[keyof CardRecord | "profitBeforeExpenses", string]> = [
+const salesHeaders: Array<[keyof CardRecord | "refundTotal" | "netSoldPrice" | "profitBeforeExpenses", string]> = [
   ["name", "Name"],
   ["category", "Category"],
   ["year", "Year"],
@@ -53,7 +53,9 @@ const salesHeaders: Array<[keyof CardRecord | "profitBeforeExpenses", string]> =
   ["purchasePrice", "Purchase Price"],
   ["saleDate", "Sale Date"],
   ["salePlatform", "Sale Platform"],
-  ["soldPrice", "Sold Price"],
+  ["soldPrice", "Original Sold Price"],
+  ["refundTotal", "Refund Total"],
+  ["netSoldPrice", "Net Sold Price"],
   ["profitBeforeExpenses", "Profit Before Expenses"],
 ];
 
@@ -95,7 +97,12 @@ export const cardsToCsv = (cards: CardRecord[]) => {
 
 export const salesToCsv = (cards: CardRecord[]) => {
   const head = salesHeaders.map(([, label]) => label);
-  const rows = cards.map((card) => salesHeaders.map(([key]) => (key === "profitBeforeExpenses" ? cardProfit(card) : card[key])));
+  const rows = cards.map((card) => salesHeaders.map(([key]) => {
+    if (key === "profitBeforeExpenses") return cardProfit(card);
+    if (key === "refundTotal") return cardRefundTotal(card);
+    if (key === "netSoldPrice") return cardNetSoldPrice(card);
+    return card[key as keyof CardRecord];
+  }));
   return csvRows([head, ...rows]);
 };
 
