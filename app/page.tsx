@@ -43,6 +43,7 @@ type ListedReviewItem = {
   referenceDate: string;
   tone: "current" | "warning" | "urgent";
 };
+type ListingReviewBucket = "current" | "warning" | "urgent" | "all";
 type ImportCardPreview = {
   id: string;
   sourceRow: number;
@@ -585,6 +586,7 @@ export default function Home() {
   const [inventoryEndDate, setInventoryEndDate] = useState("");
   const [inventorySort, setInventorySort] = useState<InventorySort>("newest-purchase");
   const [inventoryFiltersOpen, setInventoryFiltersOpen] = useState(false);
+  const [activeListingReviewBucket, setActiveListingReviewBucket] = useState<ListingReviewBucket | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -1064,6 +1066,16 @@ export default function Home() {
     warning: listingReviewGroups.warning.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
     urgent: listingReviewGroups.urgent.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
   };
+  const activeListingReviewItems = activeListingReviewBucket === "current" ? listingReviewGroups.current
+    : activeListingReviewBucket === "warning" ? listingReviewGroups.warning
+    : activeListingReviewBucket === "urgent" ? listingReviewGroups.urgent
+    : activeListingReviewBucket === "all" ? listingReviewItems
+    : [];
+  const activeListingReviewLabel = activeListingReviewBucket === "current" ? "Current listings (0–30 days)"
+    : activeListingReviewBucket === "warning" ? "Review soon (30–60 days)"
+    : activeListingReviewBucket === "urgent" ? "Urgent review (60+ days)"
+    : activeListingReviewBucket === "all" ? "Total listed asking"
+    : "";
 
   const cardById = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
   const openGradingSubmissions = useMemo(() => gradingSubmissions.filter((submission) => submission.status === "At Grading"), [gradingSubmissions]);
@@ -3281,47 +3293,60 @@ export default function Home() {
             <div>
               <p className="eyebrow">Listing Review</p>
               <h2>{listingReviewItems.length ? `${listingReviewItems.length} listed cards` : "No listed cards yet"}</h2>
-              <p className="muted">Cards listed 30–60 days are highlighted for review. Cards listed 60+ days are urgent.</p>
+              <p className="muted">Use the date buckets as the focus. Listings stay hidden until you click a dollar amount below.</p>
             </div>
             <button className="secondary" type="button" onClick={showActiveInventory}>Open inventory</button>
           </div>
           <section className="statsGrid listingReviewStats" aria-label="Listing review summary">
-            <Stat label={`Current listings (0–30 days) • ${listingReviewCounts.current} cards`} value={money(listingReviewAskingTotals.current)} />
-            <Stat label={`Review soon (30–60 days) • ${listingReviewCounts.warning} cards`} value={money(listingReviewAskingTotals.warning)} tone={listingReviewCounts.warning ? "warning" : undefined} />
-            <Stat label={`Urgent review (60+ days) • ${listingReviewCounts.urgent} cards`} value={money(listingReviewAskingTotals.urgent)} tone={listingReviewCounts.urgent ? "negative" : undefined} />
-            <Stat label="Total Listed Asking" value={money(listedValue)} />
+            <Stat label={`0–30 days listed • ${listingReviewCounts.current} cards`} value={money(listingReviewAskingTotals.current)} active={activeListingReviewBucket === "current"} onClick={() => setActiveListingReviewBucket(activeListingReviewBucket === "current" ? null : "current")} />
+            <Stat label={`30–60 days listed • ${listingReviewCounts.warning} cards`} value={money(listingReviewAskingTotals.warning)} tone={listingReviewCounts.warning ? "warning" : undefined} active={activeListingReviewBucket === "warning"} onClick={() => setActiveListingReviewBucket(activeListingReviewBucket === "warning" ? null : "warning")} />
+            <Stat label={`60+ days listed • ${listingReviewCounts.urgent} cards`} value={money(listingReviewAskingTotals.urgent)} tone={listingReviewCounts.urgent ? "negative" : undefined} active={activeListingReviewBucket === "urgent"} onClick={() => setActiveListingReviewBucket(activeListingReviewBucket === "urgent" ? null : "urgent")} />
+            <Stat label={`Total listed asking • ${listingReviewItems.length} cards`} value={money(listedValue)} active={activeListingReviewBucket === "all"} onClick={() => setActiveListingReviewBucket(activeListingReviewBucket === "all" ? null : "all")} />
           </section>
-          <div className="cardsList listingReviewList">
-            {listingReviewItems.map(({ card, age, referenceDate, tone }) => (
-              <article className={`cardRow compactRow listingReviewRow ${tone}`} key={card.id}>
+          {activeListingReviewBucket ? (
+            <div className="listingReviewDetail">
+              <div className="listingReviewDetailHeader">
                 <div>
-                  <div className="rowTitle">
-                    <strong>{card.name || "Unnamed card"}</strong>
-                    <span className={`listingAgeBadge ${tone}`}>{age} days listed</span>
-                  </div>
-                  <p className="muted">
-                    Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{listingPlatformLabel(card) ? ` • ${listingPlatformLabel(card)}` : ""}
-                  </p>
-                  <p className="muted">
-                    Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
-                  </p>
-                  {activeGradingCardIds.has(card.id) && (
-                    <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
-                  )}
-                  {card.status === "Listed" && (
-                    <div className="listingLinkRow">
-                      {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
-                      <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
+                  <h3>{activeListingReviewLabel}</h3>
+                  <p className="muted">Showing {activeListingReviewItems.length} cards for this date bucket.</p>
+                </div>
+                <button className="secondary" type="button" onClick={() => setActiveListingReviewBucket(null)}>Hide listings</button>
+              </div>
+              <div className="cardsList listingReviewList">
+                {activeListingReviewItems.map(({ card, age, referenceDate, tone }) => (
+                  <article className={`cardRow compactRow listingReviewRow ${tone}`} key={card.id}>
+                    <div>
+                      <div className="rowTitle">
+                        <strong>{card.name || "Unnamed card"}</strong>
+                        <span className={`listingAgeBadge ${tone}`}>{age} days listed</span>
+                      </div>
+                      <p className="muted">
+                        Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{listingPlatformLabel(card) ? ` • ${listingPlatformLabel(card)}` : ""}
+                      </p>
+                      <p className="muted">
+                        Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
+                      </p>
+                      {activeGradingCardIds.has(card.id) && (
+                        <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
+                      )}
+                      {card.status === "Listed" && (
+                        <div className="listingLinkRow">
+                          {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
+                          <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="rowActions">
-                  <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit card</button>
-                </div>
-              </article>
-            ))}
-            {!listingReviewItems.length && <p className="empty">No cards are currently marked Listed.</p>}
-          </div>
+                    <div className="rowActions">
+                      <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit card</button>
+                    </div>
+                  </article>
+                ))}
+                {!activeListingReviewItems.length && <p className="empty">No cards in this date bucket.</p>}
+              </div>
+            </div>
+          ) : (
+            <p className="empty listingReviewPrompt">Pick a dollar amount above to open that date bucket. All individual listings are hidden until then.</p>
+          )}
         </section>
       )}
 
@@ -4336,8 +4361,17 @@ function DateFilterControls({
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "positive" | "negative" | "warning" }) {
-  return <div className="stat"><span>{label}</span><strong className={tone}>{value}</strong></div>;
+function Stat({ label, value, tone, onClick, active = false }: { label: string; value: string; tone?: "positive" | "negative" | "warning"; onClick?: () => void; active?: boolean }) {
+  const className = active ? "stat clickableStat activeStat" : onClick ? "stat clickableStat" : "stat";
+  if (onClick) {
+    return (
+      <button className={className} type="button" onClick={onClick} aria-pressed={active}>
+        <span>{label}</span>
+        <strong className={tone}>{value}</strong>
+      </button>
+    );
+  }
+  return <div className={className}><span>{label}</span><strong className={tone}>{value}</strong></div>;
 }
 
 function ProfitStatusSection({
