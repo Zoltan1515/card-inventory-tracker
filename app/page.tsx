@@ -3681,14 +3681,23 @@ export default function Home() {
             ))}
           </section>
 
-          <form className="formGrid expenseForm" id="expense-form" onSubmit={saveExpense}>
-            <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
-            <Field label="Amount" type="number" value={String(activeExpense.amount)} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} required />
-            <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} required />
-            <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
-            <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
-            <button className="primary" type="submit">{editingExpenseId ? "Save expense" : "Add expense"}</button>
-          </form>
+          <section className="addExpenseCard" aria-labelledby="add-expense-heading">
+            <div className="addExpenseHeader">
+              <div>
+                <p className="eyebrow">Add expense</p>
+                <h3 id="add-expense-heading">Log a new cost</h3>
+              </div>
+              <span>Separate from expense history</span>
+            </div>
+            <form className="formGrid expenseForm" id="expense-form" onSubmit={saveExpense}>
+              <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
+              <Field label="Amount" type="number" value={String(activeExpense.amount)} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} required />
+              <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} required />
+              <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
+              <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
+              <button className="primary" type="submit">{editingExpenseId ? "Save expense" : "Add expense"}</button>
+            </form>
+          </section>
 
           <div className="expenseList">
             {totals.filteredExpenses.map((expense) => (
