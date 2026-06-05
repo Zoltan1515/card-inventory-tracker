@@ -1176,9 +1176,9 @@ export default function Home() {
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
+    { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
     { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
     { id: "glance", tab: "glance", label: "At a Glance", subtitle: money(totals.cash), apply: () => showDashboardTab("glance", "at-a-glance-panel") },
-    { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
     { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
     { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal, apply: () => showDashboardTab("listingReview", "listing-review-panel") },
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
@@ -2888,7 +2888,7 @@ export default function Home() {
         </div>
         <nav className="navBar quickActionGrid" aria-label="Main navigation">
           {dashboardActions.map((action) => (
-            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} key={action.id} onClick={() => action.apply ? action.apply() : setTab(action.tab)} subtitle={action.subtitle}>
+            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} featured={action.id === "add"} key={action.id} onClick={() => action.apply ? action.apply() : setTab(action.tab)} subtitle={action.subtitle}>
               {action.label}
             </NavButton>
           ))}
@@ -4311,9 +4311,10 @@ function AuthPanel() {
   );
 }
 
-function NavButton({ active, onClick, children, subtitle, badge }: { active: boolean; onClick: () => void; children: React.ReactNode; subtitle?: string; badge?: number }) {
+function NavButton({ active, onClick, children, subtitle, badge, featured = false }: { active: boolean; onClick: () => void; children: React.ReactNode; subtitle?: string; badge?: number; featured?: boolean }) {
+  const className = ["navButton", active ? "active" : "", featured ? "featuredNavButton" : ""].filter(Boolean).join(" ");
   return (
-    <button className={active ? "navButton active" : "navButton"} type="button" onClick={onClick}>
+    <button className={className} type="button" onClick={onClick}>
       <span className="navText"><strong>{children}</strong>{subtitle && <small>{subtitle}</small>}</span>
       {!!badge && <span className="navBadge">{badge}</span>}
     </button>

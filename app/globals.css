@@ -438,6 +438,9 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .quickActionsHeader .eyebrow { margin-bottom: 12px; color: var(--neon-green); text-shadow: 0 0 16px rgba(57,255,156,.28); }
 .quickActionGrid.navBar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: transparent; border: 0; box-shadow: none; padding: 0; margin: 0; }
 .quickActionGrid .navButton { position: relative; min-height: 84px; display: grid; align-items: center; gap: 6px; padding: 16px; border: 1px solid rgba(103,232,249,.28); background: #041a22; text-align: left; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.quickActionGrid .featuredNavButton { border-color: rgba(57,255,156,.78); background: radial-gradient(circle at 16% 12%, rgba(57,255,156,.24), transparent 34%), linear-gradient(145deg, rgba(57,255,156,.18), rgba(103,232,249,.1)); box-shadow: 0 0 28px rgba(57,255,156,.18), inset 0 1px 0 rgba(255,255,255,.1); color: var(--text); }
+.quickActionGrid .featuredNavButton strong { color: var(--neon-green); text-shadow: 0 0 16px rgba(57,255,156,.28); }
+.quickActionGrid .featuredNavButton small { color: rgba(229,244,255,.9); }
 .navText { display: grid; gap: 3px; }
 .navText small { color: var(--muted); font-size: .72rem; font-weight: 700; }
 .navBadge { position: absolute; top: -8px; right: -6px; min-width: 25px; height: 25px; display: grid; place-items: center; border-radius: 999px; background: rgba(57,255,156,.16); border: 1px solid rgba(57,255,156,.5); color: var(--neon-green); box-shadow: 0 0 16px rgba(57,255,156,.22); font-size: .8rem; font-weight: 1000; }
