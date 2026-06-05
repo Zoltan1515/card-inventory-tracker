@@ -137,7 +137,6 @@ button.stat { color: var(--text); text-align: left; }
 .addExpenseHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; margin-bottom: 14px; }
 .addExpenseHeader h3 { margin: 0; font-size: 1.35rem; }
 .addExpenseHeader .eyebrow { margin-bottom: 6px; color: var(--neon-green); }
-.addExpenseHeader span { border: 1px solid rgba(57,255,156,.32); border-radius: 999px; color: var(--neon-green); background: rgba(57,255,156,.1); padding: 6px 10px; font-size: .74rem; font-weight: 900; white-space: nowrap; }
 .addExpenseCard .expenseForm { margin: 0; }
 .addExpenseCard input, .addExpenseCard select { background: rgba(3,10,20,.9); border-color: rgba(103,232,249,.28); }
 label { display: grid; gap: 7px; color: var(--muted); font-size: .86rem; font-weight: 700; }
@@ -571,7 +570,6 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .attentionItem span { text-align: left; }
   .filters, .customDateRange { flex-direction: column; display: flex; }
   .addExpenseHeader { flex-direction: column; }
-  .addExpenseHeader span { white-space: normal; width: 100%; text-align: center; }
   .addExpenseCard { padding: 14px; border-radius: 18px; }
   .bottomMobileNav { position: fixed; left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 15; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 4px; padding: 8px; border: 1px solid rgba(103,232,249,.24); border-radius: 22px; background: rgba(3,7,18,.86); backdrop-filter: blur(16px); box-shadow: 0 -10px 38px rgba(0,0,0,.44), 0 0 22px rgba(103,232,249,.12); }
   .bottomMobileNav button { border: 0; background: transparent; color: var(--muted); display: grid; gap: 3px; justify-items: center; font-size: .8rem; padding: 4px 2px; }

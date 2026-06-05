@@ -3687,7 +3687,6 @@ export default function Home() {
                 <p className="eyebrow">Add expense</p>
                 <h3 id="add-expense-heading">Log a new cost</h3>
               </div>
-              <span>Separate from expense history</span>
             </div>
             <form className="formGrid expenseForm" id="expense-form" onSubmit={saveExpense}>
               <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
