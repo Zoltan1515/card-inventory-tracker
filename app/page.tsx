@@ -3094,8 +3094,8 @@ export default function Home() {
           <section className="cashEntryPanel noPrint" aria-label="Add cash on hand">
             <div>
               <p className="eyebrow">Cash on hand</p>
-              <h3>Add starting cash or cash adjustments</h3>
-              <p className="muted">Use this for money you already had before buying cards, extra owner cash added later, or cash removed from the business.</p>
+              <h3>Add starting cash or owner cash</h3>
+              <p className="muted">Use this only for money put into or taken out of the business. Do not use it for card purchases — purchase price on Add Inventory already subtracts from cash.</p>
             </div>
             <form className="formGrid simpleForm" onSubmit={saveCashAdjustment}>
               <Select label="Cash type" value={activeCashAdjustment.adjustmentType} options={["Starting Cash", "Cash Added", "Cash Removed"]} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentType: v as CashAdjustmentRecord["adjustmentType"] })} required />
@@ -3248,6 +3248,7 @@ export default function Home() {
                 <Field label="Duties" type="number" value={inventoryExpenseDraft.duties} onChange={(v) => setInventoryExpenseDraft((draft) => ({ ...draft, duties: v }))} />
               </div>
               <p className="muted">Expense total: <strong>{money(inventoryExpenseTotal)}</strong></p>
+              <p className="muted cashImpactNote">Cash impact when saved: purchase cost {money(cardPurchaseCost(activeCard))} + linked expenses {money(inventoryExpenseTotal)} = <strong>{money(cardPurchaseCost(activeCard) + inventoryExpenseTotal)}</strong>. Do not add the purchase price again as a cash entry.</p>
             </div>
             <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Add to inventory"}</button>
           </form>

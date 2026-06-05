@@ -333,6 +333,8 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .gradingOrderDetail { border-top: 1px solid var(--line); padding: 16px; display: grid; gap: 14px; }
 .splitList { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(15,23,42,.45); display: grid; gap: 12px; }
 .splitList > strong { color: var(--text); }
+.cashImpactNote { border: 1px solid rgba(57,255,156,.28); border-radius: 12px; padding: 10px 12px; background: rgba(57,255,156,.07); }
+.cashImpactNote strong { color: var(--neon-green); }
 .splitCard { border: 1px solid rgba(148,163,184,.18); border-radius: 14px; padding: 12px; display: grid; gap: 10px; background: rgba(8,15,28,.42); }
 .splitRow { display: grid; grid-template-columns: minmax(82px, 110px) minmax(160px, 1fr) auto; gap: 10px; align-items: end; }
 .miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
