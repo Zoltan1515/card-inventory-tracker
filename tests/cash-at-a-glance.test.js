@@ -32,7 +32,9 @@ assert(!page.includes('aria-label="Report breakdown"'), 'At a Glance should not 
 assert(page.includes('onClick={() => window.print()}'), 'At a Glance should include print action.');
 assert(page.includes('saveCashAdjustment'), 'Cash entry save handler should exist.');
 assert(page.includes('id="dashboard-cash-entry"'), 'Dashboard should expose a front-page cash entry form, not hide it only in At a Glance.');
-assert(page.includes('Enter starting cash or cash added'), 'Dashboard cash entry should be clearly labeled for starting cash.');
+assert(page.includes('Enter actual business cash'), 'Dashboard cash entry should be clearly labeled for actual business cash.');
+assert(page.includes('Only use this feature to add actual cash to your business or record cash removed.'), 'Dashboard cash entry should explain this is only for real cash added or removed.');
+assert(page.includes('Purchases subtract automatically and sales add automatically.'), 'Collapsed dashboard cash entry should explain automatic purchase and sale cash movement.');
 assert(page.includes('dashboardCashEntryOpen'), 'Dashboard cash entry should be collapsible instead of always taking up the full dashboard.');
 assert(page.includes('dashboardCashEntryAutoOpened') && page.includes('!cashAdjustments.length'), 'Cash entry should auto-open the first time before any cash entries exist.');
 assert(page.includes('aria-expanded={dashboardCashEntryOpen}'), 'Cash entry toggle should expose expanded/collapsed state accessibly.');

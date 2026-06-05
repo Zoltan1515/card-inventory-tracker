@@ -2859,15 +2859,15 @@ export default function Home() {
             <span>
               <span className="eyebrow">Cash on hand</span>
               <strong>{cashAdjustments.length ? "Add or adjust cash" : "Enter starting cash"}</strong>
-              <small>{dashboardCashEntryOpen ? "Collapse this form after adding cash." : `Current cash: ${money(totals.cash)}. Tap to add or edit cash.`}</small>
+              <small>{dashboardCashEntryOpen ? "Only use this for actual cash added to or removed from the business." : `Current cash: ${money(totals.cash)}. Purchases subtract automatically and sales add automatically.`}</small>
             </span>
             <span className="cashEntryToggleIcon" aria-hidden="true">{dashboardCashEntryOpen ? "−" : "+"}</span>
           </button>
           {dashboardCashEntryOpen && (
             <div className="dashboardCashEntryBody" id="dashboard-cash-entry-form">
               <div>
-                <h2>Enter starting cash or cash added</h2>
-                <p className="muted">Use this when you begin, add more business money, or remove cash. Current cash on hand: <strong>{money(totals.cash)}</strong>.</p>
+                <h2>Enter actual business cash</h2>
+                <p className="muted">Only use this feature to add actual cash to your business or record cash removed. When you add inventory with a purchase price, cash on hand is automatically deducted. When you sell a card, cash on hand is automatically added. Current cash on hand: <strong>{money(totals.cash)}</strong>.</p>
               </div>
               <form className="formGrid dashboardCashForm" onSubmit={saveCashAdjustment}>
                 <Select label="Cash type" value={activeCashAdjustment.adjustmentType} options={["Starting Cash", "Cash Added", "Cash Removed"]} onChange={(v) => setActiveCashAdjustment({ ...activeCashAdjustment, adjustmentType: v as CashAdjustmentRecord["adjustmentType"] })} required />
