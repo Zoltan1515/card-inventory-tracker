@@ -1887,7 +1887,12 @@ export default function Home() {
   const openSaleModal = (card: CardRecord) => {
     setSaleCelebration(null);
     setSaleExpenseDraft(emptySaleExpenseDraft());
-    setSellingCard({ ...card, quantity: 1, saleDate: card.saleDate || todayIso() });
+    setSellingCard({
+      ...card,
+      quantity: 1,
+      shippingCharge: Number(card.shippingCharge || 0),
+      saleDate: card.saleDate || todayIso(),
+    });
   };
 
   const showSaleCelebration = (card: CardRecord, savedSaleExpenses: ExpenseRecord[], remainingQuantity?: number) => {
@@ -4118,6 +4123,7 @@ export default function Home() {
             <div className="formGrid simpleForm">
               <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => setSellingCard({ ...sellingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), sanitizeQuantityInput(v))) })} required />
               <Field label="Sold total" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
+              <Field label="Buyer shipping charge" type="number" value={String(sellingCard.shippingCharge || 0)} onChange={(v) => setSellingCard({ ...sellingCard, shippingCharge: Number(v || 0) })} />
               <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
               <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               <div className="saleExpenseBox full" aria-label="Sale expenses">
@@ -4133,6 +4139,7 @@ export default function Home() {
               <div className="calc full">
                 <span>Available quantity: <strong>{cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)}</strong></span>
                 <span>Purchase cost: <strong>{money(cardPurchaseCost(sellingCard))}</strong></span>
+                <span>Buyer shipping: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>
                 <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
                 <span>Sale expenses: <strong>{money(saleExpenseTotal)}</strong></span>
                 <span>Net after sale expenses: <strong className={cardProfit(sellingCard) - saleExpenseTotal >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard) - saleExpenseTotal)}</strong></span>
