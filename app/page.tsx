@@ -3074,23 +3074,6 @@ export default function Home() {
             <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             <Stat label="Total Sold" value={money(totals.revenue)} />
           </section>
-          <section className="glanceBreakdown" aria-label="Report breakdown">
-            <div>
-              <p className="eyebrow">Cash math</p>
-              <h3>{money(totals.cash)}</h3>
-              <p className="muted">Cash entries {money(totals.cashAdjustmentsTotal)} + sold revenue {money(totals.revenue)} − inventory purchases {money(totals.totalInventoryCost)} − expenses {money(totals.expensesTotal)}</p>
-            </div>
-            <div>
-              <p className="eyebrow">Inventory value</p>
-              <h3>{money(totals.totalInventoryValue)}</h3>
-              <p className="muted">Unlisted {money(totals.unlistedInventoryValue)} + listed {money(totals.listedInventoryValue)}. Unlisted uses asking price when entered, otherwise purchase cost.</p>
-            </div>
-            <div>
-              <p className="eyebrow">Sold</p>
-              <h3>{money(totals.revenue)}</h3>
-              <p className="muted">{totals.soldCount} sold cards • Sold-card profit {money(totals.soldCardProfit)}</p>
-            </div>
-          </section>
           <section className="cashEntryPanel noPrint" aria-label="Add cash on hand">
             <div>
               <p className="eyebrow">Cash on hand</p>

@@ -27,6 +27,8 @@ assert(page.includes('id="at-a-glance-panel"'), 'At a Glance panel should render
 assert(page.includes('Cash on hand'), 'At a Glance should show cash on hand.');
 assert(page.includes('Total Inventory Value'), 'At a Glance should show total inventory value.');
 assert(page.includes('Total Sold'), 'At a Glance should show total sold.');
+assert(!page.includes('Cash math'), 'At a Glance should not show the extra cash math bubble under the main stats.');
+assert(!page.includes('aria-label="Report breakdown"'), 'At a Glance should not render the extra three-bubble report breakdown.');
 assert(page.includes('onClick={() => window.print()}'), 'At a Glance should include print action.');
 assert(page.includes('saveCashAdjustment'), 'Cash entry save handler should exist.');
 assert(page.includes('id="dashboard-cash-entry"'), 'Dashboard should expose a front-page cash entry form, not hide it only in At a Glance.');
