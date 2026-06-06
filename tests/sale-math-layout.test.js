@@ -28,10 +28,11 @@ assert(
 );
 
 assert(
-  css.includes('.saleMathCard.result { align-content: center') &&
-  css.includes('justify-items: center') &&
+  css.includes('.saleMathCard.result { align-content: start') &&
+  css.includes('justify-items: stretch') &&
+  css.includes('.saleMathCard.result .saleMathResultBreakdown { width: 100%; grid-template-columns: minmax(0, 1fr) 112px') &&
   css.includes('.saleMathCard.result .saleMathFinal strong { font-size: 1.9rem; text-align: center; }'),
-  'Final result holder should center its contents and emphasize the total profit/loss number.'
+  'Final result holder should top-align with the other cards while keeping its amount columns aligned.'
 );
 
 console.log('Sale math layout checks passed.');
