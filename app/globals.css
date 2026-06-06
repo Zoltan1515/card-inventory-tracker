@@ -229,12 +229,13 @@ textarea { min-height: 90px; resize: vertical; }
 .cardInfo { min-width: 0; }
 .cardDetailsLine { color: var(--muted); }
 .soldCardRow { align-items: start; }
-.saleSnapshot { display: grid; grid-template-columns: repeat(5, minmax(105px, 1fr)); gap: 10px; margin: 12px 0 10px; }
-.saleSnapshot div { border: 1px solid rgba(56,189,248,.22); border-radius: 14px; background: rgba(8,15,28,.72); padding: 10px 12px; }
-.saleSnapshot small { display: block; color: var(--muted); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
-.saleSnapshot strong { display: block; color: var(--text); font-size: 1rem; line-height: 1.25; }
-.saleSnapshot div:first-child { border-color: rgba(34,197,94,.38); background: rgba(34,197,94,.08); }
-.saleSnapshot div:first-child strong { color: var(--good); font-size: 1.25rem; }
+.soldCardRow.noSelectCardRow { grid-template-columns: 92px minmax(0, 1fr) 190px; align-items: start; }
+.soldSummary { display: grid; grid-template-columns: repeat(2, minmax(180px, 240px)); gap: 8px 18px; margin: 12px 0 10px; max-width: 520px; }
+.soldSummary div { display: grid; grid-template-columns: minmax(0, 1fr) 96px; align-items: baseline; column-gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(148,163,184,.12); }
+.soldSummary span { color: var(--muted); font-size: .84rem; font-weight: 800; }
+.soldSummary strong { color: var(--text); font-size: 1rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.soldSummary div:first-child strong { color: var(--good); }
+.soldDetailChips { margin-top: 2px; }
 .saleExpenseBox { display: grid; gap: 12px; border: 1px solid rgba(103,232,249,.2); border-radius: 16px; background: rgba(8,16,34,.55); padding: 14px; }
 .saleExpenseBox .eyebrow { margin-bottom: 4px; }
 .saleMath { display: grid; gap: 10px; border: 1px solid rgba(103,232,249,.24); border-radius: 18px; background: rgba(8,16,34,.58); padding: 14px; }
@@ -277,6 +278,8 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .rowMoney small, .muted { color: var(--muted); }
 .auditTrail { font-size: .78rem; line-height: 1.35; }
 .rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.soldCardRow .rowActions { display: grid; grid-template-columns: 1fr; gap: 8px; min-width: 0; justify-items: stretch; }
+.soldCardRow .rowActions button { width: 100%; min-height: 42px; }
 .profitSections { display: grid; gap: 18px; }
 .profitStatusSection { border: 1px solid var(--line); border-radius: 18px; padding: 18px; background: rgba(15,23,42,.42); }
 .profitSectionHeader { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 12px; }
@@ -501,7 +504,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .formGrid, .simpleForm, .expenseForm, .dashboardCashForm { grid-template-columns: repeat(2, 1fr); }
   .dashboardCashEntryBody, .cashOnboardingCard { grid-template-columns: 1fr; }
   .cardRow, .noSelectCardRow, .expenseRow, .gradingOrderSummary { grid-template-columns: 1fr; }
-  .saleSnapshot { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .soldCardRow.noSelectCardRow { grid-template-columns: 1fr; }
+  .soldSummary { grid-template-columns: 1fr; max-width: none; }
   .bulkGradingBar, .primeLotStatusCard { align-items: stretch; flex-direction: column; }
   .primeLotBenefitGrid, .segmentedButtons, .primeLotReviewFields, .primeLotReviewFields.compact, .primeLotReviewSummary { grid-template-columns: 1fr; }
   .rowMoney { justify-items: start; }
@@ -553,7 +557,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .cashOnboardingCard .rowActions { grid-template-columns: 1fr; }
   .glanceHeroGrid, .glanceBreakdown { grid-template-columns: 1fr; }
   .inventoryFilterPanel { grid-template-columns: 1fr; }
-  .saleSnapshot { grid-template-columns: 1fr; }
+  .soldSummary { grid-template-columns: 1fr; }
   .saleMathGrid { grid-template-columns: 1fr; }
   .saleMathHeader { justify-content: flex-start; }
   .refundSummaryGrid { grid-template-columns: 1fr; }
@@ -568,6 +572,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
     border-radius: 16px;
   }
   .noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }
+  .soldCardRow.noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }
   .selectCardBox { align-self: center; }
   .selectCardBox input { width: 18px; height: 18px; }
   .cardThumb, .photoThumbButton { width: 58px; height: 78px; border-radius: 9px; }
@@ -587,10 +592,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .rowActions button { min-height: 38px; padding: 8px 10px; }
   .splitRow { grid-template-columns: 1fr; }
   .splitCard .rowActions { display: flex; }
-  .saleSnapshot { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 8px 0; }
-  .saleSnapshot div { padding: 7px; border-radius: 10px; }
-  .saleSnapshot small { font-size: .56rem; }
-  .saleSnapshot strong { font-size: .78rem; }
+  .soldSummary { grid-template-columns: 1fr; gap: 5px; margin: 8px 0; }
+  .soldSummary div { grid-template-columns: minmax(0, 1fr) 86px; padding: 2px 0; }
+  .soldSummary span { font-size: .74rem; }
+  .soldSummary strong { font-size: .88rem; }
   .cardDetailChips span { font-size: .68rem; padding: 4px 6px; }
   .filterActions { justify-content: stretch; }
   .filterActions .secondary { width: 100%; }

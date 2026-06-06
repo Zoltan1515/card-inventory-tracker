@@ -3584,32 +3584,30 @@ export default function Home() {
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
-                      <div className="saleSnapshot" aria-label={`Sold for ${money(cardNetSoldPrice(card))} on ${card.salePlatform || "unknown platform"}`}>
+                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected`}>
                         <div>
-                          <small>Net sold</small>
-                          <strong>{money(cardNetSoldPrice(card))}</strong>
-                        </div>
-                        <div>
-                          <small>Original sold</small>
+                          <span>Card sold</span>
                           <strong>{money(card.soldPrice)}</strong>
                         </div>
                         <div>
-                          <small>Refunded</small>
-                          <strong>{money(cardRefundTotal(card))}</strong>
+                          <span>Shipping collected</span>
+                          <strong>{money(card.shippingCharge || 0)}</strong>
                         </div>
+                        {cardRefundTotal(card) > 0 && (
+                          <div>
+                            <span>Refunded</span>
+                            <strong>{money(cardRefundTotal(card))}</strong>
+                          </div>
+                        )}
                         <div>
-                          <small>Sold date</small>
-                          <strong>{formatDateLabel(card.saleDate) || formatDateTimeLabel(card.soldAt || card.updatedAt)}</strong>
-                        </div>
-                        <div>
-                          <small>Platform</small>
-                          <strong>{card.salePlatform || "Unknown"}</strong>
+                          <span>Net collected</span>
+                          <strong>{money(cardNetSoldPrice(card))}</strong>
                         </div>
                       </div>
-                      <div className="cardDetailChips" aria-label="Saved card details">
+                      <div className="cardDetailChips soldDetailChips" aria-label="Saved sale details">
                         <span>Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} × ${money(card.purchasePrice)})` : ""}</span>
-                        <span>Added {formatDateTimeLabel(card.createdAt)} by {actorLabel(card.createdBy, currentUsername)}</span>
-                        <span>Sold {formatDateTimeLabel(card.soldAt || card.updatedAt)} by {actorLabel(card.soldBy || card.updatedBy, currentUsername)}</span>
+                        <span>Sold {formatDateLabel(card.saleDate) || formatDateTimeLabel(card.soldAt || card.updatedAt)}</span>
+                        <span>{card.salePlatform || "Unknown platform"}</span>
                         {parseCardRefunds(card.notes).map((refund, index) => <span key={`${card.id}-refund-${index}`}>Refunded {money(refund.amount)}{refund.refundDate ? ` on ${formatDateLabel(refund.refundDate)}` : ""}{refund.note ? ` • ${refund.note}` : ""}</span>)}
                       </div>
                     </>
@@ -3631,10 +3629,12 @@ export default function Home() {
                     </div>
                   )}
                 </div>
-                <div className="rowMoney">
-                  <span>{money(card.status === "Sold" ? cardNetSoldPrice(card) : card.purchasePrice)}</span>
-                  <small>{card.status === "Sold" ? cardRefundTotal(card) > 0 ? `net sold • refunded ${money(cardRefundTotal(card))}` : cardQuantity(card) > 1 ? `net sold total • ${cardQuantity(card)}` : "net sold" : cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
-                </div>
+                {card.status !== "Sold" && (
+                  <div className="rowMoney">
+                    <span>{money(card.purchasePrice)}</span>
+                    <small>{cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
+                  </div>
+                )}
                 {!isSoldInventoryView && (
                   <div className="inventoryControls">
                     <button className="secondary listingEditButton" type="button" onClick={() => beginListingEdit(card)}>
