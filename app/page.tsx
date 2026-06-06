@@ -1188,7 +1188,7 @@ export default function Home() {
   }, [cards, topSoldMode, topSoldMonth]);
   const mostExpensiveSoldCard = topSoldCandidates.reduce<CardRecord | null>((best, card) => {
     if (!best) return card;
-    return cardNetSoldPrice(card) > cardNetSoldPrice(best) ? card : best;
+    return card.soldPrice > best.soldPrice ? card : best;
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
@@ -2810,7 +2810,7 @@ export default function Home() {
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
           </div>
-          <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} sold for ${money(cardNetSoldPrice(mostExpensiveSoldCard))}` : "Top sold card placeholder"}>
+          <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} card sale ${money(mostExpensiveSoldCard.soldPrice)}` : "Top sold card placeholder"}>
             <div className="slabControls" aria-label="Top sold card period">
               <button className={topSoldMode === "all" ? "active" : ""} type="button" onClick={() => setTopSoldMode("all")}>All time</button>
               <button className={topSoldMode === "month" ? "active" : ""} type="button" onClick={() => setTopSoldMode("month")}>Month</button>
@@ -2827,7 +2827,7 @@ export default function Home() {
             <div className="slabBase">
               {mostExpensiveSoldCard ? (
                 <>
-                  <strong>{money(cardNetSoldPrice(mostExpensiveSoldCard))}</strong>
+                  <strong>{money(mostExpensiveSoldCard.soldPrice)}</strong>
                   <small>{mostExpensiveSoldCard.name}</small>
                   <small>Sold {formatDateLabel(mostExpensiveSoldCard.saleDate) || "date not set"}</small>
                 </>
