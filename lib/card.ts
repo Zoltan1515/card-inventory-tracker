@@ -205,9 +205,13 @@ export const parseCardRefunds = (notes = ""): CardRefund[] => notes
   })
   .filter((refund) => refund.amount > 0);
 
-export const cardRefundTotal = (card: Pick<CardRecord, "notes" | "soldPrice">) => Math.min(card.soldPrice, parseCardRefunds(card.notes).reduce((sum, refund) => sum + refund.amount, 0));
+type SaleAmountFields = Pick<CardRecord, "soldPrice"> & Partial<Pick<CardRecord, "notes" | "shippingCharge">>;
 
-export const cardNetSoldPrice = (card: Pick<CardRecord, "notes" | "soldPrice">) => Math.max(0, card.soldPrice - cardRefundTotal(card));
+export const cardGrossSoldPrice = (card: Pick<CardRecord, "soldPrice"> & Partial<Pick<CardRecord, "shippingCharge">>) => card.soldPrice + (card.shippingCharge || 0);
+
+export const cardRefundTotal = (card: SaleAmountFields) => Math.min(cardGrossSoldPrice(card), parseCardRefunds(card.notes || "").reduce((sum, refund) => sum + refund.amount, 0));
+
+export const cardNetSoldPrice = (card: SaleAmountFields) => Math.max(0, cardGrossSoldPrice(card) - cardRefundTotal(card));
 
 export const appendCardRefundNote = (notes: string, amount: number, refundDate: string, note = "") => [
   notes.trim(),

@@ -3,6 +3,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
+const card = fs.readFileSync(path.join(root, 'lib', 'card.ts'), 'utf8');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -21,8 +22,37 @@ assert(
   'Sale modal shipping changes should be saved back onto the sold card.'
 );
 assert(
-  page.includes('<span>Buyer shipping: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>'),
-  'Sale summary should make the carried-over buyer shipping amount visible.'
+  page.includes('<Field label="Sold price per item"') && page.includes('soldPrice: Number(v || 0) * sellingQuantity'),
+  'Sale modal should take per-item sold price and store the total sold price for multi-quantity sales.'
+);
+assert(
+  page.includes('soldPrice: sellingUnitPrice * nextQuantity'),
+  'Changing quantity should preserve the per-item price and update the stored sale total.'
+);
+assert(
+  page.includes('<span>Buyer shipping collected: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>'),
+  'Sale summary should make the carried-over buyer shipping amount visible as collected money.'
+);
+assert(
+  page.includes('<span>Total collected: <strong>{money(sellingCollectedTotal)}</strong></span>'),
+  'Sale summary should show sale plus buyer shipping before expenses.'
+);
+assert(
+  page.includes('<span><small>Buyer shipping</small><strong>{money(saleCelebration.shippingCharge)}</strong></span>') &&
+  page.includes('<span><small>Total collected</small><strong>{money(saleCelebration.collectedTotal)}</strong></span>'),
+  'Sale saved confirmation should include buyer shipping and total collected.'
+);
+assert(
+  card.includes('export const cardGrossSoldPrice') && card.includes('card.soldPrice + (card.shippingCharge || 0)'),
+  'Gross sold price should include buyer shipping collected.'
+);
+assert(
+  card.includes('export const cardNetSoldPrice') && card.includes('cardGrossSoldPrice(card) - cardRefundTotal(card)'),
+  'Net sold price/profit should include buyer shipping collected, minus refunds.'
+);
+assert(
+  page.includes('cardNetSoldPrice(soldCard))} collected'),
+  'Sale notices should use total collected including buyer shipping.'
 );
 
-console.log('Sale shipping prefill checks passed.');
+console.log('Sale shipping and quantity checks passed.');

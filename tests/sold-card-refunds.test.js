@@ -13,6 +13,7 @@ function assert(condition, message) {
 
 assert(card.includes('export type CardRefund'), 'Card refund type should exist.');
 assert(card.includes('export const parseCardRefunds'), 'Card refunds should be parsed from saved card notes.');
+assert(card.includes('export const cardGrossSoldPrice'), 'Gross sold amount should include buyer shipping collected.');
 assert(card.includes('export const cardRefundTotal'), 'Refund total helper should exist.');
 assert(card.includes('export const cardNetSoldPrice'), 'Net sold amount helper should exist.');
 assert(card.includes('export const appendCardRefundNote'), 'Refunds should be appended to card notes for persistence.');

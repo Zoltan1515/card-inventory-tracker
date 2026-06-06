@@ -56,7 +56,7 @@ type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: str
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string };
 type RefundDraft = { amount: string; refundDate: string; note: string };
-type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
+type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; shippingCharge: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
@@ -1106,6 +1106,9 @@ export default function Home() {
   const importWarningCount = importPreviews.filter((preview) => preview.warnings.length).length;
   const inventoryExpenseTotal = inventoryExpenseDraftTotal(inventoryExpenseDraft);
   const saleExpenseTotal = saleExpenseDraftTotal(saleExpenseDraft);
+  const sellingQuantity = sellingCard ? cardQuantity(sellingCard) : 1;
+  const sellingUnitPrice = sellingCard ? sellingCard.soldPrice / sellingQuantity : 0;
+  const sellingCollectedTotal = sellingCard ? cardNetSoldPrice(sellingCard) : 0;
   const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
     const now = new Date().toISOString();
     const expenseDate = card.purchaseDate || todayIso();
@@ -1901,6 +1904,8 @@ export default function Home() {
       cardName: card.name,
       quantity: cardQuantity(card),
       saleTotal: card.soldPrice,
+      shippingCharge: card.shippingCharge || 0,
+      collectedTotal: cardNetSoldPrice(card),
       purchaseCost: cardPurchaseCost(card),
       saleExpenseTotal: savedSaleExpenseTotal,
       netProfit: cardProfit(card) - savedSaleExpenseTotal,
@@ -1957,7 +1962,7 @@ export default function Home() {
       const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(insertedSold));
       if (savedSaleExpenses === null) return;
       showSaleCelebration(insertedSold, savedSaleExpenses, availableQty - saleQty);
-      setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(soldCard.soldPrice)}${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. ${availableQty - saleQty} left in inventory.`);
+      setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(cardNetSoldPrice(soldCard))} collected${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. ${availableQty - saleQty} left in inventory.`);
       setSellingCard(null);
       setSaleExpenseDraft(emptySaleExpenseDraft());
       setTab("inventory");
@@ -1969,7 +1974,7 @@ export default function Home() {
       const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(soldCard));
       if (savedSaleExpenses === null) return;
       showSaleCelebration(soldCard, savedSaleExpenses);
-      setNotice(`Sold ${soldCard.name} for ${money(soldCard.soldPrice)}${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}.`);
+      setNotice(`Sold ${soldCard.name} for ${money(cardNetSoldPrice(soldCard))} collected${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}.`);
       setSellingCard(null);
       setSaleExpenseDraft(emptySaleExpenseDraft());
       setTab("profit");
@@ -2060,11 +2065,10 @@ export default function Home() {
     };
     const ok = await updateCard(refundedCard);
     if (ok) {
-      const totalRefunded = cardRefundTotal(refundedCard);
       setNotice(`${money(refundAmount)} refund recorded for ${refundedCard.name}. Net sold amount is now ${money(cardNetSoldPrice(refundedCard))}.`);
       closeRefundModal();
       setTab("inventory");
-      if (totalRefunded >= refundedCard.soldPrice) setStatusFilter("Sold");
+      if (cardNetSoldPrice(refundedCard) <= 0) setStatusFilter("Sold");
     }
   };
 
@@ -4086,7 +4090,9 @@ export default function Home() {
             <h2>Congrats — you made a sale!</h2>
             <p className="muted">{saleCelebration.cardName} is now marked Sold. Here’s the sale breakdown.</p>
             <div className="saleCelebrationCard saleCelebrationList" aria-label="Sale price expenses and total profit">
-              <span><small>Sale price</small><strong>{money(saleCelebration.saleTotal)}</strong></span>
+              <span><small>Card sale</small><strong>{money(saleCelebration.saleTotal)}</strong></span>
+              <span><small>Buyer shipping</small><strong>{money(saleCelebration.shippingCharge)}</strong></span>
+              <span><small>Total collected</small><strong>{money(saleCelebration.collectedTotal)}</strong></span>
               <span><small>Card cost</small><strong>{money(saleCelebration.purchaseCost)}</strong></span>
               <span><small>Expenses</small><strong>{money(saleCelebration.saleExpenseTotal)}</strong></span>
               <span className="saleCelebrationProfit"><small>Total profit</small><strong className={saleCelebration.netProfit >= 0 ? "positive" : "negative"}>{money(saleCelebration.netProfit)}</strong></span>
@@ -4113,8 +4119,11 @@ export default function Home() {
               <button className="secondary" type="button" onClick={() => { setSellingCard(null); setSaleExpenseDraft(emptySaleExpenseDraft()); }}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
-              <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => setSellingCard({ ...sellingCard, quantity: Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), sanitizeQuantityInput(v))) })} required />
-              <Field label="Sold total" type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
+              <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => {
+                const nextQuantity = Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), sanitizeQuantityInput(v)));
+                setSellingCard({ ...sellingCard, quantity: nextQuantity, soldPrice: sellingUnitPrice * nextQuantity });
+              }} required />
+              <Field label="Sold price per item" type="number" value={String(sellingUnitPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) * sellingQuantity })} required />
               <Field label="Buyer shipping charge" type="number" value={String(sellingCard.shippingCharge || 0)} onChange={(v) => setSellingCard({ ...sellingCard, shippingCharge: Number(v || 0) })} />
               <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
               <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
@@ -4130,8 +4139,10 @@ export default function Home() {
               </div>
               <div className="calc full">
                 <span>Available quantity: <strong>{cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)}</strong></span>
+                <span>Card sale total: <strong>{money(sellingCard.soldPrice)}</strong></span>
+                <span>Buyer shipping collected: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>
+                <span>Total collected: <strong>{money(sellingCollectedTotal)}</strong></span>
                 <span>Purchase cost: <strong>{money(cardPurchaseCost(sellingCard))}</strong></span>
-                <span>Buyer shipping: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>
                 <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
                 <span>Sale expenses: <strong>{money(saleExpenseTotal)}</strong></span>
                 <span>Net after sale expenses: <strong className={cardProfit(sellingCard) - saleExpenseTotal >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard) - saleExpenseTotal)}</strong></span>
