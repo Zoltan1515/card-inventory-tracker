@@ -4174,8 +4174,9 @@ export default function Home() {
                   </section>
                   <section className={`saleMathCard result ${sellingNetAfterExpenses >= 0 ? "profit" : "loss"}`}>
                     <p className="eyebrow">Final result</p>
-                    <div className="saleMathFinal"><span>{sellingNetAfterExpenses >= 0 ? "Profit" : "Loss"}</span><strong>{money(sellingNetAfterExpenses)}</strong></div>
-                    <small>Total in minus card cost and sale expenses</small>
+                    <div className="saleMathResultBreakdown"><span>Customer paid</span><strong>{money(sellingCollectedTotal)}</strong></div>
+                    <div className="saleMathResultBreakdown"><span>Your cost</span><strong>{money(sellingTotalCost)}</strong></div>
+                    <div className="saleMathFinal"><span>{sellingNetAfterExpenses >= 0 ? "Total profit" : "Total loss"}</span><strong>{money(sellingNetAfterExpenses)}</strong></div>
                   </section>
                 </div>
               </div>
