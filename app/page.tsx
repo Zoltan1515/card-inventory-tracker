@@ -1121,6 +1121,9 @@ export default function Home() {
   const sellingUnitPrice = sellingCard ? sellingCard.soldPrice / sellingQuantity : 0;
   const sellingShippingUnitPrice = sellingCard ? (sellingCard.shippingCharge || 0) / sellingQuantity : 0;
   const sellingCollectedTotal = sellingCard ? cardNetSoldPrice(sellingCard) : 0;
+  const sellingPurchaseCost = sellingCard ? cardPurchaseCost(sellingCard) : 0;
+  const sellingTotalCost = sellingPurchaseCost + saleExpenseTotal;
+  const sellingNetAfterExpenses = sellingCollectedTotal - sellingTotalCost;
   const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
     const now = new Date().toISOString();
     const expenseDate = card.purchaseDate || todayIso();
@@ -4148,15 +4151,33 @@ export default function Home() {
                   <Field label="Shipping label cost" type="number" value={saleExpenseDraft.shippingLabel} onChange={(v) => setSaleExpenseDraft((draft) => ({ ...draft, shippingLabel: v }))} />
                 </div>
               </div>
-              <div className="calc full">
-                <span>Available quantity: <strong>{cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)}</strong></span>
-                <span>{`Card sale (${money(sellingUnitPrice)} per card)`}: <strong>{money(sellingCard.soldPrice)}</strong></span>
-                <span>{`Buyer shipping (${money(sellingShippingUnitPrice)} per card)`}: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>
-                <span>Total collected: <strong>{money(sellingCollectedTotal)}</strong></span>
-                <span>Purchase cost: <strong>{money(cardPurchaseCost(sellingCard))}</strong></span>
-                <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
-                <span>Sale expenses: <strong>{money(saleExpenseTotal)}</strong></span>
-                <span>Net after sale expenses: <strong className={cardProfit(sellingCard) - saleExpenseTotal >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard) - saleExpenseTotal)}</strong></span>
+              <div className="saleMath full">
+                <div className="saleMathHeader">
+                  <span>Quantity sold: <strong>{sellingQuantity}</strong></span>
+                  <span>Available: <strong>{cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)}</strong></span>
+                </div>
+                <div className="saleMathGrid" aria-label="Sale profit math">
+                  <section className="saleMathCard moneyIn">
+                    <p className="eyebrow">Customer paid</p>
+                    <div><span>Cards</span><strong>{money(sellingCard.soldPrice)}</strong></div>
+                    <small>{sellingQuantity} × {money(sellingUnitPrice)} per card</small>
+                    <div><span>Shipping collected</span><strong>{money(sellingCard.shippingCharge || 0)}</strong></div>
+                    <small>{sellingQuantity} × {money(sellingShippingUnitPrice)} per card</small>
+                    <div className="saleMathTotal"><span>Total in</span><strong>{money(sellingCollectedTotal)}</strong></div>
+                  </section>
+                  <section className="saleMathCard costs">
+                    <p className="eyebrow">Your costs</p>
+                    <div><span>Card cost</span><strong>{money(sellingPurchaseCost)}</strong></div>
+                    <div><span>Sale expenses</span><strong>{money(saleExpenseTotal)}</strong></div>
+                    <small>HST, fees, shipping label</small>
+                    <div className="saleMathTotal"><span>Total costs</span><strong>{money(sellingTotalCost)}</strong></div>
+                  </section>
+                  <section className={`saleMathCard result ${sellingNetAfterExpenses >= 0 ? "profit" : "loss"}`}>
+                    <p className="eyebrow">Final result</p>
+                    <div className="saleMathFinal"><span>{sellingNetAfterExpenses >= 0 ? "Profit" : "Loss"}</span><strong>{money(sellingNetAfterExpenses)}</strong></div>
+                    <small>Total in minus card cost and sale expenses</small>
+                  </section>
+                </div>
               </div>
               <button className="primary full" type="submit">Save sale</button>
             </div>

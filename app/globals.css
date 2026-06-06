@@ -237,6 +237,27 @@ textarea { min-height: 90px; resize: vertical; }
 .saleSnapshot div:first-child strong { color: var(--good); font-size: 1.25rem; }
 .saleExpenseBox { display: grid; gap: 12px; border: 1px solid rgba(103,232,249,.2); border-radius: 16px; background: rgba(8,16,34,.55); padding: 14px; }
 .saleExpenseBox .eyebrow { margin-bottom: 4px; }
+.saleMath { display: grid; gap: 10px; border: 1px solid rgba(103,232,249,.24); border-radius: 18px; background: rgba(8,16,34,.58); padding: 14px; }
+.saleMathHeader { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; color: var(--muted); font-weight: 900; }
+.saleMathHeader strong { color: var(--text); }
+.saleMathGrid { display: grid; grid-template-columns: 1.15fr 1fr .9fr; gap: 10px; }
+.saleMathCard { border: 1px solid rgba(148,163,184,.18); border-radius: 16px; background: rgba(4,9,20,.5); padding: 12px; display: grid; gap: 8px; align-content: start; }
+.saleMathCard .eyebrow { margin: 0 0 2px; }
+.saleMathCard div { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; color: var(--muted); }
+.saleMathCard strong { color: var(--text); font-size: 1.02rem; white-space: nowrap; }
+.saleMathCard small { color: var(--muted); font-size: .76rem; line-height: 1.3; margin-top: -4px; }
+.saleMathTotal { border-top: 1px solid rgba(148,163,184,.16); margin-top: 4px; padding-top: 8px; font-weight: 1000; }
+.saleMathTotal strong { font-size: 1.18rem; }
+.saleMathCard.moneyIn { border-color: rgba(34,197,94,.28); background: rgba(34,197,94,.06); }
+.saleMathCard.costs { border-color: rgba(250,204,21,.24); background: rgba(250,204,21,.05); }
+.saleMathCard.result { justify-content: center; text-align: center; }
+.saleMathCard.result .saleMathFinal { display: grid; justify-items: center; gap: 4px; }
+.saleMathCard.result .saleMathFinal span { color: var(--muted); font-size: .8rem; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+.saleMathCard.result .saleMathFinal strong { font-size: 1.7rem; }
+.saleMathCard.result.profit { border-color: rgba(34,197,94,.42); background: rgba(34,197,94,.1); }
+.saleMathCard.result.profit .saleMathFinal strong { color: var(--good); }
+.saleMathCard.result.loss { border-color: rgba(248,113,113,.48); background: rgba(248,113,113,.1); }
+.saleMathCard.result.loss .saleMathFinal strong { color: var(--bad); }
 .refundModal { border-color: rgba(103,232,249,.3); box-shadow: 0 24px 80px rgba(0,0,0,.58), 0 0 34px rgba(103,232,249,.16); }
 .refundSummaryGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
 .refundSummaryGrid span { border: 1px solid rgba(103,232,249,.22); border-radius: 14px; background: rgba(8,15,28,.68); padding: 10px 12px; color: var(--muted); font-size: .72rem; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
@@ -533,6 +554,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .glanceHeroGrid, .glanceBreakdown { grid-template-columns: 1fr; }
   .inventoryFilterPanel { grid-template-columns: 1fr; }
   .saleSnapshot { grid-template-columns: 1fr; }
+  .saleMathGrid { grid-template-columns: 1fr; }
+  .saleMathHeader { justify-content: flex-start; }
   .refundSummaryGrid { grid-template-columns: 1fr; }
   .saleCelebrationCard, .saleCelebrationActions { grid-template-columns: 1fr; }
   .saleCelebrationActions .secondary { width: 100%; }

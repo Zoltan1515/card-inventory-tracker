@@ -30,11 +30,12 @@ assert(
   'Changing quantity should preserve the per-item price and shipping and update stored totals.'
 );
 assert(
-  page.includes('{`Buyer shipping (${money(sellingShippingUnitPrice)} per card)`}: <strong>{money(sellingCard.shippingCharge || 0)}</strong>'),
+  page.includes('<div><span>Shipping collected</span><strong>{money(sellingCard.shippingCharge || 0)}</strong></div>') &&
+  page.includes('<small>{sellingQuantity} × {money(sellingShippingUnitPrice)} per card</small>'),
   'Sale summary should show buyer shipping per card and the multiplied total collected.'
 );
 assert(
-  page.includes('<span>Total collected: <strong>{money(sellingCollectedTotal)}</strong></span>'),
+  page.includes('<div className="saleMathTotal"><span>Total in</span><strong>{money(sellingCollectedTotal)}</strong></div>'),
   'Sale summary should show sale plus buyer shipping before expenses.'
 );
 assert(
