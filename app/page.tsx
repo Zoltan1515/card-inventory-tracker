@@ -179,6 +179,14 @@ const expenseDraftAmount = (value: string) => Math.max(0, Number(value || 0) || 
 const inventoryExpenseAmount = expenseDraftAmount;
 const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
 const saleExpenseDraftTotal = (draft: SaleExpenseDraft) => expenseDraftAmount(draft.hst) + expenseDraftAmount(draft.fees) + expenseDraftAmount(draft.shippingLabel);
+const isSaleExpenseForCard = (expense: ExpenseRecord, card: CardRecord) => {
+  const isSaleExpense = expense.category === "HST" || expense.category === "Marketplace Fees" || expense.category === "Shipping";
+  if (!isSaleExpense) return false;
+  const matchesDescription = expense.description === `Sale HST: ${card.name}` || expense.description === `Sale fees: ${card.name}` || expense.description === `Shipping label: ${card.name}`;
+  const matchesDate = !card.saleDate || expense.expenseDate === card.saleDate;
+  const matchesVendor = !card.salePlatform || expense.vendor === card.salePlatform;
+  return matchesDescription && matchesDate && matchesVendor;
+};
 const cardGradeLabel = (card: Pick<CardRecord, "grade" | "gradingCompany" | "notes">) => [cardGradingCompanyValue(card), cardGradeValue(card)].filter(Boolean).join(" ").trim();
 const notesWithGrade = (notes: string, grade: string, gradingCompany = "") => {
   const withoutGrade = notes.split("\n").filter((line) => !/^grade:|^grader:/i.test(line.trim())).join("\n").trim();
@@ -972,7 +980,10 @@ export default function Home() {
     const filteredCashAdjustments = cashAdjustments.filter(cashInRange);
     const cashAdjustmentsTotal = filteredCashAdjustments.reduce((sum, entry) => sum + (entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount), 0);
     const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
-    const soldCardProfit = revenue - soldInventoryCost;
+    const saleExpensesForSoldCardsTotal = filteredExpenses
+      .filter((expense) => soldCards.some((card) => isSaleExpenseForCard(expense, card)))
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    const soldCardProfit = revenue - soldInventoryCost - saleExpensesForSoldCardsTotal;
     const cash = cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal;
     const profit = soldCardProfit;
     return {
@@ -1996,14 +2007,7 @@ export default function Home() {
     setRefundDraft(emptyRefundDraft());
   };
 
-  const saleExpenseMatchesCard = (expense: ExpenseRecord, card: CardRecord) => {
-    const isSaleExpense = expense.category === "HST" || expense.category === "Marketplace Fees" || expense.category === "Shipping";
-    if (!isSaleExpense) return false;
-    const matchesDescription = expense.description === `Sale HST: ${card.name}` || expense.description === `Sale fees: ${card.name}` || expense.description === `Shipping label: ${card.name}`;
-    const matchesDate = !card.saleDate || expense.expenseDate === card.saleDate;
-    const matchesVendor = !card.salePlatform || expense.vendor === card.salePlatform;
-    return matchesDescription && matchesDate && matchesVendor;
-  };
+  const saleExpenseMatchesCard = (expense: ExpenseRecord, card: CardRecord) => isSaleExpenseForCard(expense, card);
 
   const requestMoveBackToListed = (card: CardRecord) => {
     setError("");
