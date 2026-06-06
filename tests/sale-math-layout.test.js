@@ -31,8 +31,10 @@ assert(
   css.includes('.saleMathCard.result { align-content: start') &&
   css.includes('justify-items: stretch') &&
   css.includes('.saleMathCard.result .saleMathResultBreakdown { width: 100%; grid-template-columns: minmax(0, 1fr) 112px') &&
+  css.includes('.saleMathCard.result .saleMathResultBreakdown strong { color: var(--text); font-size: 1.02rem') &&
+  css.includes('.saleMathCard.result .saleMathFinal span { color: var(--muted); font-size: 1rem; font-weight: 1000; letter-spacing: 0; text-transform: none; }') &&
   css.includes('.saleMathCard.result .saleMathFinal strong { font-size: 1.9rem; text-align: center; }'),
-  'Final result holder should top-align with the other cards while keeping its amount columns aligned.'
+  'Final result holder should top-align with the other cards while keeping its amount columns and typography aligned.'
 );
 
 console.log('Sale math layout checks passed.');
