@@ -3192,7 +3192,8 @@ export default function Home() {
             )}
             {activeCard.status === "Sold" && (
               <>
-                <Field label="Sold for" type="number" value={String(activeCard.soldPrice)} onChange={(v) => setActiveCard({ ...activeCard, soldPrice: Number(v || 0) })} required />
+                <Field label="Card sale total" type="number" value={String(activeCard.soldPrice)} onChange={(v) => setActiveCard({ ...activeCard, soldPrice: Number(v || 0) })} required />
+                <Field label="Buyer shipping collected" type="number" value={String(activeCard.shippingCharge || 0)} onChange={(v) => setActiveCard({ ...activeCard, shippingCharge: Number(v || 0) })} />
                 <Field label="Sale date" type="date" value={activeCard.saleDate} onChange={(v) => setActiveCard({ ...activeCard, saleDate: v })} required />
                 <Field label="Sold where?" value={activeCard.salePlatform} onChange={(v) => setActiveCard({ ...activeCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               </>
@@ -3907,7 +3908,8 @@ export default function Home() {
               )}
               {editingCard.status === "Sold" && (
                 <>
-                  <Field label="Sold for" type="number" value={String(editingCard.soldPrice)} onChange={(v) => setEditingCard({ ...editingCard, soldPrice: Number(v || 0) })} required />
+                  <Field label="Card sale total" type="number" value={String(editingCard.soldPrice)} onChange={(v) => setEditingCard({ ...editingCard, soldPrice: Number(v || 0) })} required />
+                  <Field label="Buyer shipping collected" type="number" value={String(editingCard.shippingCharge || 0)} onChange={(v) => setEditingCard({ ...editingCard, shippingCharge: Number(v || 0) })} />
                   <Field label="Sale date" type="date" value={editingCard.saleDate} onChange={(v) => setEditingCard({ ...editingCard, saleDate: v })} required />
                   <Field label="Sold where?" value={editingCard.salePlatform} onChange={(v) => setEditingCard({ ...editingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
                 </>

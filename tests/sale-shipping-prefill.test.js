@@ -55,4 +55,15 @@ assert(
   'Sale notices should use total collected including buyer shipping.'
 );
 
+assert(
+  page.includes('<Field label="Card sale total" type="number" value={String(editingCard.soldPrice)}') &&
+  page.includes('<Field label="Buyer shipping collected" type="number" value={String(editingCard.shippingCharge || 0)}'),
+  'Editing an existing sold card should allow fixing the card sale total and buyer shipping collected.'
+);
+assert(
+  page.includes('<Field label="Card sale total" type="number" value={String(activeCard.soldPrice)}') &&
+  page.includes('<Field label="Buyer shipping collected" type="number" value={String(activeCard.shippingCharge || 0)}'),
+  'Adding a card directly as Sold should also record shipping collected separately from sale expenses.'
+);
+
 console.log('Sale shipping and quantity checks passed.');
