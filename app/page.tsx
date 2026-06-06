@@ -3,7 +3,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CardRecord, CardStatus, CashAdjustmentRecord, ExpenseCategory, ExpenseRecord, GradingSubmission, appendCardRefundNote, cardNetSoldPrice, cardProfit, cardPurchaseCost, cardQuantity, cardRefundTotal, cardRoi, emptyCard, emptyCashAdjustment, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, parseCardRefunds, percent } from "@/lib/card";
-import { cardsToCsv, ebayListingsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
+import { cardsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, cashAdjustmentToInsert, cashAdjustmentToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToCashAdjustment, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
@@ -2537,9 +2537,6 @@ export default function Home() {
     ? `${inventoryDateFieldLabels[inventoryDateField].replace(/\s+/g, "-")}-${inventoryStartDate || "start"}-to-${inventoryEndDate || "today"}`
     : "all-dates";
   const exportCards = () => downloadCsv(cardsToCsv(filteredCards), `card-inventory-filtered-${inventoryDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
-  const ebayExportCards = selectedCards.length ? selectedCards : filteredCards;
-  const ebayExportSuffix = selectedCards.length ? `selected-${selectedCards.length}-cards` : inventoryDateSuffix;
-  const exportEbayListings = () => downloadCsv(ebayListingsToCsv(ebayExportCards), `ebay-listing-upload-${ebayExportSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
   const openPrimeLotModal = (intent: "create" | "connect" = primeLotConnection.status === "pending" ? (primeLotConnection.requestedIntent === "connect" ? "connect" : "create") : "create") => {
     setError("");
     setNotice("");
@@ -3439,10 +3436,6 @@ export default function Home() {
               <h2>{isSoldInventoryView ? `Sold Inventory: showing ${filteredInventoryQuantity} of ${soldInventoryQuantity} sold cards` : activeInventoryMainView === "Listed" ? `Listed: showing ${filteredInventoryQuantity} of ${listedInventoryQuantity} listed cards` : `Not Listed: showing ${filteredInventoryQuantity} of ${notListedInventoryQuantity} cards to list`}</h2>
               <p className="muted">{isSoldInventoryView ? "Sold cards are kept out of active inventory and listed here with sale amount, sold date, and platform." : activeInventoryMainView === "Listed" ? "Cards you already listed. Use Clear listing to remove them from PrimeLot and move them back to Not Listed." : "Cards not listed yet. Select cards here to list them or post them to PrimeLot."}</p>
             </div>
-            <div className="exportActions">
-              <button className="secondary" onClick={exportCards} type="button">Export filtered inventory</button>
-              {!isSoldInventoryView && <button className="primary" onClick={exportEbayListings} type="button">{selectedCards.length ? `Export ${selectedCards.length} selected to eBay CSV` : "Export eBay upload CSV"}</button>}
-            </div>
           </div>
 
           {!isSoldInventoryView && (
@@ -3453,10 +3446,14 @@ export default function Home() {
           )}
 
           <div className="inventoryFilterToggleRow">
-            <button className="secondary" onClick={() => setInventoryFiltersOpen((open) => !open)} type="button" aria-expanded={inventoryFiltersOpen} aria-controls="inventory-filter-panel">
-              {inventoryFiltersOpen ? "Hide filters" : "Show filters"}
+            <button className="filterToggleButton" onClick={() => setInventoryFiltersOpen((open) => !open)} type="button" aria-expanded={inventoryFiltersOpen} aria-controls="inventory-filter-panel">
+              <span>{inventoryFiltersOpen ? "Hide filters" : "Show filters"}</span>
+              <strong>{filtersAreActive ? "Active" : ""}</strong>
             </button>
-            <span className="muted">{filtersAreActive ? "Filters active" : "No filters active"}</span>
+            <div className="inventoryToolbarActions">
+              <button className="secondary exportInventoryButton" onClick={exportCards} type="button">Export filtered inventory</button>
+              <span className={filtersAreActive ? "filterStatus active" : "filterStatus"}>{filtersAreActive ? "Filters active" : "No filters active"}</span>
+            </div>
           </div>
 
           {inventoryFiltersOpen && (
