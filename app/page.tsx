@@ -54,9 +54,9 @@ type ImportCardPreview = {
 type CsvRow = Record<string, string>;
 type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string };
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
-type SaleExpenseDraft = { hst: string; fees: string };
+type SaleExpenseDraft = { hst: string; fees: string; shippingLabel: string };
 type RefundDraft = { amount: string; refundDate: string; note: string };
-type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; shippingCharge: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
+type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleUnitPrice: number; shippingCharge: number; shippingUnitPrice: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
@@ -173,12 +173,12 @@ const gradeParts = (value: string) => {
 const cardGradeValue = (card: Pick<CardRecord, "grade" | "notes">) => card.grade || card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grade:"))?.replace(/^grade:\s*/i, "").trim() || "";
 const cardGradingCompanyValue = (card: Pick<CardRecord, "gradingCompany" | "notes">) => card.gradingCompany || card.notes.split("\n").find((line) => line.toLowerCase().startsWith("grader:"))?.replace(/^grader:\s*/i, "").trim() || "";
 const emptyInventoryExpenseDraft = (): InventoryExpenseDraft => ({ shipping: "", hst: "", duties: "" });
-const emptySaleExpenseDraft = (): SaleExpenseDraft => ({ hst: "", fees: "" });
+const emptySaleExpenseDraft = (): SaleExpenseDraft => ({ hst: "", fees: "", shippingLabel: "" });
 const emptyRefundDraft = (): RefundDraft => ({ amount: "", refundDate: todayIso(), note: "" });
 const expenseDraftAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
 const inventoryExpenseAmount = expenseDraftAmount;
 const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
-const saleExpenseDraftTotal = (draft: SaleExpenseDraft) => expenseDraftAmount(draft.hst) + expenseDraftAmount(draft.fees);
+const saleExpenseDraftTotal = (draft: SaleExpenseDraft) => expenseDraftAmount(draft.hst) + expenseDraftAmount(draft.fees) + expenseDraftAmount(draft.shippingLabel);
 const cardGradeLabel = (card: Pick<CardRecord, "grade" | "gradingCompany" | "notes">) => [cardGradingCompanyValue(card), cardGradeValue(card)].filter(Boolean).join(" ").trim();
 const notesWithGrade = (notes: string, grade: string, gradingCompany = "") => {
   const withoutGrade = notes.split("\n").filter((line) => !/^grade:|^grader:/i.test(line.trim())).join("\n").trim();
@@ -1108,6 +1108,7 @@ export default function Home() {
   const saleExpenseTotal = saleExpenseDraftTotal(saleExpenseDraft);
   const sellingQuantity = sellingCard ? cardQuantity(sellingCard) : 1;
   const sellingUnitPrice = sellingCard ? sellingCard.soldPrice / sellingQuantity : 0;
+  const sellingShippingUnitPrice = sellingCard ? (sellingCard.shippingCharge || 0) / sellingQuantity : 0;
   const sellingCollectedTotal = sellingCard ? cardNetSoldPrice(sellingCard) : 0;
   const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
     const now = new Date().toISOString();
@@ -1138,6 +1139,7 @@ export default function Home() {
     const rows: Array<{ category: ExpenseCategory; amount: number; label: string }> = [
       { category: "HST", amount: expenseDraftAmount(saleExpenseDraft.hst), label: "Sale HST" },
       { category: "Marketplace Fees", amount: expenseDraftAmount(saleExpenseDraft.fees), label: "Sale fees" },
+      { category: "Shipping", amount: expenseDraftAmount(saleExpenseDraft.shippingLabel), label: "Shipping label" },
     ];
     return rows.filter((row) => row.amount > 0).map((row) => ({
       ...emptyExpense(),
@@ -1904,7 +1906,9 @@ export default function Home() {
       cardName: card.name,
       quantity: cardQuantity(card),
       saleTotal: card.soldPrice,
+      saleUnitPrice: card.soldPrice / cardQuantity(card),
       shippingCharge: card.shippingCharge || 0,
+      shippingUnitPrice: (card.shippingCharge || 0) / cardQuantity(card),
       collectedTotal: cardNetSoldPrice(card),
       purchaseCost: cardPurchaseCost(card),
       saleExpenseTotal: savedSaleExpenseTotal,
@@ -1993,9 +1997,9 @@ export default function Home() {
   };
 
   const saleExpenseMatchesCard = (expense: ExpenseRecord, card: CardRecord) => {
-    const isSaleExpense = expense.category === "HST" || expense.category === "Marketplace Fees";
+    const isSaleExpense = expense.category === "HST" || expense.category === "Marketplace Fees" || expense.category === "Shipping";
     if (!isSaleExpense) return false;
-    const matchesDescription = expense.description === `Sale HST: ${card.name}` || expense.description === `Sale fees: ${card.name}`;
+    const matchesDescription = expense.description === `Sale HST: ${card.name}` || expense.description === `Sale fees: ${card.name}` || expense.description === `Shipping label: ${card.name}`;
     const matchesDate = !card.saleDate || expense.expenseDate === card.saleDate;
     const matchesVendor = !card.salePlatform || expense.vendor === card.salePlatform;
     return matchesDescription && matchesDate && matchesVendor;
@@ -4092,8 +4096,8 @@ export default function Home() {
             <h2>Congrats — you made a sale!</h2>
             <p className="muted">{saleCelebration.cardName} is now marked Sold. Here’s the sale breakdown.</p>
             <div className="saleCelebrationCard saleCelebrationList" aria-label="Sale price expenses and total profit">
-              <span><small>Card sale</small><strong>{money(saleCelebration.saleTotal)}</strong></span>
-              <span><small>Buyer shipping</small><strong>{money(saleCelebration.shippingCharge)}</strong></span>
+              <span><small>{`Card sale (${money(saleCelebration.saleUnitPrice)} per card)`}</small><strong>{money(saleCelebration.saleTotal)}</strong></span>
+              <span><small>{`Buyer shipping (${money(saleCelebration.shippingUnitPrice)} per card)`}</small><strong>{money(saleCelebration.shippingCharge)}</strong></span>
               <span><small>Total collected</small><strong>{money(saleCelebration.collectedTotal)}</strong></span>
               <span><small>Card cost</small><strong>{money(saleCelebration.purchaseCost)}</strong></span>
               <span><small>Expenses</small><strong>{money(saleCelebration.saleExpenseTotal)}</strong></span>
@@ -4123,26 +4127,27 @@ export default function Home() {
             <div className="formGrid simpleForm">
               <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => {
                 const nextQuantity = Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), sanitizeQuantityInput(v)));
-                setSellingCard({ ...sellingCard, quantity: nextQuantity, soldPrice: sellingUnitPrice * nextQuantity });
+                setSellingCard({ ...sellingCard, quantity: nextQuantity, soldPrice: sellingUnitPrice * nextQuantity, shippingCharge: sellingShippingUnitPrice * nextQuantity });
               }} required />
               <Field label="Sold price per item" type="number" value={String(sellingUnitPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) * sellingQuantity })} required />
-              <Field label="Buyer shipping charge" type="number" value={String(sellingCard.shippingCharge || 0)} onChange={(v) => setSellingCard({ ...sellingCard, shippingCharge: Number(v || 0) })} />
+              <Field label="Buyer shipping per item" type="number" value={String(sellingShippingUnitPrice)} onChange={(v) => setSellingCard({ ...sellingCard, shippingCharge: Number(v || 0) * sellingQuantity })} />
               <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
               <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               <div className="saleExpenseBox full" aria-label="Sale expenses">
                 <div>
                   <p className="eyebrow">Sale expenses</p>
-                  <p className="muted">Optional HST and marketplace/payment fees. These save to Expenses and expense reports with this sale date.</p>
+                  <p className="muted">Optional HST, marketplace/payment fees, and shipping label cost. If you bought the shipping label already, input your cost here. Otherwise you can input your shipping label cost later under the Expense tab.</p>
                 </div>
                 <div className="splitRow">
                   <Field label="HST" type="number" value={saleExpenseDraft.hst} onChange={(v) => setSaleExpenseDraft((draft) => ({ ...draft, hst: v }))} />
                   <Field label="Fees" type="number" value={saleExpenseDraft.fees} onChange={(v) => setSaleExpenseDraft((draft) => ({ ...draft, fees: v }))} />
+                  <Field label="Shipping label cost" type="number" value={saleExpenseDraft.shippingLabel} onChange={(v) => setSaleExpenseDraft((draft) => ({ ...draft, shippingLabel: v }))} />
                 </div>
               </div>
               <div className="calc full">
                 <span>Available quantity: <strong>{cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)}</strong></span>
-                <span>Card sale total: <strong>{money(sellingCard.soldPrice)}</strong></span>
-                <span>Buyer shipping collected: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>
+                <span>{`Card sale (${money(sellingUnitPrice)} per card)`}: <strong>{money(sellingCard.soldPrice)}</strong></span>
+                <span>{`Buyer shipping (${money(sellingShippingUnitPrice)} per card)`}: <strong>{money(sellingCard.shippingCharge || 0)}</strong></span>
                 <span>Total collected: <strong>{money(sellingCollectedTotal)}</strong></span>
                 <span>Purchase cost: <strong>{money(cardPurchaseCost(sellingCard))}</strong></span>
                 <span>Card profit before expenses: <strong className={cardProfit(sellingCard) >= 0 ? "positive" : "negative"}>{money(cardProfit(sellingCard))}</strong></span>
@@ -4445,7 +4450,7 @@ function ProfitStatusSection({
 function Field({ label, value, onChange, type = "text", placeholder, required }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean }) {
   if (type === "date") return <DateField label={label} value={value} onChange={onChange} required={required} />;
   if (type === "number") return <NumberField label={label} value={value} onChange={onChange} placeholder={placeholder} required={required} />;
-  return <label>{label}<input required={required} type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} /></label>;
+  return <label>{label}<input required={required} type={type} value={value} placeholder={placeholder} onFocus={(e) => e.currentTarget.select()} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
 function NumberField({ label, value, onChange, placeholder, required }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean }) {
@@ -4468,7 +4473,10 @@ function NumberInput({ value, onChange, placeholder, required, ariaLabel, step =
       step={step}
       value={draft}
       placeholder={placeholder}
-      onFocus={() => setFocused(true)}
+      onFocus={(e) => {
+        setFocused(true);
+        e.currentTarget.select();
+      }}
       onBlur={() => setFocused(false)}
       onChange={(e) => {
         setDraft(e.target.value);
