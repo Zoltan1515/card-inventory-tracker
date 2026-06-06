@@ -808,7 +808,6 @@ export default function Home() {
   const inventoryPlatforms = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.listedPlatform)), [activeInventoryCards]);
   const filtersAreActive = Boolean(
     query.trim() ||
-    statusFilter !== "All" ||
     categoryFilter !== "All" ||
     platformFilter !== "All" ||
     photoFilter !== "All" ||
