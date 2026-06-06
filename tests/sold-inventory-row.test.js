@@ -30,4 +30,18 @@ assert(
   'Sold row action buttons should be aligned in one clean right-side column.'
 );
 
+assert(
+  page.includes('const saleExpenseTotalForCard = (card: CardRecord) => expenses.filter((expense) => isSaleExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);') &&
+  page.includes('const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);'),
+  'Sold inventory rows should compute total profit after card cost and any sale expenses.'
+);
+assert(
+  page.includes('<span>Total profit</span>') && page.includes('<strong>{money(totalProfitForCard(card))}</strong>') && page.includes('className={totalProfitForCard(card) >= 0 ? "soldProfit positive" : "soldProfit negative"}'),
+  'Sold inventory rows should show total profit under the shipping collected column.'
+);
+assert(
+  css.includes('.soldSummary .soldProfit.positive strong { color: var(--good); }') && css.includes('.soldSummary .soldProfit.negative strong { color: var(--bad); }'),
+  'Sold row total profit should be color-coded positive or negative.'
+);
+
 console.log('Sold inventory row checks passed.');

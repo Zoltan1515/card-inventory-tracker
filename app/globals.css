@@ -235,6 +235,8 @@ textarea { min-height: 90px; resize: vertical; }
 .soldSummary span { color: var(--muted); font-size: .84rem; font-weight: 800; }
 .soldSummary strong { color: var(--text); font-size: 1rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .soldSummary div:first-child strong { color: var(--good); }
+.soldSummary .soldProfit.positive strong { color: var(--good); }
+.soldSummary .soldProfit.negative strong { color: var(--bad); }
 .soldDetailChips { margin-top: 2px; }
 .saleExpenseBox { display: grid; gap: 12px; border: 1px solid rgba(103,232,249,.2); border-radius: 16px; background: rgba(8,16,34,.55); padding: 14px; }
 .saleExpenseBox .eyebrow { margin-bottom: 4px; }

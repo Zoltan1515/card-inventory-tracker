@@ -1172,6 +1172,8 @@ export default function Home() {
   };
   const isSoldInventoryView = statusFilter === "Sold";
   const activeInventoryMainView: InventoryMainView = statusFilter === "Listed" ? "Listed" : "Not Listed";
+  const saleExpenseTotalForCard = (card: CardRecord) => expenses.filter((expense) => isSaleExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
+  const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);
   const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0) : 0;
   const soldViewCost = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0) : 0;
   const soldViewProfit = soldViewRevenue - soldViewCost;
@@ -3602,6 +3604,10 @@ export default function Home() {
                         <div>
                           <span>Net collected</span>
                           <strong>{money(cardNetSoldPrice(card))}</strong>
+                        </div>
+                        <div className={totalProfitForCard(card) >= 0 ? "soldProfit positive" : "soldProfit negative"}>
+                          <span>Total profit</span>
+                          <strong>{money(totalProfitForCard(card))}</strong>
                         </div>
                       </div>
                       <div className="cardDetailChips soldDetailChips" aria-label="Saved sale details">
