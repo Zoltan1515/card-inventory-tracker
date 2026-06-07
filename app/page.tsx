@@ -3261,15 +3261,15 @@ export default function Home() {
             )}
             <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => setActiveCard({ ...activeCard, notes: e.target.value })} /></label>
             <div className="full splitList">
-              <strong>Optional expenses for this card</strong>
-              <p className="muted">Add these only if they belong with this purchase. They will also appear in the Expenses tab and expense reports.</p>
+              <strong>Extra costs for this card (optional)</strong>
+              <p className="muted">Only fill these in if you paid extra for this card, like shipping, tax, or duty. They will be saved in Expenses automatically.</p>
               <div className="splitRow">
                 <Field label="Shipping" type="number" value={inventoryExpenseDraft.shipping} onChange={(v) => setInventoryExpenseDraft((draft) => ({ ...draft, shipping: v }))} />
                 <Field label="HST" type="number" value={inventoryExpenseDraft.hst} onChange={(v) => setInventoryExpenseDraft((draft) => ({ ...draft, hst: v }))} />
                 <Field label="Duties" type="number" value={inventoryExpenseDraft.duties} onChange={(v) => setInventoryExpenseDraft((draft) => ({ ...draft, duties: v }))} />
               </div>
-              <p className="muted">Expense total: <strong>{money(inventoryExpenseTotal)}</strong></p>
-              <p className="muted cashImpactNote">Cash impact when saved: purchase cost {money(cardPurchaseCost(activeCard))} + linked expenses {money(inventoryExpenseTotal)} = <strong>{money(cardPurchaseCost(activeCard) + inventoryExpenseTotal)}</strong>. Do not add the purchase price again as a cash entry.</p>
+              <p className="muted">Extra costs total: <strong>{money(inventoryExpenseTotal)}</strong></p>
+              <p className="muted cashImpactNote">When you save, Cash on Hand will go down by <strong>{money(cardPurchaseCost(activeCard) + inventoryExpenseTotal)}</strong>. This includes the card price plus any extra costs above. You do not need to add this purchase anywhere else.</p>
             </div>
             <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Add to inventory"}</button>
           </form>

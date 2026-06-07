@@ -11,16 +11,20 @@ const checks = [
     'cash entry panel must warn that purchases are not cash-added entries',
   ],
   [
-    page.includes('Cash impact when saved: purchase cost'),
-    'add inventory form must show purchase cost + linked expenses cash impact',
+    page.includes('When you save, Cash on Hand will go down by'),
+    'add inventory form must explain cash impact in regular-person language',
   ],
   [
     page.includes('cardPurchaseCost(activeCard) + inventoryExpenseTotal'),
     'cash impact must add purchase cost and linked HST/shipping/duties expenses',
   ],
   [
-    page.includes('Do not add the purchase price again as a cash entry.'),
-    'add inventory guidance must prevent duplicate cash entries',
+    page.includes('You do not need to add this purchase anywhere else.'),
+    'add inventory guidance must prevent duplicate cash entries without confusing accounting language',
+  ],
+  [
+    page.includes('Extra costs for this card (optional)') && page.includes('Only fill these in if you paid extra for this card'),
+    'add inventory extra-cost section should use plain language',
   ],
   [
     css.includes('.cashImpactNote') && css.includes('rgba(57,255,156,.07)'),
