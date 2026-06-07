@@ -461,6 +461,13 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .loginBadge span { width: 7px; height: 7px; border-radius: 999px; background: var(--neon-green); box-shadow: 0 0 12px var(--neon-green); }
 .collectorEmail { display: block; margin: 16px 0 10px; font-size: clamp(1rem, 3.6vw, 1.35rem); overflow-wrap: anywhere; }
 .collectorSince { color: #c7d2fe; margin-bottom: 18px; }
+.accountAccessStrip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: stretch; margin: 0 0 14px; }
+.accountAccessStrip div { border: 1px solid rgba(103,232,249,.22); background: rgba(2,6,23,.46); border-radius: 16px; padding: 10px; }
+.accountAccessStrip small { display: block; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .62rem; font-weight: 800; }
+.accountAccessStrip strong { display: block; color: var(--neon-green); font-size: .86rem; line-height: 1.15; margin: 4px 0; }
+.accountAccessStrip span { display: block; color: #b7c7d6; font-size: .72rem; line-height: 1.3; }
+.accountAccessStrip .discountActive strong { color: #67e8f9; }
+.accountBillingLink { grid-column: 1 / -1; justify-self: start; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .heroStatsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .compactHeroStats { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; }
 .collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; display: grid; grid-template-rows: minmax(2.35em, auto) auto; align-content: start; }
@@ -546,6 +553,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .pricingBenefit span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: rgba(57,255,156,.14); color: var(--good); font-weight: 1000; }
 .pricingBenefit p { margin: 0; color: var(--text); line-height: 1.45; }
 .pricingFeatureGrid { display: grid; grid-template-columns: 1fr; gap: 12px; align-content: start; }
+.pricingFeatureCard p { margin: 0; color: var(--muted); line-height: 1.45; }
+.billingShell { padding-top: 24px; }
+.billingHero { align-items: stretch; }
+.billingStatusCard h2 { margin: 12px 0 10px; font-size: 1.7rem; }
+.billingStatusList { display: grid; gap: 9px; margin: 18px 0; }
+.billingStatusList div { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 10px; border: 1px solid rgba(103,232,249,.16); border-radius: 14px; padding: 10px; background: rgba(2,6,23,.36); }
+.billingStatusList span { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 800; }
+.billingStatusList strong { color: var(--text); font-size: .95rem; }
+.billingPortalDisabled { opacity: .72; cursor: not-allowed; filter: grayscale(.35); box-shadow: none; }
+.billingGridSection { align-items: start; }
+.pricingFinalCta { text-align: center; display: grid; gap: 14px; justify-items: center; padding: 30px; }
 .pricingFeatureCard { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: flex-start; border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: linear-gradient(145deg, rgba(8,16,34,.88), rgba(4,9,20,.86)); box-shadow: 0 14px 34px rgba(0,0,0,.22), 0 0 20px rgba(103,232,249,.04); }
 .pricingFeatureIcon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: rgba(57,255,156,.14); border: 1px solid rgba(57,255,156,.34); color: var(--good); font-weight: 1000; box-shadow: 0 0 18px rgba(57,255,156,.1); }
 .pricingFeatureCard .eyebrow { margin-bottom: 6px; }
@@ -621,6 +639,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .collectorHeroCard { grid-template-columns: 1fr 118px; padding: 16px; border-radius: 22px; }
   .collectorEmail { font-size: .96rem; margin-top: 13px; }
   .collectorSince { font-size: .78rem; margin-bottom: 12px; }
+  .accountAccessStrip { grid-template-columns: 1fr; gap: 7px; margin-bottom: 12px; }
+  .accountAccessStrip div { padding: 9px; }
+  .accountBillingLink { width: 100%; }
+  .billingStatusList div { grid-template-columns: 1fr; }
   .heroStatsGrid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .compactHeroStats { grid-template-columns: repeat(2, 1fr); }
   .collectorHeroCard .stat { padding: 8px 6px; }

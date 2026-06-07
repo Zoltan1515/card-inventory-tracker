@@ -86,6 +86,7 @@ const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
 const FREE_INVENTORY_ADD_STORAGE_KEY = "card-inventory-tracker.free-inventory-adds.v1";
 const FREE_INVENTORY_ADD_LIMIT = 5;
 const PRICING_PATH = "/pricing";
+const BILLING_PATH = "/billing";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -2863,6 +2864,7 @@ export default function Home() {
         <Logo />
         <div className="topHeaderActions">
           <a className="secondary signOutButton" href={PRICING_PATH}>Pricing</a>
+          {session && <a className="secondary signOutButton" href={BILLING_PATH}>Billing</a>}
           {session ? <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button> : <a className="primary signOutButton" href="#account-login">Sign up</a>}
         </div>
       </header>
@@ -2903,6 +2905,24 @@ export default function Home() {
             <span className="loginBadge"><span /> Logged In</span>
             <strong className="collectorEmail">{session.user.email || "Account"}</strong>
             <p className="collectorSince">▣ Collector workspace</p>
+            <div className="accountAccessStrip" aria-label="Account access and subscription status">
+              <div>
+                <small>Account access</small>
+                <strong>Full account access active</strong>
+                <span>Signed in users can add unlimited inventory while billing is being connected.</span>
+              </div>
+              <div>
+                <small>Subscription</small>
+                <strong>Billing not connected yet</strong>
+                <span>No paid renewal/cancel status is attached to this login yet.</span>
+              </div>
+              <div className={primeLotConnection.connected ? "discountActive" : ""}>
+                <small>PrimeLot discount</small>
+                <strong>{primeLotConnection.connected ? "$5/month discount eligible" : "Not detected"}</strong>
+                <span>{primeLotConnection.connected ? "Your PrimeLot seller connection is active." : "Connect PrimeLot to show discount eligibility."}</span>
+              </div>
+              <a className="secondary accountBillingLink" href={BILLING_PATH}>Manage billing</a>
+            </div>
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />
               <Stat label="Profit from sold cards" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
