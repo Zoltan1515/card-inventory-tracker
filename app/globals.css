@@ -442,7 +442,7 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .mobileTopHeader .brandLogo img { width: min(360px, 68vw); filter: drop-shadow(0 0 16px rgba(103,232,249,.45)) drop-shadow(0 0 22px rgba(57,255,156,.18)); }
 .iconCircle { width: 46px; height: 46px; border-radius: 999px; border: 1px solid rgba(103,232,249,.28); background: rgba(8,16,34,.74); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(103,232,249,.08); font-size: 1.1rem; }
 .topHeaderActions { display: flex; align-items: center; gap: 8px; }
-.signOutButton { position: static; border-radius: 999px; white-space: nowrap; }
+.signOutButton { position: static; border-radius: 999px; white-space: nowrap; min-width: 82px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
 .collectorHeroCard, .secondaryStatStrip, .quickActionsPanel, .dashboardCashEntryPanel, .cashOnboardingCard, .guestTrialBanner, .freeInventoryCounter { border: 1px solid rgba(103,232,249,.28); background: linear-gradient(145deg, rgba(8,16,34,.86), rgba(2,7,16,.92)); border-radius: 26px; box-shadow: 0 0 0 1px rgba(57,255,156,.08), 0 18px 56px rgba(0,0,0,.42), 0 0 34px rgba(103,232,249,.08); }
 .guestTrialBanner { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px 20px; margin-bottom: 14px; }
 .guestTrialBanner h2 { margin-bottom: 6px; font-size: clamp(1.28rem, 2.7vw, 1.8rem); }
@@ -460,14 +460,10 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .loginBadge { display: inline-flex; align-items: center; gap: 7px; width: fit-content; border: 1px solid rgba(57,255,156,.22); background: rgba(57,255,156,.08); color: var(--neon-green); border-radius: 999px; padding: 6px 10px; font-size: .72rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .loginBadge span { width: 7px; height: 7px; border-radius: 999px; background: var(--neon-green); box-shadow: 0 0 12px var(--neon-green); }
 .collectorEmail { display: block; margin: 16px 0 10px; font-size: clamp(1rem, 3.6vw, 1.35rem); overflow-wrap: anywhere; }
-.collectorSince { color: #c7d2fe; margin-bottom: 18px; }
-.accountAccessStrip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: stretch; margin: 0 0 14px; }
-.accountAccessStrip div { border: 1px solid rgba(103,232,249,.22); background: rgba(2,6,23,.46); border-radius: 16px; padding: 10px; }
-.accountAccessStrip small { display: block; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .62rem; font-weight: 800; }
-.accountAccessStrip strong { display: block; color: var(--neon-green); font-size: .86rem; line-height: 1.15; margin: 4px 0; }
-.accountAccessStrip span { display: block; color: #b7c7d6; font-size: .72rem; line-height: 1.3; }
-.accountAccessStrip .discountActive strong { color: #67e8f9; }
-.accountBillingLink { grid-column: 1 / -1; justify-self: start; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.collectorSince { color: #c7d2fe; margin-bottom: 10px; }
+.subscriptionStatusPill { display: inline-flex; width: fit-content; align-items: center; justify-content: center; border-radius: 999px; padding: 7px 11px; margin: 0 0 14px; border: 1px solid rgba(103,232,249,.24); background: rgba(8,16,34,.62); color: #cbd5e1; font-size: .76rem; font-weight: 900; letter-spacing: .02em; }
+.subscriptionStatusPill.isSubscribed { border-color: rgba(57,255,156,.34); background: rgba(57,255,156,.1); color: var(--neon-green); }
+.subscriptionStatusPill.isNotSubscribed { border-color: rgba(245,158,11,.34); background: rgba(245,158,11,.09); color: #fde68a; }
 .heroStatsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .compactHeroStats { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; }
 .collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; display: grid; grid-template-rows: minmax(2.35em, auto) auto; align-content: start; }
@@ -630,18 +626,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .mobileTopHeader .brandLogo img { width: min(255px, 58vw); }
   .iconCircle { width: 44px; height: 44px; }
   .topHeaderActions .iconCircle { display: none; }
-  .signOutButton { padding: 9px 11px; font-size: .78rem; }
+  .signOutButton { padding: 9px 11px; font-size: .78rem; min-width: 78px; }
   .guestTrialBanner { align-items: stretch; flex-direction: column; padding: 16px; border-radius: 22px; }
   .guestTrialActions { display: grid; grid-template-columns: 1fr; justify-content: stretch; }
   .guestTrialActions a { width: 100%; }
   .topHeaderActions { flex-direction: column; align-items: flex-end; gap: 6px; }
-  .topHeaderActions .signOutButton { padding: 7px 9px; font-size: .7rem; }
+  .topHeaderActions .signOutButton { padding: 7px 9px; font-size: .7rem; min-width: 72px; min-height: 32px; }
   .collectorHeroCard { grid-template-columns: 1fr 118px; padding: 16px; border-radius: 22px; }
   .collectorEmail { font-size: .96rem; margin-top: 13px; }
-  .collectorSince { font-size: .78rem; margin-bottom: 12px; }
-  .accountAccessStrip { grid-template-columns: 1fr; gap: 7px; margin-bottom: 12px; }
-  .accountAccessStrip div { padding: 9px; }
-  .accountBillingLink { width: 100%; }
+  .collectorSince { font-size: .78rem; margin-bottom: 8px; }
+  .subscriptionStatusPill { font-size: .66rem; padding: 6px 9px; margin-bottom: 10px; }
   .billingStatusList div { grid-template-columns: 1fr; }
   .heroStatsGrid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
   .compactHeroStats { grid-template-columns: repeat(2, 1fr); }

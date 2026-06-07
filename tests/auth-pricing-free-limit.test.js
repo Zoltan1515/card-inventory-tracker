@@ -16,7 +16,9 @@ const pageSnippets = [
   'supabase.auth.resetPasswordForEmail',
   'PASSWORD_RECOVERY',
   'supabase.auth.updateUser({ password: newPassword })',
-  '<a className="secondary signOutButton" href={PRICING_PATH}>Pricing</a>',
+  'accountActionPath',
+  'accountActionLabel',
+  '<a className="secondary signOutButton" href={accountActionPath}>{accountActionLabel}</a>',
   '{ id: "pricing", tab: "add", label: "Pricing"',
 ];
 

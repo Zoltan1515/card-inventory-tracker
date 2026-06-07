@@ -635,8 +635,13 @@ export default function Home() {
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
   const isSignedIn = Boolean(session?.user.id);
+  // Stripe subscription status is not connected yet. Keep this false until the Stripe customer/subscription record is wired to the logged-in account.
+  const hasActiveSubscription = false;
   const freeInventoryAddsRemaining = Math.max(0, FREE_INVENTORY_ADD_LIMIT - freeInventoryAdds);
   const freeInventoryLimitReached = !isSignedIn && freeInventoryAddsRemaining <= 0;
+  const subscriptionStatusLabel = hasActiveSubscription ? "Subscribed" : isSignedIn ? "Not subscribed" : `Not subscribed (${freeInventoryAddsRemaining} listing${freeInventoryAddsRemaining === 1 ? "" : "s"} left)`;
+  const accountActionPath = hasActiveSubscription ? BILLING_PATH : PRICING_PATH;
+  const accountActionLabel = hasActiveSubscription ? "Billing" : "Pricing";
   const currentUsername = session?.user.email || "Guest trial";
   const primeLotButtonLabel = primeLotConnection.connected ? "Post on PrimeLot" : primeLotConnection.status === "pending" ? "PrimeLot pending" : "Sell on PrimeLot";
 
@@ -2863,8 +2868,7 @@ export default function Home() {
         <button className="iconCircle menuToggleButton" type="button" aria-label={mobileQuickActionsOpen ? "Close quick actions menu" : "Open quick actions menu"} aria-expanded={mobileQuickActionsOpen} aria-controls="quick-actions" onClick={() => setMobileQuickActionsOpen((open) => !open)}>☰</button>
         <Logo />
         <div className="topHeaderActions">
-          <a className="secondary signOutButton" href={PRICING_PATH}>Pricing</a>
-          {session && <a className="secondary signOutButton" href={BILLING_PATH}>Billing</a>}
+          <a className="secondary signOutButton" href={accountActionPath}>{accountActionLabel}</a>
           {session ? <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button> : <a className="primary signOutButton" href="#account-login">Sign up</a>}
         </div>
       </header>
@@ -2905,24 +2909,7 @@ export default function Home() {
             <span className="loginBadge"><span /> Logged In</span>
             <strong className="collectorEmail">{session.user.email || "Account"}</strong>
             <p className="collectorSince">▣ Collector workspace</p>
-            <div className="accountAccessStrip" aria-label="Account access and subscription status">
-              <div>
-                <small>Account access</small>
-                <strong>Full account access active</strong>
-                <span>Signed in users can add unlimited inventory while billing is being connected.</span>
-              </div>
-              <div>
-                <small>Subscription</small>
-                <strong>Billing not connected yet</strong>
-                <span>No paid renewal/cancel status is attached to this login yet.</span>
-              </div>
-              <div className={primeLotConnection.connected ? "discountActive" : ""}>
-                <small>PrimeLot discount</small>
-                <strong>{primeLotConnection.connected ? "$5/month discount eligible" : "Not detected"}</strong>
-                <span>{primeLotConnection.connected ? "Your PrimeLot seller connection is active." : "Connect PrimeLot to show discount eligibility."}</span>
-              </div>
-              <a className="secondary accountBillingLink" href={BILLING_PATH}>Manage billing</a>
-            </div>
+            <span className={`subscriptionStatusPill ${hasActiveSubscription ? "isSubscribed" : "isNotSubscribed"}`}>{subscriptionStatusLabel}</span>
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />
               <Stat label="Profit from sold cards" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
