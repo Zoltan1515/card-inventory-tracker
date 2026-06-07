@@ -569,7 +569,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; scrollbar-width: none; }
   .secondaryStatStrip::-webkit-scrollbar { display: none; }
   .secondaryStatStrip button { min-width: 116px; padding: 12px 10px; }
-  .quickActionsPanel { padding: 14px; border-radius: 22px; }
+  .quickActionsPanel { display: none; }
   .quickActionGrid.navBar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .quickActionGrid .navButton { min-height: 72px; padding: 12px; }
   .navText small { display: none; }
@@ -643,6 +643,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .bottomMobileNav span { font-size: 1.3rem; }
   .bottomMobileNav .active { color: var(--neon-green); text-shadow: 0 0 12px rgba(57,255,156,.45); }
   .bottomMobileNav .centerAdd span { width: 52px; height: 52px; display: grid; place-items: center; margin-top: -26px; border-radius: 999px; color: var(--primary); border: 1px solid rgba(103,232,249,.62); background: rgba(8,16,34,.94); box-shadow: 0 0 24px rgba(103,232,249,.28); font-size: 2rem; }
+}
+
+@media (min-width: 960px) {
+  .shell { width: min(1040px, calc(100% - 252px)); margin-left: max(228px, calc((100vw - 1240px) / 2 + 208px)); margin-right: auto; }
+  .quickActionsPanel { position: fixed; left: max(16px, calc((100vw - 1240px) / 2)); top: 112px; z-index: 11; width: 184px; max-height: calc(100vh - 132px); overflow-y: auto; padding: 12px; margin: 0; border-radius: 22px; }
+  .quickActionsHeader .eyebrow { margin-bottom: 10px; }
+  .quickActionGrid.navBar { grid-template-columns: 1fr; gap: 8px; }
+  .quickActionGrid .navButton { min-height: 64px; padding: 11px 12px; border-radius: 13px; }
+  .quickActionGrid .navText strong { font-size: .9rem; }
+  .quickActionGrid .navText small { font-size: .7rem; }
 }
 
 

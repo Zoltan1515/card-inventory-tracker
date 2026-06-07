@@ -32,5 +32,8 @@ assert(css.includes('.quickActionGrid .navButton') && css.includes('background: 
 assert(css.includes('.quickActionsHeader .eyebrow') && css.includes('text-shadow: 0 0 16px rgba(57,255,156,.28)'), 'Quick Actions menu label should keep a subtle branded glow.');
 assert(css.includes('.quickActionGrid .featuredNavButton') && css.includes('border-color: rgba(57,255,156,.78)'), 'Featured Add Inventory action should stand out from the other quick action buttons.');
 assert(css.includes('.quickActionGrid .featuredNavButton strong') && css.includes('var(--neon-green)'), 'Featured Add Inventory label should use a brighter branded color.');
+assert(css.includes('@media (min-width: 960px)') && css.includes('.quickActionsPanel { position: fixed; left: max(16px, calc((100vw - 1240px) / 2)); top: 112px;'), 'Desktop Quick Actions should move into a fixed left-side menu bar.');
+assert(css.includes('.quickActionGrid.navBar { grid-template-columns: 1fr; gap: 8px; }'), 'Desktop Quick Actions sidebar should stack actions vertically.');
+assert(css.includes('.quickActionsPanel { display: none; }'), 'Mobile should not duplicate Quick Actions above the bottom nav.');
 
 console.log('Quick Actions menu style checks passed.');
