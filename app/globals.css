@@ -500,6 +500,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .secondary:hover, .navButton:hover { border-color: rgba(57,255,156,.62); box-shadow: 0 0 20px rgba(57,255,156,.12); }
 .navButton.active { border-color: rgba(57,255,156,.72); background: linear-gradient(145deg, rgba(57,255,156,.15), rgba(103,232,249,.08)); box-shadow: 0 0 24px rgba(57,255,156,.16), inset 0 1px 0 rgba(255,255,255,.08); color: var(--text); }
 .bottomMobileNav { display: none; }
+.quickActionsScrim { display: none; }
 
 .importPanel { border: 1px solid rgba(103,232,249,.22); border-radius: 20px; padding: 16px; margin-bottom: 20px; background: rgba(15,23,42,.42); display: grid; gap: 14px; }
 .importHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
@@ -569,14 +570,16 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; scrollbar-width: none; }
   .secondaryStatStrip::-webkit-scrollbar { display: none; }
   .secondaryStatStrip button { min-width: 116px; padding: 12px 10px; }
-  .quickActionsPanel { position: sticky; top: 8px; z-index: 14; display: block; padding: 10px; margin-bottom: 14px; border-radius: 18px; }
-  .quickActionsHeader .eyebrow { margin-bottom: 8px; }
-  .quickActionGrid.navBar { display: flex; grid-template-columns: none; gap: 8px; overflow-x: auto; padding: 0 2px 2px; scrollbar-width: none; scroll-snap-type: x proximity; }
-  .quickActionGrid.navBar::-webkit-scrollbar { display: none; }
-  .quickActionGrid .navButton { flex: 0 0 auto; min-width: 118px; min-height: 54px; padding: 10px 12px; border-radius: 14px; text-align: center; scroll-snap-align: start; }
-  .quickActionGrid .featuredNavButton { min-width: 88px; }
-  .quickActionGrid .navText { justify-items: center; }
-  .quickActionGrid .navText small { display: none; }
+  .menuToggleButton { position: sticky; top: 10px; z-index: 18; }
+  .quickActionsScrim { display: block; position: fixed; inset: 0; z-index: 12; border: 0; padding: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); }
+  .quickActionsPanel { position: fixed; left: 10px; top: 82px; bottom: max(12px, env(safe-area-inset-bottom)); z-index: 16; display: block; width: min(78vw, 310px); max-height: calc(100vh - 98px); overflow-y: auto; padding: 12px; margin: 0; border-radius: 24px; transform: translateX(-118%); opacity: .2; pointer-events: none; transition: transform .22s ease, opacity .22s ease; }
+  .quickActionsPanel.isOpen { transform: translateX(0); opacity: 1; pointer-events: auto; }
+  .quickActionsPanel.isCollapsed { transform: translateX(-118%); }
+  .quickActionsHeader .eyebrow { margin-bottom: 10px; }
+  .quickActionGrid.navBar { grid-template-columns: 1fr; gap: 9px; }
+  .quickActionGrid .navButton { min-height: 70px; padding: 12px 14px; border-radius: 17px; }
+  .quickActionGrid .featuredNavButton { min-height: 78px; }
+  .quickActionGrid .navText small { display: block; font-size: .78rem; }
   .panel { border-radius: 22px; padding: 18px; }
   .logoHero { align-items: center; padding: 16px; }
   .brandLogo img { width: min(420px, 100%); }

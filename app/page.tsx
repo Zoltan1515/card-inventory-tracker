@@ -550,6 +550,7 @@ export default function Home() {
   const [cashOnboardingDismissed, setCashOnboardingDismissed] = useState(false);
   const [dashboardCashEntryOpen, setDashboardCashEntryOpen] = useState(false);
   const [dashboardCashEntryAutoOpened, setDashboardCashEntryAutoOpened] = useState(false);
+  const [mobileQuickActionsOpen, setMobileQuickActionsOpen] = useState(true);
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);
   const [refundingCard, setRefundingCard] = useState<CardRecord | null>(null);
@@ -1207,6 +1208,14 @@ export default function Home() {
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards sold`, apply: showSoldInventory },
   ];
   const showInventoryUtilityPanels = tab === "add" || (tab === "inventory" && statusFilter !== "Sold");
+  const runDashboardAction = (action: DashboardAction) => {
+    if (action.apply) {
+      action.apply();
+    } else {
+      setTab(action.tab);
+    }
+    setMobileQuickActionsOpen(false);
+  };
 
   const openAttentionItem = (item: AttentionItem) => {
     if (item.kind === "card") {
@@ -2793,7 +2802,7 @@ export default function Home() {
   return (
     <main className="shell mobileDashboardShell">
       <header className="mobileTopHeader" aria-label="Wicked Card Tracker dashboard header">
-        <button className="iconCircle" type="button" aria-label="Jump to quick actions" onClick={() => document.getElementById("quick-actions")?.scrollIntoView({ behavior: "smooth", block: "start" })}>☰</button>
+        <button className="iconCircle menuToggleButton" type="button" aria-label={mobileQuickActionsOpen ? "Close quick actions menu" : "Open quick actions menu"} aria-expanded={mobileQuickActionsOpen} aria-controls="quick-actions" onClick={() => setMobileQuickActionsOpen((open) => !open)}>☰</button>
         <Logo />
         <div className="topHeaderActions">
           {session && <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button>}
@@ -2897,13 +2906,14 @@ export default function Home() {
         </section>
       )}
 
-      <section className="quickActionsPanel" id="quick-actions" aria-label="Quick actions">
+      {mobileQuickActionsOpen && <button className="quickActionsScrim" type="button" aria-label="Close quick actions menu" onClick={() => setMobileQuickActionsOpen(false)} />}
+      <section className={`quickActionsPanel ${mobileQuickActionsOpen ? "isOpen" : "isCollapsed"}`} id="quick-actions" aria-label="Quick actions">
         <div className="quickActionsHeader">
           <p className="eyebrow">Quick Actions</p>
         </div>
         <nav className="navBar quickActionGrid" aria-label="Main navigation">
           {dashboardActions.map((action) => (
-            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} featured={action.id === "add"} key={action.id} onClick={() => action.apply ? action.apply() : setTab(action.tab)} subtitle={action.subtitle}>
+            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} featured={action.id === "add"} key={action.id} onClick={() => runDashboardAction(action)} subtitle={action.subtitle}>
               {action.label}
             </NavButton>
           ))}

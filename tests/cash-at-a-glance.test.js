@@ -53,8 +53,8 @@ assert(page.includes('DateFilterControls'), 'At a Glance should reuse date filte
 assert(css.includes('@media print'), 'Print stylesheet should exist.');
 assert(css.includes('.printableReport'), 'Print stylesheet should target printable report.');
 assert(css.includes('.glanceHeroGrid'), 'At a Glance layout styles should exist.');
-assert(css.includes('padding-bottom: calc(152px + env(safe-area-inset-bottom))'), 'Mobile content should leave enough safe-area room for the fixed bottom nav.');
-assert(css.includes('bottom: max(10px, env(safe-area-inset-bottom))'), 'Bottom mobile nav should respect iPhone safe-area inset.');
+assert(css.includes('padding-bottom: calc(32px + env(safe-area-inset-bottom))'), 'Mobile content should not reserve oversized space for the removed bottom nav.');
+assert(css.includes('bottom: max(12px, env(safe-area-inset-bottom))'), 'Mobile quick-action drawer should respect iPhone safe-area inset.');
 assert(css.includes('.secondaryStatStrip::-webkit-scrollbar { display: none; }'), 'Mobile stat strip should not show an ugly horizontal scrollbar.');
 assert(css.includes('input[type="date"]::-webkit-calendar-picker-indicator'), 'Date inputs should style the native picker indicator for dark mobile UI.');
 
