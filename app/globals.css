@@ -306,6 +306,8 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .primeLotStatusCard { border: 1px solid rgba(56,189,248,.28); border-radius: 18px; background: linear-gradient(135deg, rgba(56,189,248,.1), rgba(15,23,42,.58)); padding: 14px; display: grid; gap: 12px; margin-bottom: 18px; }
 .primeLotStatusTopRow { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
 .primeLotStatusBrand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.primeLotLogoLink { display: inline-flex; align-items: center; border-radius: 10px; line-height: 0; }
+.primeLotLogoLink:focus-visible { outline: 2px solid var(--neon-green); outline-offset: 3px; }
 .primeLotStatusBrand img { width: 114px; height: 38px; object-fit: contain; object-position: left center; }
 .primeLotStatusBrand strong { color: var(--text); font-size: 1.02rem; white-space: nowrap; }
 .primeLotStatusActions { display: flex; align-items: center; gap: 8px; }

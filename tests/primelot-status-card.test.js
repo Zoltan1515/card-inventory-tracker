@@ -15,6 +15,7 @@ assert(
 );
 
 assert(
+  page.includes('<a className="primeLotLogoLink" href="https://primelotcards.com" target="_blank" rel="noreferrer" aria-label="Open PrimeLot storefront website">') &&
   page.includes('<img src="/primelot-logo.png" alt="PrimeLot logo" />') &&
   page.includes('<strong>PrimeLot Storefront</strong>') &&
   page.includes('>Manage</button>'),
@@ -37,6 +38,7 @@ assert(
 
 assert(
   css.includes('.primeLotStatusCard {') &&
+  css.includes('.primeLotLogoLink { display: inline-flex; align-items: center;') &&
   css.includes('.primeLotStatusBrand img { width: 114px; height: 38px; object-fit: contain;') &&
   css.includes('.primeLotStatusDetails { border-top:'),
   'PrimeLot storefront card should have compact brand/logo and expandable details styling.'
