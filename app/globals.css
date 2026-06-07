@@ -508,6 +508,39 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .bottomMobileNav { display: none; }
 .quickActionsScrim { display: none; }
 
+.pricingShell { width: min(1160px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 72px; }
+.pricingHero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(320px, 420px); gap: 24px; align-items: center; position: relative; overflow: hidden; }
+.pricingHero::before, .pricingFinalCta::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 82% 12%, rgba(57,255,156,.16), transparent 22rem), radial-gradient(circle at 15% 82%, rgba(96,165,250,.13), transparent 20rem); }
+.pricingHero > *, .pricingFinalCta > * { position: relative; z-index: 1; }
+.pricingLogo { justify-content: flex-start; margin: 0 0 18px; }
+.pricingLogo img { width: min(440px, 100%); }
+.pricingHero h1 { max-width: 720px; }
+.pricingHeroActions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
+.pricingCta { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.pricingCard { border: 1px solid rgba(57,255,156,.36); border-radius: 24px; padding: 22px; background: radial-gradient(circle at 92% 10%, rgba(57,255,156,.16), transparent 18rem), linear-gradient(145deg, rgba(8,26,32,.94), rgba(4,12,24,.96)); box-shadow: 0 22px 70px rgba(0,0,0,.42), 0 0 32px rgba(57,255,156,.08); }
+.pricingBadge { display: inline-flex; border: 1px solid rgba(57,255,156,.45); border-radius: 999px; padding: 7px 11px; color: var(--good); background: rgba(57,255,156,.12); font-size: .78rem; font-weight: 1000; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 16px; }
+.pricingPlanName { color: var(--muted); font-weight: 900; margin-bottom: 6px; }
+.pricingAmount { display: flex; align-items: baseline; gap: 4px; color: var(--text); font-weight: 1000; font-size: clamp(3rem, 8vw, 5rem); line-height: .92; letter-spacing: -.08em; }
+.pricingAmount span { color: var(--primary); font-size: .46em; letter-spacing: 0; }
+.pricingAmount small { color: var(--muted); font-size: .2em; letter-spacing: 0; font-weight: 900; }
+.primeLotDiscount { display: grid; gap: 6px; border: 1px solid rgba(103,232,249,.2); border-radius: 18px; background: rgba(2,7,16,.48); padding: 14px; margin: 18px 0; }
+.primeLotDiscount span { color: var(--muted); font-size: .8rem; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
+.primeLotDiscount strong { color: var(--good); font-size: 1.22rem; }
+.primeLotDiscount small { color: var(--muted); line-height: 1.45; }
+.fullWidth { width: 100%; }
+.pricingGridSection { display: grid; grid-template-columns: minmax(0, .95fr) minmax(320px, 1.05fr); gap: 20px; margin-top: 20px; }
+.pricingBenefitsPanel { margin: 0; }
+.pricingSectionHeader { align-items: flex-start; }
+.pricingBenefitsList { display: grid; gap: 12px; }
+.pricingBenefit { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: flex-start; border: 1px solid rgba(103,232,249,.16); border-radius: 16px; padding: 12px; background: rgba(2,7,16,.42); }
+.pricingBenefit span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: rgba(57,255,156,.14); color: var(--good); font-weight: 1000; }
+.pricingBenefit p { margin: 0; color: var(--text); line-height: 1.45; }
+.pricingFeatureGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.pricingFeatureCard { margin: 0; min-height: 168px; }
+.pricingFeatureCard h3 { font-size: 1.35rem; }
+.pricingFinalCta { position: relative; overflow: hidden; text-align: center; margin: 20px 0 0; }
+.pricingFinalCta .subhead { margin-left: auto; margin-right: auto; margin-bottom: 22px; }
+
 .importPanel { border: 1px solid rgba(103,232,249,.22); border-radius: 20px; padding: 16px; margin-bottom: 20px; background: rgba(15,23,42,.42); display: grid; gap: 14px; }
 .importHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .importHeader h3 { margin-bottom: 8px; }
@@ -538,6 +571,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .soldSummary { grid-template-columns: 1fr; max-width: none; }
   .bulkGradingBar { align-items: stretch; flex-direction: column; }
   .primeLotBenefitGrid, .segmentedButtons, .primeLotReviewFields, .primeLotReviewFields.compact, .primeLotReviewSummary { grid-template-columns: 1fr; }
+  .pricingHero, .pricingGridSection { grid-template-columns: 1fr; }
+  .pricingFeatureGrid { grid-template-columns: 1fr; }
   .rowMoney { justify-items: start; }
   .rowActions { justify-content: flex-start; }
 }
@@ -551,6 +586,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 
 @media (max-width: 720px) {
   .shell { width: min(100% - 24px, 1240px); padding-top: 18px; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
+  .pricingShell { width: min(100% - 24px, 1160px); padding: 18px 0 48px; }
+  .pricingHero { gap: 18px; }
+  .pricingHeroActions, .pricingFinalCta .pricingCta { display: grid; width: 100%; }
+  .pricingCard { padding: 18px; border-radius: 22px; }
+  .pricingAmount { font-size: 3.4rem; }
+  .pricingBenefit { grid-template-columns: 30px 1fr; padding: 10px; }
+  .pricingBenefit span { width: 30px; height: 30px; }
+  .pricingFeatureCard { min-height: auto; }
   .hero, .panelHeader, .inventoryHeader { flex-direction: column; align-items: stretch; }
   .mobileTopHeader { grid-template-columns: 44px 1fr auto; gap: 8px; }
   .mobileTopHeader .brandLogo img { width: min(255px, 58vw); }
