@@ -543,7 +543,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 }
 
 @media (max-width: 720px) {
-  .shell { width: min(100% - 24px, 1240px); padding-top: 18px; padding-bottom: calc(152px + env(safe-area-inset-bottom)); }
+  .shell { width: min(100% - 24px, 1240px); padding-top: 18px; padding-bottom: calc(32px + env(safe-area-inset-bottom)); }
   .hero, .panelHeader, .inventoryHeader { flex-direction: column; align-items: stretch; }
   .mobileTopHeader { grid-template-columns: 44px 1fr auto; gap: 8px; }
   .mobileTopHeader .brandLogo img { width: min(255px, 58vw); }
@@ -569,10 +569,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; scrollbar-width: none; }
   .secondaryStatStrip::-webkit-scrollbar { display: none; }
   .secondaryStatStrip button { min-width: 116px; padding: 12px 10px; }
-  .quickActionsPanel { display: none; }
-  .quickActionGrid.navBar { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-  .quickActionGrid .navButton { min-height: 72px; padding: 12px; }
-  .navText small { display: none; }
+  .quickActionsPanel { position: sticky; top: 8px; z-index: 14; display: block; padding: 10px; margin-bottom: 14px; border-radius: 18px; }
+  .quickActionsHeader .eyebrow { margin-bottom: 8px; }
+  .quickActionGrid.navBar { display: flex; grid-template-columns: none; gap: 8px; overflow-x: auto; padding: 0 2px 2px; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .quickActionGrid.navBar::-webkit-scrollbar { display: none; }
+  .quickActionGrid .navButton { flex: 0 0 auto; min-width: 118px; min-height: 54px; padding: 10px 12px; border-radius: 14px; text-align: center; scroll-snap-align: start; }
+  .quickActionGrid .featuredNavButton { min-width: 88px; }
+  .quickActionGrid .navText { justify-items: center; }
+  .quickActionGrid .navText small { display: none; }
   .panel { border-radius: 22px; padding: 18px; }
   .logoHero { align-items: center; padding: 16px; }
   .brandLogo img { width: min(420px, 100%); }
@@ -638,7 +642,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .filters, .customDateRange { flex-direction: column; display: flex; }
   .addExpenseHeader { flex-direction: column; }
   .addExpenseCard { padding: 14px; border-radius: 18px; }
-  .bottomMobileNav { position: fixed; left: 10px; right: 10px; bottom: max(10px, env(safe-area-inset-bottom)); z-index: 15; display: grid; grid-template-columns: repeat(5, 1fr); align-items: end; gap: 4px; padding: 8px; border: 1px solid rgba(103,232,249,.24); border-radius: 22px; background: rgba(3,7,18,.86); backdrop-filter: blur(16px); box-shadow: 0 -10px 38px rgba(0,0,0,.44), 0 0 22px rgba(103,232,249,.12); }
+  .bottomMobileNav { display: none; }
   .bottomMobileNav button { border: 0; background: transparent; color: var(--muted); display: grid; gap: 3px; justify-items: center; font-size: .8rem; padding: 4px 2px; }
   .bottomMobileNav span { font-size: 1.3rem; }
   .bottomMobileNav .active { color: var(--neon-green); text-shadow: 0 0 12px rgba(57,255,156,.45); }

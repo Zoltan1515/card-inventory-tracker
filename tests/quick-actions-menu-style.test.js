@@ -34,6 +34,8 @@ assert(css.includes('.quickActionGrid .featuredNavButton') && css.includes('bord
 assert(css.includes('.quickActionGrid .featuredNavButton strong') && css.includes('var(--neon-green)'), 'Featured Add Inventory label should use a brighter branded color.');
 assert(css.includes('@media (min-width: 960px)') && css.includes('.quickActionsPanel { position: fixed; left: max(16px, calc((100vw - 1240px) / 2)); top: 112px;'), 'Desktop Quick Actions should move into a fixed left-side menu bar.');
 assert(css.includes('.quickActionGrid.navBar { grid-template-columns: 1fr; gap: 8px; }'), 'Desktop Quick Actions sidebar should stack actions vertically.');
-assert(css.includes('.quickActionsPanel { display: none; }'), 'Mobile should not duplicate Quick Actions above the bottom nav.');
+assert(css.includes('.quickActionsPanel { position: sticky; top: 8px; z-index: 14; display: block;'), 'Mobile Quick Actions should be a compact sticky menu instead of a bottom dock.');
+assert(css.includes('.quickActionGrid.navBar { display: flex; grid-template-columns: none; gap: 8px; overflow-x: auto;'), 'Mobile Quick Actions should scroll horizontally instead of wrapping into a large grid.');
+assert(!page.includes('bottomMobileNav') && !page.includes('Mobile dashboard navigation') && !page.includes('<small>More</small>'), 'Mobile should not render the old bottom nav or unclear More button.');
 
 console.log('Quick Actions menu style checks passed.');

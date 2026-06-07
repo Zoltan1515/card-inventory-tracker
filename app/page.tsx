@@ -4231,13 +4231,6 @@ export default function Home() {
         </div>
       )}
 
-      <nav className="bottomMobileNav" aria-label="Mobile dashboard navigation">
-        <button className={tab === "add" ? "active" : ""} type="button" onClick={showAddInventoryForm}><span>⌂</span><small>Home</small></button>
-        <button className={tab === "inventory" ? "active" : ""} type="button" onClick={() => setTab("inventory")}><span>▤</span><small>Inventory</small></button>
-        <button className="centerAdd" type="button" onClick={showAddInventoryForm}><span>+</span><small>Add</small></button>
-        <button className={tab === "attention" ? "active" : ""} type="button" onClick={() => setTab("attention")}><span>☆</span><small>Attention</small></button>
-        <button className={tab === "profit" ? "active" : ""} type="button" onClick={() => setTab("profit")}><span>•••</span><small>More</small></button>
-      </nav>
     </main>
   );
 }
