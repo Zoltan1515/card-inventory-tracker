@@ -574,6 +574,7 @@ export default function Home() {
   const [importingCards, setImportingCards] = useState(false);
   const [postingToPrimeLot, setPostingToPrimeLot] = useState(false);
   const [primeLotConnection, setPrimeLotConnection] = useState<PrimeLotConnectionState>({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
+  const [primeLotDetailsOpen, setPrimeLotDetailsOpen] = useState(false);
   const [primeLotModalOpen, setPrimeLotModalOpen] = useState(false);
   const [primeLotReviewOpen, setPrimeLotReviewOpen] = useState(false);
   const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, { askingPrice: string; shippingCharge: string; gradingCompany: string }>>({});
@@ -2915,18 +2916,28 @@ export default function Home() {
 
       {session && (
         <section className="primeLotStatusCard" aria-label="PrimeLot connection status">
-          <div>
-            <p className="eyebrow">PrimeLot storefront</p>
-            <strong>{primeLotConnection.connected ? "Connected" : primeLotConnection.status === "pending" ? "Activation pending" : "Not connected"}</strong>
-            <p className="muted">
-              {primeLotConnection.connected
-                ? `Publishing to ${primeLotConnection.sellerEmail || "your PrimeLot seller account"}${primeLotConnection.storeUrl ? ` • ${primeLotConnection.storeUrl}` : ""}`
-                : primeLotConnection.status === "pending"
-                  ? `Request saved for ${primeLotConnection.sellerEmail || "PrimeLot"}. Listings will post after activation.`
-                  : "Turn selected inventory into public PrimeLot listings without retyping card details."}
-            </p>
+          <div className="primeLotStatusTopRow">
+            <div className="primeLotStatusBrand">
+              <img src="/primelot-logo.png" alt="PrimeLot logo" />
+              <strong>PrimeLot Storefront</strong>
+            </div>
+            <div className="primeLotStatusActions">
+              <button className="secondary" type="button" onClick={() => openPrimeLotModal(primeLotConnection.requestedIntent === "connect" ? "connect" : "create")}>Manage</button>
+              <button className="secondary compactButton primeLotDetailsToggle" type="button" onClick={() => setPrimeLotDetailsOpen((open) => !open)} aria-expanded={primeLotDetailsOpen} aria-controls="primelot-status-details" aria-label={primeLotDetailsOpen ? "Hide PrimeLot storefront details" : "Show PrimeLot storefront details"}>{primeLotDetailsOpen ? "⌃" : "⌄"}</button>
+            </div>
           </div>
-          <button className="secondary" type="button" onClick={() => openPrimeLotModal(primeLotConnection.requestedIntent === "connect" ? "connect" : "create")}>{primeLotConnection.connected ? "Manage" : primeLotConnection.status === "pending" ? "View request" : "Set up PrimeLot"}</button>
+          {primeLotDetailsOpen && (
+            <div className="primeLotStatusDetails" id="primelot-status-details">
+              <strong>{primeLotConnection.connected ? "Connected" : primeLotConnection.status === "pending" ? "Activation pending" : "Not connected"}</strong>
+              <p className="muted">
+                {primeLotConnection.connected
+                  ? `Publishing to ${primeLotConnection.sellerEmail || "your PrimeLot seller account"}${primeLotConnection.storeUrl ? ` • ${primeLotConnection.storeUrl}` : ""}`
+                  : primeLotConnection.status === "pending"
+                    ? `Request saved for ${primeLotConnection.sellerEmail || "PrimeLot"}. Listings will post after activation.`
+                    : "Turn selected inventory into public PrimeLot listings without retyping card details."}
+              </p>
+            </div>
+          )}
         </section>
       )}
 

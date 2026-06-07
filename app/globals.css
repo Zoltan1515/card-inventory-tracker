@@ -303,7 +303,15 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .inventoryControls { display: grid; gap: 8px; min-width: 180px; }
 .bulkGradingBar { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.55); padding: 14px; display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
 .bulkGradingBar .eyebrow { margin-bottom: 4px; }
-.primeLotStatusCard { border: 1px solid rgba(56,189,248,.28); border-radius: 18px; background: linear-gradient(135deg, rgba(56,189,248,.1), rgba(15,23,42,.58)); padding: 14px; display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
+.primeLotStatusCard { border: 1px solid rgba(56,189,248,.28); border-radius: 18px; background: linear-gradient(135deg, rgba(56,189,248,.1), rgba(15,23,42,.58)); padding: 14px; display: grid; gap: 12px; margin-bottom: 18px; }
+.primeLotStatusTopRow { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+.primeLotStatusBrand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.primeLotStatusBrand img { width: 114px; height: 38px; object-fit: contain; object-position: left center; }
+.primeLotStatusBrand strong { color: var(--text); font-size: 1.02rem; white-space: nowrap; }
+.primeLotStatusActions { display: flex; align-items: center; gap: 8px; }
+.primeLotDetailsToggle { min-width: 42px; padding-inline: 10px; }
+.primeLotStatusDetails { border-top: 1px solid rgba(148,163,184,.16); padding-top: 10px; display: grid; gap: 4px; }
+.primeLotStatusDetails p { margin: 0; }
 .primeLotStatusCard .eyebrow { margin-bottom: 4px; }
 .modalCard { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow: auto; border: 1px solid var(--line); border-radius: 22px; background: rgba(4,9,20,.97); padding: 20px; box-shadow: 0 24px 80px rgba(0,0,0,.58), 0 0 32px rgba(103,232,249,.12); }
 .modalHeader { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 12px; }
@@ -519,11 +527,19 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .cardRow, .noSelectCardRow, .expenseRow, .gradingOrderSummary { grid-template-columns: 1fr; }
   .soldCardRow.noSelectCardRow { grid-template-columns: 1fr; }
   .soldSummary { grid-template-columns: 1fr; max-width: none; }
-  .bulkGradingBar, .primeLotStatusCard { align-items: stretch; flex-direction: column; }
+  .bulkGradingBar { align-items: stretch; flex-direction: column; }
   .primeLotBenefitGrid, .segmentedButtons, .primeLotReviewFields, .primeLotReviewFields.compact, .primeLotReviewSummary { grid-template-columns: 1fr; }
   .rowMoney { justify-items: start; }
   .rowActions { justify-content: flex-start; }
 }
+@media (max-width: 720px) {
+  .primeLotStatusTopRow { align-items: stretch; flex-direction: column; }
+  .primeLotStatusActions { justify-content: flex-start; }
+  .primeLotStatusBrand { align-items: flex-start; flex-direction: column; gap: 6px; }
+  .primeLotStatusBrand img { width: 104px; height: 34px; }
+  .primeLotStatusBrand strong { white-space: normal; }
+}
+
 @media (max-width: 720px) {
   .shell { width: min(100% - 24px, 1240px); padding-top: 18px; padding-bottom: calc(152px + env(safe-area-inset-bottom)); }
   .hero, .panelHeader, .inventoryHeader { flex-direction: column; align-items: stretch; }
