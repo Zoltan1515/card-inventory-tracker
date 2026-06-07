@@ -1206,6 +1206,7 @@ export default function Home() {
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards sold`, apply: showSoldInventory },
   ];
+  const showInventoryUtilityPanels = tab === "add" || (tab === "inventory" && statusFilter !== "Sold");
 
   const openAttentionItem = (item: AttentionItem) => {
     if (item.kind === "card") {
@@ -2853,7 +2854,7 @@ export default function Home() {
         </section>
       )}
 
-      {session && !cashAdjustments.length && !cashOnboardingDismissed && (
+      {session && showInventoryUtilityPanels && !cashAdjustments.length && !cashOnboardingDismissed && (
         <section className="cashOnboardingCard" aria-label="Cash on hand onboarding">
           <div>
             <p className="eyebrow">Getting started</p>
@@ -2867,7 +2868,7 @@ export default function Home() {
         </section>
       )}
 
-      {session && (
+      {session && showInventoryUtilityPanels && (
         <section className={`dashboardCashEntryPanel ${dashboardCashEntryOpen ? "isOpen" : "isCollapsed"}`} id="dashboard-cash-entry" aria-label="Enter cash on hand from dashboard">
           <button className="cashEntryToggle" type="button" onClick={() => setDashboardCashEntryOpen((open) => !open)} aria-expanded={dashboardCashEntryOpen} aria-controls="dashboard-cash-entry-form">
             <span>
@@ -2914,7 +2915,7 @@ export default function Home() {
       {error && <p className="errorBox">{error}</p>}
       {loading && <p className="notice">Loading…</p>}
 
-      {session && (
+      {session && showInventoryUtilityPanels && (
         <section className="primeLotStatusCard" aria-label="PrimeLot connection status">
           <div className="primeLotStatusTopRow">
             <div className="primeLotStatusBrand">

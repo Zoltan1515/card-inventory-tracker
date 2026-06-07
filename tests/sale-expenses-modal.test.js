@@ -13,7 +13,7 @@ function assert(condition, message) {
 
 assert(card.includes('"Marketplace Fees"'), 'Expense categories should include Marketplace Fees for sale fees.');
 assert(dbCard.includes('category === "Marketplace Fees"'), 'DB expense category normalization should preserve Marketplace Fees.');
-assert(page.includes('type SaleExpenseDraft = { hst: string; fees: string }'), 'Sale modal should have a draft for HST and fees.');
+assert(page.includes('type SaleExpenseDraft = { hst: string; fees: string; shippingLabel: string }'), 'Sale modal should have a draft for HST, fees, and shipping label cost.');
 assert(page.includes('const saleExpenseRowsForCard'), 'Sale modal should create expense rows for sale expenses.');
 assert(page.includes('{ category: "HST", amount: expenseDraftAmount(saleExpenseDraft.hst), label: "Sale HST" }'), 'Sale HST should save as an HST expense.');
 assert(page.includes('{ category: "Marketplace Fees", amount: expenseDraftAmount(saleExpenseDraft.fees), label: "Sale fees" }'), 'Sale fees should save as Marketplace Fees expenses.');
@@ -21,9 +21,9 @@ assert(page.includes('description: `${row.label}: ${card.name}`'), 'Sale expense
 assert(page.includes('vendor: card.salePlatform || "Sale"'), 'Sale expenses should use the sold platform/vendor when available.');
 assert(page.includes('const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard'), 'Saving a sale should insert sale expense rows.');
 assert(page.includes('setSaleExpenseDraft(emptySaleExpenseDraft())'), 'Sale expense inputs should reset after opening/canceling/saving.');
-assert(page.includes('Optional HST and marketplace/payment fees. These save to Expenses and expense reports with this sale date.'), 'Sale modal should explain that sale expenses hit reports.');
-assert(page.includes('Net after sale expenses'), 'Sale modal should show net sale profit after HST/fees.');
-assert(page.includes('type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string }'), 'Saved sale should have a typed celebration summary.');
+assert(page.includes('Optional HST, marketplace/payment fees, and shipping label cost.'), 'Sale modal should explain sale expenses and shipping label cost.');
+assert(page.includes('sellingNetAfterExpenses') && page.includes('Total profit'), 'Sale modal should show net sale profit after HST/fees/shipping label.');
+assert(page.includes('type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleUnitPrice: number; shippingCharge: number; shippingUnitPrice: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string }'), 'Saved sale should have a typed celebration summary.');
 assert(page.includes('const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);'), 'Sale save should track the celebration modal state.');
 assert(page.includes('const showSaleCelebration = (card: CardRecord, savedSaleExpenses: ExpenseRecord[], remainingQuantity?: number)'), 'Sale save should prepare a celebration modal after saving.');
 assert(page.includes('showSaleCelebration(soldCard, savedSaleExpenses)'), 'Full sale save should open the celebration modal.');
@@ -31,7 +31,7 @@ assert(page.includes('showSaleCelebration(insertedSold, savedSaleExpenses, avail
 assert(page.includes('aria-label="Sale congratulations"'), 'Sale celebration modal should be accessible as a dialog.');
 assert(page.includes('Congrats — you made a sale!'), 'Sale celebration modal should congratulate the user.');
 assert(page.includes('aria-label="Sale price expenses and total profit"'), 'Sale celebration modal should have an easy-to-read sale breakdown list.');
-assert(page.includes('<small>Sale price</small><strong>{money(saleCelebration.saleTotal)}</strong>'), 'Celebration should list the sale price clearly.');
+assert(page.includes('Card sale (${money(saleCelebration.saleUnitPrice)} per card)'), 'Celebration should list card sale with per-card amount clearly.');
 assert(page.includes('<small>Expenses</small><strong>{money(saleCelebration.saleExpenseTotal)}</strong>'), 'Celebration should list sale expenses clearly.');
 assert(page.includes('<small>Total profit</small><strong'), 'Celebration should list total profit clearly.');
 assert(page.includes('Nice — continue'), 'Sale celebration modal should have a themed continue action.');
