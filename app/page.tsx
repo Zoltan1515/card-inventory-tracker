@@ -83,6 +83,9 @@ const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
 const CASH_STORAGE_KEY = "card-inventory-tracker.cash-adjustments.v1";
 const CASH_ONBOARDING_DISMISSED_KEY = "card-inventory-tracker.cash-onboarding-dismissed.v1";
 const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
+const FREE_INVENTORY_ADD_STORAGE_KEY = "card-inventory-tracker.free-inventory-adds.v1";
+const FREE_INVENTORY_ADD_LIMIT = 5;
+const PRICING_PATH = "/pricing";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -230,6 +233,20 @@ const localGradingSubmissions = () => {
     return rawGrading ? JSON.parse(rawGrading).map(normalizeStoredGradingSubmission) as GradingSubmission[] : [];
   } catch {
     return [];
+  }
+};
+const localFreeInventoryAdds = () => {
+  try {
+    return Math.max(0, Math.floor(Number(window.localStorage.getItem(FREE_INVENTORY_ADD_STORAGE_KEY)) || 0));
+  } catch {
+    return 0;
+  }
+};
+const saveLocalFreeInventoryAdds = (count: number) => {
+  try {
+    window.localStorage.setItem(FREE_INVENTORY_ADD_STORAGE_KEY, String(Math.max(0, count)));
+  } catch {
+    // Keep the free counter in memory if localStorage is unavailable.
   }
 };
 const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
@@ -598,6 +615,10 @@ export default function Home() {
   const [inventoryFiltersOpen, setInventoryFiltersOpen] = useState(false);
   const [activeListingReviewBucket, setActiveListingReviewBucket] = useState<ListingReviewBucket | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+  const [freeInventoryAdds, setFreeInventoryAdds] = useState(0);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -612,7 +633,10 @@ export default function Home() {
   const [topSoldMonth, setTopSoldMonth] = useState(todayIso().slice(0, 7));
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
-  const currentUsername = session?.user.email || "Local user";
+  const isSignedIn = Boolean(session?.user.id);
+  const freeInventoryAddsRemaining = Math.max(0, FREE_INVENTORY_ADD_LIMIT - freeInventoryAdds);
+  const freeInventoryLimitReached = !isSignedIn && freeInventoryAddsRemaining <= 0;
+  const currentUsername = session?.user.email || "Guest trial";
   const primeLotButtonLabel = primeLotConnection.connected ? "Post on PrimeLot" : primeLotConnection.status === "pending" ? "PrimeLot pending" : "Sell on PrimeLot";
 
   const loadPrimeLotConnection = async (accessToken = session?.access_token) => {
@@ -730,6 +754,7 @@ export default function Home() {
   };
 
   useEffect(() => {
+    setFreeInventoryAdds(localFreeInventoryAdds());
     if (!usingSupabase || !supabase) {
       setWorkspaceId(null);
       const storedCards = localCards();
@@ -750,6 +775,10 @@ export default function Home() {
           void loadSupabaseData(data.session.user.id);
           void loadPrimeLotConnection(data.session.access_token);
         } else {
+          setCards(localCards());
+          setExpenses(localExpenses());
+          setCashAdjustments(localCashAdjustments());
+          setGradingSubmissions(localGradingSubmissions());
           setDataLoaded(true);
           setLoading(false);
         }
@@ -760,7 +789,8 @@ export default function Home() {
         setLoading(false);
       });
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") setPasswordRecoveryMode(true);
       setSession(nextSession);
       if (nextSession?.user.id) {
         setDataLoaded(false);
@@ -1198,7 +1228,13 @@ export default function Home() {
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const dashboardActions: DashboardAction[] = [
-    { id: "add", tab: "add", label: "Add Inventory", subtitle: "Log a new card", apply: showAddInventoryForm },
+    {
+      id: "add",
+      tab: "add",
+      label: freeInventoryLimitReached ? "Sign up for unlimited full access" : "Add Inventory",
+      subtitle: session ? "Log a new card" : freeInventoryLimitReached ? "Unlock unlimited inventory" : `${freeInventoryAddsRemaining} free add${freeInventoryAddsRemaining === 1 ? "" : "s"} left`,
+      apply: freeInventoryLimitReached ? () => { window.location.href = PRICING_PATH; } : showAddInventoryForm,
+    },
     { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
     { id: "glance", tab: "glance", label: "At a Glance", subtitle: money(totals.cash), apply: () => showDashboardTab("glance", "at-a-glance-panel") },
     { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
@@ -1206,6 +1242,7 @@ export default function Home() {
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards sold`, apply: showSoldInventory },
+    { id: "pricing", tab: "add", label: "Pricing", subtitle: "Plans & free month", apply: () => { window.location.href = PRICING_PATH; } },
   ];
   const showInventoryUtilityPanels = tab === "add" || (tab === "inventory" && statusFilter !== "Sold");
   const runDashboardAction = (action: DashboardAction) => {
@@ -1454,6 +1491,11 @@ export default function Home() {
 
   const saveCard = async (event: FormEvent) => {
     event.preventDefault();
+    if (freeInventoryLimitReached) {
+      setError("You used your 5 free inventory adds. Sign up for unlimited full access to keep adding cards.");
+      window.setTimeout(() => document.getElementById("account-login")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+      return;
+    }
     if (!activeCard.name.trim()) return;
     setError("");
     setNotice("");
@@ -1542,6 +1584,11 @@ export default function Home() {
     const savedExpenseRows = await insertExpenseRecords(inventoryExpenseRows);
     if (savedExpenseRows === null) return;
 
+    if (!session) {
+      const nextFreeAddCount = Math.min(FREE_INVENTORY_ADD_LIMIT, freeInventoryAdds + 1);
+      setFreeInventoryAdds(nextFreeAddCount);
+      saveLocalFreeInventoryAdds(nextFreeAddCount);
+    }
     setNotice((current) => current || `Inventory added${savedExpenseRows.length ? ` with ${money(savedExpenseRows.reduce((sum, expense) => sum + expense.amount, 0))} in expenses` : ""}.`);
     setShowAddInventoryCheck(false);
     window.setTimeout(() => setShowAddInventoryCheck(true), 0);
@@ -2784,20 +2831,30 @@ export default function Home() {
     unlistedCardsCount: totals.notListedCount,
   }), `card-profit-summary-${exportDateSuffix}-${new Date().toISOString().slice(0, 10)}.csv`);
 
+  const updateRecoveredPassword = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!supabase) return;
+    if (newPassword.length < 6) {
+      setError("Choose a password with at least 6 characters.");
+      return;
+    }
+    setUpdatingPassword(true);
+    setError("");
+    setNotice("");
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    setUpdatingPassword(false);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    setNewPassword("");
+    setPasswordRecoveryMode(false);
+    setNotice("Password updated. You can keep using Wicked Card Tracker.");
+  };
+
   const signOut = async () => {
     if (supabase) await supabase.auth.signOut();
   };
-
-  if (usingSupabase && !session) {
-    return (
-      <main className="shell">
-        <header className="hero logoHero">
-          <Logo />
-        </header>
-        <AuthPanel />
-      </main>
-    );
-  }
 
   return (
     <main className="shell mobileDashboardShell">
@@ -2805,9 +2862,40 @@ export default function Home() {
         <button className="iconCircle menuToggleButton" type="button" aria-label={mobileQuickActionsOpen ? "Close quick actions menu" : "Open quick actions menu"} aria-expanded={mobileQuickActionsOpen} aria-controls="quick-actions" onClick={() => setMobileQuickActionsOpen((open) => !open)}>☰</button>
         <Logo />
         <div className="topHeaderActions">
-          {session && <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button>}
+          <a className="secondary signOutButton" href={PRICING_PATH}>Pricing</a>
+          {session ? <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button> : <a className="primary signOutButton" href="#account-login">Sign up</a>}
         </div>
       </header>
+
+      {!session && (
+        <section className="guestTrialBanner" aria-label="Free trial inventory counter">
+          <div>
+            <p className="eyebrow">Free trial</p>
+            <h2>{freeInventoryLimitReached ? "You used your 5 free inventory adds." : `Try 5 free inventory adds — ${freeInventoryAddsRemaining} left`}</h2>
+            <p className="muted">Add up to 5 inventory items without signing up. Create an account for unlimited full access, saved account storage, and the full business dashboard.</p>
+          </div>
+          <div className="guestTrialActions">
+            <a className="primary" href="#account-login">Sign up for unlimited full access</a>
+            <a className="secondary" href={PRICING_PATH}>View pricing</a>
+          </div>
+        </section>
+      )}
+
+      {passwordRecoveryMode && (
+        <section className="panel passwordResetPanel" aria-label="Set new password">
+          <div className="panelHeader">
+            <div>
+              <p className="eyebrow">Password reset</p>
+              <h2>Choose your new password</h2>
+              <p className="muted">Enter a new Wicked Card Tracker password to finish the reset.</p>
+            </div>
+          </div>
+          <form className="authForm" onSubmit={updateRecoveredPassword}>
+            <Field label="New password" type="password" value={newPassword} onChange={setNewPassword} required />
+            <button className="primary" disabled={updatingPassword} type="submit">{updatingPassword ? "Updating…" : "Update password"}</button>
+          </form>
+        </section>
+      )}
 
       {session && (
         <section className="collectorHeroCard" aria-label="Logged in account and portfolio summary">
@@ -2924,6 +3012,7 @@ export default function Home() {
       {showAddInventoryCheck && <div className="addInventoryCheck" aria-live="polite" aria-label="Inventory added">✓</div>}
       {error && <p className="errorBox">{error}</p>}
       {loading && <p className="notice">Loading…</p>}
+      {!session && <AuthPanel defaultMode={freeInventoryLimitReached ? "signup" : "signin"} />}
 
       {session && showInventoryUtilityPanels && (
         <section className="primeLotStatusCard" aria-label="PrimeLot connection status">
@@ -3198,6 +3287,13 @@ export default function Home() {
             )}
           </section>
           <form className="formGrid simpleForm" id="add-inventory-form" onSubmit={saveCard}>
+            {!session && (
+              <div className={`freeInventoryCounter full ${freeInventoryLimitReached ? "isLocked" : ""}`}>
+                <strong>{freeInventoryLimitReached ? "Free inventory adds used" : `${freeInventoryAddsRemaining} of ${FREE_INVENTORY_ADD_LIMIT} free inventory adds left`}</strong>
+                <p>{freeInventoryLimitReached ? "Sign up for unlimited full access to keep adding cards." : "You can add 5 inventory items before signing up. Your trial entries stay saved locally on this device."}</p>
+                <a className="secondary" href={PRICING_PATH}>{freeInventoryLimitReached ? "View pricing" : "See full access pricing"}</a>
+              </div>
+            )}
             <Field label="Card/player name" value={activeCard.name} onChange={(v) => setActiveCard({ ...activeCard, name: v })} required />
             <Field label="Category" value={activeCard.category} onChange={(v) => setActiveCard({ ...activeCard, category: v })} placeholder="Sports, Pokemon, MTG..." />
             <Field label="Year" value={activeCard.year} onChange={(v) => setActiveCard({ ...activeCard, year: v })} />
@@ -3271,7 +3367,7 @@ export default function Home() {
               <p className="muted">Extra costs total: <strong>{money(inventoryExpenseTotal)}</strong></p>
               <p className="muted cashImpactNote">When you save, Cash on Hand will go down by <strong>{money(cardPurchaseCost(activeCard) + inventoryExpenseTotal)}</strong>. This includes the card price plus any extra costs above. You do not need to add this purchase anywhere else.</p>
             </div>
-            <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Add to inventory"}</button>
+            <button className="primary full" type="submit" disabled={photoUploading || freeInventoryLimitReached}>{photoUploading ? "Uploading photo…" : freeInventoryLimitReached ? "Sign up for unlimited full access" : "Add to inventory"}</button>
           </form>
         </section>
       )}
@@ -4329,13 +4425,36 @@ function PhotoUploadControl({ helpText, onPick }: { helpText: string; onPick: (f
   );
 }
 
-function AuthPanel() {
+function AuthPanel({ defaultMode = "signin" }: { defaultMode?: "signin" | "signup" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setMode(defaultMode);
+  }, [defaultMode]);
+
+  const resetPassword = async () => {
+    if (!supabase) return;
+    setSubmitting(true);
+    setError("");
+    setMessage("");
+    if (!email.trim()) {
+      setSubmitting(false);
+      setError("Enter your email first, then click reset password.");
+      return;
+    }
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/` });
+    setSubmitting(false);
+    if (resetError) {
+      setError(resetError.message);
+      return;
+    }
+    setMessage("Password reset email sent. Check your inbox for the Wicked Card Tracker reset link.");
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -4344,7 +4463,7 @@ function AuthPanel() {
     setError("");
     setMessage("");
     const result = mode === "signup"
-      ? await supabase.auth.signUp({ email, password })
+      ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/` } })
       : await supabase.auth.signInWithPassword({ email, password });
     setSubmitting(false);
     if (result.error) {
@@ -4355,7 +4474,7 @@ function AuthPanel() {
   };
 
   return (
-    <section className="panel authPanel">
+    <section className="panel authPanel" id="account-login">
       <div className="panelHeader">
         <div>
           <p className="eyebrow">Account login</p>
@@ -4369,6 +4488,8 @@ function AuthPanel() {
         <Field label="Email" type="email" value={email} onChange={setEmail} required />
         <Field label="Password" type="password" value={password} onChange={setPassword} required />
         <button className="primary" disabled={submitting} type="submit">{submitting ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}</button>
+        {mode === "signin" && <button className="secondary" disabled={submitting} type="button" onClick={resetPassword}>Reset password</button>}
+        <a className="secondary" href={PRICING_PATH}>View pricing</a>
       </form>
       {message && <p className="notice">{message}</p>}
       {error && <p className="errorBox">{error}</p>}

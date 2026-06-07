@@ -414,7 +414,7 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .authPanel { max-width: 720px; margin-inline: auto; }
 .authForm { display: grid; grid-template-columns: minmax(0, 320px); gap: 14px; justify-content: center; align-items: end; }
 .authForm label { width: 100%; }
-.authForm .primary { justify-self: center; width: min(220px, 100%); }
+.authForm .primary, .authForm .secondary { justify-self: center; width: min(220px, 100%); }
 .modalBackdrop { position: fixed; inset: 0; background: rgba(2, 6, 23, .76); display: grid; place-items: center; padding: 18px; z-index: 20; }
 .modal { width: min(720px, 100%); max-height: calc(100vh - 36px); overflow: auto; }
 .photoLightboxBackdrop { z-index: 30; background: rgba(2,6,23,.9); }
@@ -443,7 +443,17 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .iconCircle { width: 46px; height: 46px; border-radius: 999px; border: 1px solid rgba(103,232,249,.28); background: rgba(8,16,34,.74); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(103,232,249,.08); font-size: 1.1rem; }
 .topHeaderActions { display: flex; align-items: center; gap: 8px; }
 .signOutButton { position: static; border-radius: 999px; white-space: nowrap; }
-.collectorHeroCard, .secondaryStatStrip, .quickActionsPanel, .dashboardCashEntryPanel, .cashOnboardingCard { border: 1px solid rgba(103,232,249,.28); background: linear-gradient(145deg, rgba(8,16,34,.86), rgba(2,7,16,.92)); border-radius: 26px; box-shadow: 0 0 0 1px rgba(57,255,156,.08), 0 18px 56px rgba(0,0,0,.42), 0 0 34px rgba(103,232,249,.08); }
+.collectorHeroCard, .secondaryStatStrip, .quickActionsPanel, .dashboardCashEntryPanel, .cashOnboardingCard, .guestTrialBanner, .freeInventoryCounter { border: 1px solid rgba(103,232,249,.28); background: linear-gradient(145deg, rgba(8,16,34,.86), rgba(2,7,16,.92)); border-radius: 26px; box-shadow: 0 0 0 1px rgba(57,255,156,.08), 0 18px 56px rgba(0,0,0,.42), 0 0 34px rgba(103,232,249,.08); }
+.guestTrialBanner { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 18px 20px; margin-bottom: 14px; }
+.guestTrialBanner h2 { margin-bottom: 6px; font-size: clamp(1.28rem, 2.7vw, 1.8rem); }
+.guestTrialActions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+.guestTrialActions a, .authForm a, .freeInventoryCounter a { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+.freeInventoryCounter { display: grid; gap: 8px; padding: 14px; border-radius: 18px; background: linear-gradient(145deg, rgba(57,255,156,.11), rgba(103,232,249,.06)); }
+.freeInventoryCounter strong { color: var(--neon-green); font-size: 1.06rem; }
+.freeInventoryCounter p { margin: 0; color: var(--muted); }
+.freeInventoryCounter a { width: fit-content; }
+.freeInventoryCounter.isLocked { border-color: rgba(248,113,113,.36); background: linear-gradient(145deg, rgba(248,113,113,.1), rgba(8,16,34,.86)); }
+.freeInventoryCounter.isLocked strong { color: #fecaca; }
 .collectorHeroCard { position: relative; overflow: hidden; display: grid; grid-template-columns: 1.15fr minmax(120px, .85fr); gap: 16px; padding: 22px; margin-bottom: 14px; }
 .collectorHeroCard::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 80% 18%, rgba(103,232,249,.22), transparent 22rem), radial-gradient(circle at 18% 86%, rgba(57,255,156,.16), transparent 18rem), linear-gradient(120deg, rgba(255,255,255,.045), transparent 34%); pointer-events: none; }
 .collectorHeroContent, .slabShowpiece { position: relative; z-index: 1; }
@@ -603,6 +613,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .iconCircle { width: 44px; height: 44px; }
   .topHeaderActions .iconCircle { display: none; }
   .signOutButton { padding: 9px 11px; font-size: .78rem; }
+  .guestTrialBanner { align-items: stretch; flex-direction: column; padding: 16px; border-radius: 22px; }
+  .guestTrialActions { display: grid; grid-template-columns: 1fr; justify-content: stretch; }
+  .guestTrialActions a { width: 100%; }
+  .topHeaderActions { flex-direction: column; align-items: flex-end; gap: 6px; }
+  .topHeaderActions .signOutButton { padding: 7px 9px; font-size: .7rem; }
   .collectorHeroCard { grid-template-columns: 1fr 118px; padding: 16px; border-radius: 22px; }
   .collectorEmail { font-size: .96rem; margin-top: 13px; }
   .collectorSince { font-size: .78rem; margin-bottom: 12px; }
