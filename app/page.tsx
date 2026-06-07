@@ -3347,12 +3347,14 @@ export default function Home() {
                         <strong>{card.name || "Unnamed card"}</strong>
                         <span className={`listingAgeBadge ${tone}`}>{age} days listed</span>
                       </div>
-                      <p className="muted">
-                        Listed {referenceDate ? formatDateLabel(referenceDate) : "date unknown"}{listingPlatformLabel(card) ? ` • ${listingPlatformLabel(card)}` : ""}
-                      </p>
-                      <p className="muted">
-                        Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
-                      </p>
+                      <div className="listingReviewMeta" aria-label={`Listing details for ${card.name || "card"}`}>
+                        <span><small>Listed</small><strong>{referenceDate ? formatDateLabel(referenceDate) : "Date unknown"}</strong></span>
+                        <span><small>Platform</small><strong>{listingPlatformLabel(card) || "Not entered"}</strong></span>
+                        <span><small>Asking</small><strong>{money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span>
+                        <span><small>Cost</small><strong>{money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""}</strong></span>
+                        <span><small>Potential profit</small><strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong></span>
+                        {card.lowestAcceptablePrice ? <span><small>Minimum</small><strong>{money(card.lowestAcceptablePrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span> : null}
+                      </div>
                       {activeGradingCardIds.has(card.id) && (
                         <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
                       )}

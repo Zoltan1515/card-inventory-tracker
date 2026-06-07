@@ -230,6 +230,10 @@ textarea { min-height: 90px; resize: vertical; }
 .listingAgeBadge { border-radius: 999px; padding: 4px 8px; border: 1px solid rgba(56,189,248,.35); color: var(--primary); font-size: .78rem; font-weight: 900; }
 .listingAgeBadge.warning { border-color: rgba(245,158,11,.45); color: var(--warning); background: rgba(245,158,11,.1); }
 .listingAgeBadge.urgent { border-color: rgba(248,113,113,.5); color: var(--bad); background: rgba(248,113,113,.1); }
+.listingReviewMeta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+.listingReviewMeta span { display: grid; gap: 3px; min-width: 0; border: 1px solid rgba(103,232,249,.14); border-radius: 12px; padding: 8px 9px; background: rgba(2,7,16,.34); }
+.listingReviewMeta small { color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.listingReviewMeta strong { color: var(--text); font-size: .9rem; line-height: 1.15; overflow-wrap: anywhere; }
 .cardRow p, .expenseRow p { margin: 6px 0 0; color: var(--muted); }
 .rowTitle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cardInfo { min-width: 0; }
@@ -641,6 +645,20 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .filterActions { justify-content: stretch; }
   .filterActions .secondary { width: 100%; }
   .attentionItem { grid-template-columns: 1fr; }
+  .listingReviewDetail { padding: 12px; border-radius: 18px; }
+  .listingReviewDetailHeader { flex-direction: column; align-items: stretch; gap: 10px; }
+  .listingReviewList { gap: 10px; }
+  .listingReviewRow.compactRow { grid-template-columns: 1fr; gap: 12px; padding: 14px; border-left-width: 4px; border-radius: 18px; }
+  .listingReviewRow .rowTitle { align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .listingReviewRow .rowTitle strong { font-size: 1rem; max-width: calc(100% - 86px); }
+  .listingAgeBadge { flex: 0 0 auto; max-width: 78px; padding: 5px 7px; text-align: center; font-size: .7rem; line-height: 1.08; }
+  .listingReviewMeta { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 10px; }
+  .listingReviewMeta span { padding: 7px 8px; border-radius: 10px; }
+  .listingReviewMeta small { font-size: .58rem; }
+  .listingReviewMeta strong { font-size: .82rem; }
+  .listingReviewRow .listingLinkRow { gap: 8px; margin-top: 10px; }
+  .listingReviewRow .rowActions { grid-template-columns: 1fr; }
+  .listingReviewRow .rowActions button { width: 100%; }
   .attentionItem span { text-align: left; }
   .filters, .customDateRange { flex-direction: column; display: flex; }
   .addExpenseHeader { flex-direction: column; }

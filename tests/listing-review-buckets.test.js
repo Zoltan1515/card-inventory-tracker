@@ -21,5 +21,8 @@ assert(page.includes('aria-pressed={active}'), 'Clickable stat tabs should expos
 assert(css.includes('.clickableStat'), 'Clickable dollar tabs should have styling.');
 assert(css.includes('.activeStat'), 'Active dollar tab should be visually highlighted.');
 assert(css.includes('.listingReviewPrompt'), 'Hidden-listing prompt should have dedicated styling.');
+assert(page.includes('className="listingReviewMeta"'), 'Listing Review rows should use structured mobile-friendly detail chips instead of long bullet text.');
+assert(css.includes('.listingReviewMeta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));') && css.includes('.listingReviewMeta { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'Listing Review details should be compact chips on desktop and two-column chips on mobile.');
+assert(css.includes('.listingReviewRow.compactRow { grid-template-columns: 1fr;') && css.includes('.listingReviewRow .rowActions { grid-template-columns: 1fr; }'), 'Mobile Listing Review rows should stack cleanly without narrow squeezed columns.');
 
 console.log('Listing review bucket checks passed.');
