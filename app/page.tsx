@@ -2918,7 +2918,7 @@ export default function Home() {
         <section className="primeLotStatusCard" aria-label="PrimeLot connection status">
           <div className="primeLotStatusTopRow">
             <div className="primeLotStatusBrand">
-              <a className="primeLotLogoLink" href="https://primelotcards.com" target="_blank" rel="noreferrer" aria-label="Open PrimeLot storefront website">
+              <a className="primeLotLogoLink" href="https://primelot.cards" target="_blank" rel="noreferrer" aria-label="Open PrimeLot storefront website">
                 <img src="/primelot-logo.png" alt="PrimeLot logo" />
               </a>
               <strong>PrimeLot Storefront</strong>

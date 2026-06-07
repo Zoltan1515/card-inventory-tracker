@@ -15,7 +15,7 @@ assert(
 );
 
 assert(
-  page.includes('<a className="primeLotLogoLink" href="https://primelotcards.com" target="_blank" rel="noreferrer" aria-label="Open PrimeLot storefront website">') &&
+  page.includes('<a className="primeLotLogoLink" href="https://primelot.cards" target="_blank" rel="noreferrer" aria-label="Open PrimeLot storefront website">') &&
   page.includes('<img src="/primelot-logo.png" alt="PrimeLot logo" />') &&
   page.includes('<strong>PrimeLot Storefront</strong>') &&
   page.includes('>Manage</button>'),
