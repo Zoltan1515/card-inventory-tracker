@@ -535,9 +535,12 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .pricingBenefit { display: grid; grid-template-columns: 34px 1fr; gap: 12px; align-items: flex-start; border: 1px solid rgba(103,232,249,.16); border-radius: 16px; padding: 12px; background: rgba(2,7,16,.42); }
 .pricingBenefit span { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 999px; background: rgba(57,255,156,.14); color: var(--good); font-weight: 1000; }
 .pricingBenefit p { margin: 0; color: var(--text); line-height: 1.45; }
-.pricingFeatureGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.pricingFeatureCard { margin: 0; min-height: 168px; }
-.pricingFeatureCard h3 { font-size: 1.35rem; }
+.pricingFeatureGrid { display: grid; grid-template-columns: 1fr; gap: 12px; align-content: start; }
+.pricingFeatureCard { display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: flex-start; border: 1px solid var(--line); border-radius: 18px; padding: 16px; background: linear-gradient(145deg, rgba(8,16,34,.88), rgba(4,9,20,.86)); box-shadow: 0 14px 34px rgba(0,0,0,.22), 0 0 20px rgba(103,232,249,.04); }
+.pricingFeatureIcon { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 14px; background: rgba(57,255,156,.14); border: 1px solid rgba(57,255,156,.34); color: var(--good); font-weight: 1000; box-shadow: 0 0 18px rgba(57,255,156,.1); }
+.pricingFeatureCard .eyebrow { margin-bottom: 6px; }
+.pricingFeatureCard h3 { font-size: 1.22rem; margin-bottom: 7px; }
+.pricingFeatureCard p:last-child { margin-bottom: 0; }
 .pricingFinalCta { position: relative; overflow: hidden; text-align: center; margin: 20px 0 0; }
 .pricingFinalCta .subhead { margin-left: auto; margin-right: auto; margin-bottom: 22px; }
 

@@ -93,10 +93,13 @@ export default function PricingPage() {
 
         <div className="pricingFeatureGrid">
           {featureCards.map((feature) => (
-            <article className="panel pricingFeatureCard" key={feature.title}>
-              <p className="eyebrow">Included</p>
-              <h3>{feature.title}</h3>
-              <p className="muted">{feature.copy}</p>
+            <article className="pricingFeatureCard" key={feature.title}>
+              <span className="pricingFeatureIcon">✓</span>
+              <div>
+                <p className="eyebrow">Included</p>
+                <h3>{feature.title}</h3>
+                <p className="muted">{feature.copy}</p>
+              </div>
             </article>
           ))}
         </div>
