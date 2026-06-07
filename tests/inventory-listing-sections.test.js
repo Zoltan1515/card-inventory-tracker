@@ -38,4 +38,14 @@ assert(
   'Two-button inventory switch should have dedicated styling.'
 );
 
+assert(
+  page.includes('className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney"}') && page.includes('card.status === "Listed" ? card.askingPrice : card.purchasePrice'),
+  'Listed inventory rows should make asking price the prominent row price instead of purchase cost.'
+);
+
+assert(
+  page.includes('asking${cardQuantity(card) > 1 ? ` each • Qty ${cardQuantity(card)}` : ""} • cost ${money(card.purchasePrice)}') && css.includes('.askingRowMoney span'),
+  'Listed inventory rows should label the asking price and keep purchase cost secondary.'
+);
+
 console.log('Inventory listing section checks passed.');

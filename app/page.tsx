@@ -3647,7 +3647,7 @@ export default function Home() {
                   )}
                   {card.status === "Listed" && (
                     <p className="muted">
-                      Asking {money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""} • Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
+                      Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
                     </p>
                   )}
                   {card.status === "Listed" && (
@@ -3658,9 +3658,9 @@ export default function Home() {
                   )}
                 </div>
                 {card.status !== "Sold" && (
-                  <div className="rowMoney">
-                    <span>{money(card.purchasePrice)}</span>
-                    <small>{cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
+                  <div className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney"}>
+                    <span>{money(card.status === "Listed" ? card.askingPrice : card.purchasePrice)}</span>
+                    <small>{card.status === "Listed" ? `asking${cardQuantity(card) > 1 ? ` each • Qty ${cardQuantity(card)}` : ""} • cost ${money(card.purchasePrice)}` : cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
                   </div>
                 )}
                 {!isSoldInventoryView && (

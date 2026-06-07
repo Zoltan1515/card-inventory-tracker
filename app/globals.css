@@ -292,6 +292,8 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .gradingLinkBadge:hover, .gradingLinkBadge:focus-visible { border-color: rgba(245,158,11,.9); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
 .rowMoney { display: grid; gap: 4px; justify-items: end; min-width: 120px; }
 .rowMoney span { font-weight: 900; font-size: 1.15rem; }
+.askingRowMoney span { color: var(--neon-green); font-size: 1.32rem; text-shadow: 0 0 18px rgba(57,255,156,.18); }
+.askingRowMoney small { color: rgba(226,232,240,.82); }
 .rowMoney small, .muted { color: var(--muted); }
 .auditTrail { font-size: .78rem; line-height: 1.35; }
 .rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -630,6 +632,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .rowMoney { grid-column: 2 / -1; min-width: 0; display: flex; gap: 8px; align-items: baseline; justify-content: flex-start; }
   .noSelectCardRow .rowMoney { grid-column: 1 / -1; }
   .rowMoney span { font-size: 1.05rem; }
+  .askingRowMoney span { font-size: 1.22rem; }
   .rowMoney small { font-size: .75rem; }
   .inventoryControls { grid-column: 1 / -1; min-width: 0; }
   .inventoryControls select, .inventoryControls input, .listingEditButton { padding: 8px 10px; min-height: 38px; border-radius: 10px; }
