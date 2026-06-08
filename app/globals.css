@@ -221,7 +221,8 @@ textarea { min-height: 90px; resize: vertical; }
 .activeFilter { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(56,189,248,.1); }
 .customDateRange { display: grid; grid-template-columns: repeat(2, minmax(0, 220px)); gap: 12px; }
 .cardsList, .expenseList { display: grid; gap: 12px; }
-.cardRow { border-radius: 18px; padding: 18px; display: grid; grid-template-columns: auto 92px 1fr auto minmax(180px, 260px) auto; gap: 18px; align-items: center; }
+.cardRow { border-radius: 18px; padding: 18px; display: grid; grid-template-columns: auto 92px minmax(0, 1fr) auto minmax(180px, 260px) auto; gap: 18px; align-items: center; }
+.listedCardRow { grid-template-columns: auto 92px minmax(250px, 1fr) minmax(120px, 150px) minmax(130px, 160px) minmax(230px, auto); gap: 14px; padding: 16px; }
 .noSelectCardRow { grid-template-columns: 92px minmax(320px, 1fr) auto minmax(180px, 260px) auto; }
 .compactRow { grid-template-columns: 1fr auto; }
 .listingReviewRow { border-left: 5px solid var(--primary); }
@@ -283,6 +284,9 @@ textarea { min-height: 90px; resize: vertical; }
 .refundQuickActions { justify-content: flex-start; }
 .cardDetailChips { display: flex; flex-wrap: wrap; gap: 8px; }
 .cardDetailChips span { color: var(--muted); border: 1px solid rgba(148,163,184,.18); background: rgba(15,23,42,.5); border-radius: 999px; padding: 5px 8px; font-size: .78rem; line-height: 1.25; }
+.listedMetaChips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; max-width: 520px; }
+.listedMetaChips span { color: var(--muted); border: 1px solid rgba(103,232,249,.16); background: rgba(8,16,34,.48); border-radius: 999px; padding: 5px 8px; font-size: .76rem; line-height: 1.2; white-space: nowrap; }
+.listedMetaChips strong { font-size: inherit; }
 .statusBadge { background: var(--panel-2); color: var(--primary); border: 1px solid var(--line); border-radius: 999px; padding: 4px 8px; font-size: .78rem; }
 button.statusBadge { cursor: pointer; font: inherit; }
 .statusBadge.sold { color: var(--good); border-color: rgba(34,197,94,.35); }
@@ -292,8 +296,9 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .gradingLinkBadge:hover, .gradingLinkBadge:focus-visible { border-color: rgba(245,158,11,.9); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
 .rowMoney { display: grid; gap: 4px; justify-items: end; min-width: 120px; }
 .rowMoney span { font-weight: 900; font-size: 1.15rem; }
-.askingRowMoney span { color: var(--neon-green); font-size: 1.32rem; text-shadow: 0 0 18px rgba(57,255,156,.18); }
-.askingRowMoney small { color: rgba(226,232,240,.82); }
+.askingRowMoney { min-width: 0; justify-items: start; text-align: left; }
+.askingRowMoney span { color: var(--neon-green); font-size: 1.28rem; text-shadow: 0 0 18px rgba(57,255,156,.18); }
+.askingRowMoney small { color: rgba(226,232,240,.82); font-size: .72rem; line-height: 1.25; }
 .rowMoney small, .muted { color: var(--muted); }
 .auditTrail { font-size: .78rem; line-height: 1.35; }
 .rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -393,7 +398,11 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
 .inventoryControls input, .inventoryControls select { padding: 10px; }
 .listingEditButton { width: 100%; justify-content: center; }
-.listingLinkRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 4px; }
+.listedCardRow .inventoryControls { min-width: 0; }
+.listedCardRow .listingEditButton { width: 100%; min-height: 42px; padding: 9px 12px; border-radius: 12px; }
+.listedCardRow .rowActions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-width: 230px; }
+.listedCardRow .rowActions button { min-height: 42px; padding: 9px 10px; }
+.listingLinkRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
 .inlineLinkButton { border: 0; background: transparent; color: var(--warning); padding: 0; min-height: 0; text-decoration: underline; font: inherit; font-weight: 800; cursor: pointer; box-shadow: none; }
 .expenseRow { border-radius: 16px; padding: 16px; display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 16px; }
 .positive { color: var(--good); }
@@ -695,6 +704,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
     padding: 12px;
     border-radius: 16px;
   }
+  .listedCardRow { grid-template-columns: 28px 58px minmax(0, 1fr); }
   .noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }
   .soldCardRow.noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }
   .selectCardBox { align-self: center; }
@@ -707,6 +717,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .cardDetailsLine, .cardInfo .muted { font-size: .84rem; line-height: 1.25; }
   .auditTrail { display: none; }
   .rowMoney { grid-column: 2 / -1; min-width: 0; display: flex; gap: 8px; align-items: baseline; justify-content: flex-start; }
+  .listedCardRow .rowMoney { grid-column: 2 / -1; }
   .noSelectCardRow .rowMoney { grid-column: 1 / -1; }
   .rowMoney span { font-size: 1.05rem; }
   .askingRowMoney span { font-size: 1.22rem; }
@@ -722,6 +733,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .soldSummary span { font-size: .74rem; }
   .soldSummary strong { font-size: .88rem; }
   .cardDetailChips span { font-size: .68rem; padding: 4px 6px; }
+  .listedMetaChips { gap: 5px; margin-top: 6px; }
+  .listedMetaChips span { font-size: .68rem; padding: 4px 6px; white-space: normal; }
+  .listedCardRow .rowActions { min-width: 0; }
   .filterActions { justify-content: stretch; }
   .filterActions .secondary { width: 100%; }
   .attentionItem { grid-template-columns: 1fr; }

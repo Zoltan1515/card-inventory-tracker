@@ -3679,7 +3679,7 @@ export default function Home() {
 
           <div className="cardsList">
             {filteredCards.map((card) => (
-              <article className={`cardRow ${isSoldInventoryView ? "noSelectCardRow" : ""} ${card.status === "Sold" ? "soldCardRow" : ""}`} key={card.id}>
+              <article className={`cardRow ${isSoldInventoryView ? "noSelectCardRow" : ""} ${card.status === "Sold" ? "soldCardRow" : ""} ${card.status === "Listed" ? "listedCardRow" : ""}`} key={card.id}>
                 {!isSoldInventoryView && (
                 <label className="selectCardBox" aria-label={`Select ${card.name} for grading`}>
                   <input type="checkbox" checked={selectedCardIds.includes(card.id)} disabled={card.status === "Sold" || activeGradingCardIds.has(card.id)} onChange={() => toggleSelectedCard(card.id)} />
@@ -3742,16 +3742,15 @@ export default function Home() {
                         {parseCardRefunds(card.notes).map((refund, index) => <span key={`${card.id}-refund-${index}`}>Refunded {money(refund.amount)}{refund.refundDate ? ` on ${formatDateLabel(refund.refundDate)}` : ""}{refund.note ? ` • ${refund.note}` : ""}</span>)}
                       </div>
                     </>
+                  ) : card.status === "Listed" ? (
+                    <div className="listedMetaChips" aria-label="Listed card details">
+                      <span>{listingPlatformLabel(card)}{listedDays(card) !== null ? ` • ${listedDays(card)}d` : ""}</span>
+                      <span>Added {formatDateLabel(card.createdAt.slice(0, 10))}</span>
+                      <span>Profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong></span>
+                      {card.lowestAcceptablePrice ? <span>Minimum {money(card.lowestAcceptablePrice)}{cardQuantity(card) > 1 ? " each" : ""}</span> : null}
+                    </div>
                   ) : (
-                    <>
-                      {card.status === "Listed" && <p className="muted">{listingPlatformLabel(card)}{listedDays(card) !== null ? ` • ${listedDays(card)}d` : ""}</p>}
-                      <p className="muted auditTrail">Added {formatDateLabel(card.createdAt.slice(0, 10))}</p>
-                    </>
-                  )}
-                  {card.status === "Listed" && (
-                    <p className="muted">
-                      Potential profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong>{card.lowestAcceptablePrice ? ` • Minimum ${money(card.lowestAcceptablePrice)}${cardQuantity(card) > 1 ? " each" : ""}` : ""}
-                    </p>
+                    <p className="muted auditTrail">Added {formatDateLabel(card.createdAt.slice(0, 10))}</p>
                   )}
                   {card.status === "Listed" && (
                     <div className="listingLinkRow">
