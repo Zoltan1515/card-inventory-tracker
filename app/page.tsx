@@ -72,6 +72,7 @@ type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
 };
+type PrimeLotListingType = "single_card" | "sealed_product" | "lot";
 type PrimeLotPostResult = {
   postedCount: number;
   totalAmount: number;
@@ -102,6 +103,12 @@ const PRIMELOT_SELLER_MEMBERSHIP_URL = "https://primelot.cards/pricing";
 const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard/seller?tab=listings";
 const PRIMELOT_DRAFTS_URL = "https://primelot.cards/dashboard/seller?tab=listings&status=draft";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
+const primeLotListingTypeOptions: Array<{ value: PrimeLotListingType; label: string }> = [
+  { value: "single_card", label: "Single Card" },
+  { value: "sealed_product", label: "Sealed Product" },
+  { value: "lot", label: "Lot" },
+];
+const primeLotListingTypeLabels = Object.fromEntries(primeLotListingTypeOptions.map((option) => [option.value, option.label])) as Record<PrimeLotListingType, string>;
 const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const primeLotDraftStatuses = new Set(["draft", "pending", "inactive", "archived", "deleted", "removed"]);
@@ -703,7 +710,7 @@ export default function Home() {
   const [primeLotDetailsOpen, setPrimeLotDetailsOpen] = useState(false);
   const [primeLotModalOpen, setPrimeLotModalOpen] = useState(false);
   const [primeLotReviewOpen, setPrimeLotReviewOpen] = useState(false);
-  const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, { askingPrice: string; shippingCharge: string; gradingCompany: string }>>({});
+  const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, { askingPrice: string; shippingCharge: string; gradingCompany: string; listingType: PrimeLotListingType | "" }>>({});
   const [primeLotPostResult, setPrimeLotPostResult] = useState<PrimeLotPostResult | null>(null);
   const [primeLotMembershipRequiredOpen, setPrimeLotMembershipRequiredOpen] = useState(false);
   const [primeLotIntent, setPrimeLotIntent] = useState<"create" | "connect">("create");
@@ -2856,20 +2863,24 @@ export default function Home() {
       askingPrice: String(card.askingPrice || ""),
       shippingCharge: String(card.shippingCharge || 0),
       gradingCompany: card.gradingCompany || "",
+      listingType: "" as PrimeLotListingType | "",
     }])));
     setPrimeLotReviewOpen(true);
   };
 
-  const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge", value: string) => {
-    setPrimeLotReviewDrafts((drafts) => ({
-      ...drafts,
-      [cardId]: {
-        askingPrice: drafts[cardId]?.askingPrice || "",
-        shippingCharge: drafts[cardId]?.shippingCharge || "0",
-        gradingCompany: drafts[cardId]?.gradingCompany || "",
-        [field]: value,
-      },
-    }));
+  const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge" | "listingType", value: string) => {
+    setPrimeLotReviewDrafts((drafts) => {
+      const current = drafts[cardId];
+      const nextDraft = {
+        askingPrice: current?.askingPrice || "",
+        shippingCharge: current?.shippingCharge || "0",
+        gradingCompany: current?.gradingCompany || "",
+        listingType: current?.listingType || "" as PrimeLotListingType | "",
+      };
+      if (field === "listingType") nextDraft.listingType = value as PrimeLotListingType | "";
+      else nextDraft[field] = value;
+      return { ...drafts, [cardId]: nextDraft };
+    });
   };
 
   const clearPrimeLotListingForCard = async (card: CardRecord) => {
@@ -2895,6 +2906,7 @@ export default function Home() {
           askingPrice: drafts[card.id]?.askingPrice || String(card.askingPrice || ""),
           shippingCharge: drafts[card.id]?.shippingCharge || String(card.shippingCharge || 0),
           gradingCompany: drafts[card.id]?.gradingCompany || card.gradingCompany || "",
+          listingType: drafts[card.id]?.listingType || "",
         },
       }));
     }
@@ -2906,6 +2918,7 @@ export default function Home() {
       ...card,
       askingPrice: Number(draft?.askingPrice || 0),
       shippingCharge: Number(draft?.shippingCharge || 0),
+      listingType: draft?.listingType || "",
     };
   });
 
@@ -2914,6 +2927,11 @@ export default function Home() {
     const cardsMissingPrice = cardsToPost.filter((card) => Number(card.askingPrice || 0) <= 0);
     if (cardsMissingPrice.length) {
       setError("Add an asking price to every selected card before posting to PrimeLot.");
+      return;
+    }
+    const cardsMissingListingType = cardsToPost.filter((card) => !card.listingType);
+    if (cardsMissingListingType.length) {
+      setError("Choose Single Card, Sealed Product, or Lot for every selected listing before importing to PrimeLot.");
       return;
     }
     const cardsMissingGrader = cardsToPost.filter((card) => card.grade.trim() && !card.gradingCompany.trim());
@@ -3313,14 +3331,14 @@ export default function Home() {
               <button className="secondary compactButton" type="button" onClick={() => setPrimeLotReviewOpen(false)}>Cancel</button>
             </div>
             <div className="primeLotIntentNote liveWarning">
-              <strong>This will go live in the PrimeLot marketplace</strong>
-              <p>When you press confirm, these cards will be published to your connected PrimeLot storefront and Card Tracker will mark live listings as Listed.</p>
+              <strong>All imports are saved as PrimeLot drafts</strong>
+              <p>Choose the correct PrimeLot listing type for each row. Sealed boxes, booster packs, tins, cases, and other sealed products must use Sealed Product. PrimeLot will save imported listings as drafts for review before publishing.</p>
             </div>
             <div className="primeLotReviewList">
               {selectedCards.map((card) => {
                 const canPostToPrimeLot = canPostCardToPrimeLot(card);
                 const isAlreadyOnPrimeLot = alreadyOnPrimeLot(card);
-                const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "" };
+                const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "", listingType: "" as PrimeLotListingType | "" };
                 const total = Number(draft.askingPrice || 0) * cardQuantity(card);
                 return (
                   <article className={canPostToPrimeLot ? "primeLotReviewRow" : "primeLotReviewRow blocked"} key={card.id}>
@@ -3332,9 +3350,14 @@ export default function Home() {
                       <span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{canPostToPrimeLot ? "Ready" : "Already posted on PrimeLot"}</span>
                     </div>
                     <div className="primeLotReviewFields compact">
+                      <label>PrimeLot listing type<select required value={draft.listingType} onChange={(event) => updatePrimeLotReviewDraft(card.id, "listingType", event.target.value)}>
+                        <option value="">Choose listing type</option>
+                        {primeLotListingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select></label>
                       <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
                       <Field label="Buyer shipping charge" type="number" value={draft.shippingCharge} onChange={(value) => updatePrimeLotReviewDraft(card.id, "shippingCharge", value)} />
                     </div>
+                    {draft.listingType === "sealed_product" && <p className="muted">Use Sealed Product for sealed boxes, booster packs, tins, cases, and other unopened products so PrimeLot does not import them as single cards.</p>}
                     {canPostToPrimeLot ? (
                       <p className="muted">PrimeLot listing total: {money(total)}</p>
                     ) : (
@@ -3352,7 +3375,7 @@ export default function Home() {
               <span><small>Estimated total</small><strong>{money(selectedPrimeLotCards.reduce((sum, card) => sum + (Number(primeLotReviewDrafts[card.id]?.askingPrice || card.askingPrice || 0) * cardQuantity(card)), 0))}</strong></span>
             </div>
             <div className="rowActions">
-              <button className="primary" type="button" onClick={confirmPrimeLotPost} disabled={postingToPrimeLot}>{postingToPrimeLot ? "Posting…" : "Confirm — post live on PrimeLot"}</button>
+              <button className="primary" type="button" onClick={confirmPrimeLotPost} disabled={postingToPrimeLot}>{postingToPrimeLot ? "Importing…" : "Confirm — import drafts to PrimeLot"}</button>
               <button className="secondary" type="button" onClick={() => setPrimeLotReviewOpen(false)}>Cancel — go back</button>
             </div>
           </section>

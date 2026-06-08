@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
+type PrimeLotListingType = "single_card" | "sealed_product" | "lot";
+
 type CardPayload = {
   id: string;
   name: string;
@@ -24,6 +26,7 @@ type CardPayload = {
   purchaseDate?: string;
   purchasePrice?: number;
   soldPrice?: number;
+  listingType?: PrimeLotListingType;
   notes?: string;
 };
 
@@ -67,12 +70,22 @@ const normalizePrimeLotImageUrl = (value?: string) => {
   }
 };
 
+const allowedListingTypes = new Set<PrimeLotListingType>(["single_card", "sealed_product", "lot"]);
+const primeLotListingTargets: Record<PrimeLotListingType, { table: string; path: string }> = {
+  single_card: { table: "single_cards", path: "single-cards" },
+  sealed_product: { table: "sealed_products", path: "sealed-products" },
+  lot: { table: "lots", path: "lots" },
+};
+const listingTypeForCard = (card: CardPayload): PrimeLotListingType | null => {
+  const value = String(card.listingType || "");
+  if (!allowedListingTypes.has(value as PrimeLotListingType)) return null;
+  return value as PrimeLotListingType;
+};
+
 const cardTypeForCategory = (category?: string) => {
   const value = (category || "").toLowerCase();
   if (value.includes("pokemon") || value.includes("pokémon")) return "pokemon";
   if (value.includes("one piece")) return "one_piece";
-  if (value.includes("magic") || value.includes("mtg")) return "mtg";
-  if (value.includes("yugioh") || value.includes("yu-gi-oh")) return "yugioh";
   return "sports";
 };
 
@@ -153,6 +166,8 @@ const descriptionForCard = (card: CardPayload) => [
   card.notes?.trim() ? `Notes: ${card.notes.trim()}` : "",
 ].filter(Boolean).join("\n");
 
+type PrimeLotImportRow = { card: CardPayload; listingType: PrimeLotListingType; row: Record<string, unknown>; formData: FormData | null };
+
 export async function POST(request: NextRequest) {
   const cardTrackerSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const cardTrackerSupabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -227,7 +242,13 @@ export async function POST(request: NextRequest) {
   if (cards.length > 50) return jsonError("Post 50 cards or fewer at a time.");
 
   const invalidCard = cards.find((card) => !card.id || !card.name?.trim() || Number(card.askingPrice || 0) <= 0);
-  if (invalidCard) return jsonError("Every PrimeLot post needs a card name and asking price.");
+  if (invalidCard) return jsonError("Every PrimeLot import needs a card name and asking price.");
+  const cardMissingListingType = cards.find((card) => {
+    const listingType = listingTypeForCard(card);
+    if (!listingType) return true;
+    return false;
+  });
+  if (cardMissingListingType) return jsonError("Choose Single Card, Sealed Product, or Lot before importing to PrimeLot.");
   const cardWithInvalidPhoto = cards.find((card) => (
     (card.frontPhotoUrl?.trim() && !normalizePrimeLotImageUrl(card.frontPhotoUrl))
     || (card.backPhotoUrl?.trim() && !normalizePrimeLotImageUrl(card.backPhotoUrl))
@@ -243,105 +264,119 @@ export async function POST(request: NextRequest) {
   if (!primeLotSellerMembershipActive) {
     return jsonError("Start a PrimeLot Seller membership to import and publish your listings.", 403, "PRIMELOT_SELLER_MEMBERSHIP_REQUIRED");
   }
-  const primeLotPostStatus = "active";
+  const primeLotPostStatus = "draft";
 
-  const baseRows = cards.map((card) => {
-    const grading = gradingDetailsForCard(card);
-    return {
-    user_id: primeLotSellerUserId,
-    card_type: cardTypeForCategory(card.category),
-    card_name: card.name.trim(),
-    description: descriptionForCard(card) || null,
-    year: card.year?.trim() || null,
-    player: null,
-    is_graded: Boolean(grading.company || grading.grade),
-    condition: "near_mint",
-    grading_company: grading.company || null,
-    grade: grading.grade || null,
-    price: Number(card.askingPrice || 0),
-    image_url_front: normalizePrimeLotImageUrl(card.frontPhotoUrl),
-    image_url_back: normalizePrimeLotImageUrl(card.backPhotoUrl),
-    status: primeLotPostStatus,
-    commission_rate: 0,
-    transaction_id: null,
-    wishlist_id: null,
-    is_wishlist_offer: false,
-    quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
-    quantity_sold: 0,
+  const primeLotImportFormDataForCard = (card: CardPayload, row: Record<string, unknown>) => {
+    const listingType = listingTypeForCard(card);
+    if (!listingType) return null;
+    const formData = new FormData();
+    formData.append("listingType", listingType);
+    formData.append("cardType", cardTypeForCategory(card.category));
+    formData.append("file", new Blob([JSON.stringify({ listings: [row] })], { type: "application/json" }), `wicked-card-tracker-${card.id}.json`);
+    return formData;
   };
-  });
-  const rowsWithShipping = baseRows.map((row, index) => ({
-    ...row,
-    shipping_cost: Number(cards[index].shippingCharge || 0),
+
+  const baseRows = cards.map((card): PrimeLotImportRow | null => {
+    const grading = gradingDetailsForCard(card);
+    const listingType = listingTypeForCard(card);
+    if (!listingType) return null;
+    const row = {
+      user_id: primeLotSellerUserId,
+      card_type: cardTypeForCategory(card.category),
+      card_name: card.name.trim(),
+      description: descriptionForCard(card) || null,
+      year: card.year?.trim() || null,
+      player: null,
+      is_graded: Boolean(grading.company || grading.grade),
+      condition: "near_mint",
+      grading_company: grading.company || null,
+      grade: grading.grade || null,
+      price: Number(card.askingPrice || 0),
+      image_url_front: normalizePrimeLotImageUrl(card.frontPhotoUrl),
+      image_url_back: normalizePrimeLotImageUrl(card.backPhotoUrl),
+      status: primeLotPostStatus,
+      commission_rate: 0,
+      transaction_id: null,
+      wishlist_id: null,
+      is_wishlist_offer: false,
+      quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
+      quantity_sold: 0,
+    };
+    return { card, listingType, row, formData: primeLotImportFormDataForCard(card, row) };
+  }).filter((item): item is PrimeLotImportRow => Boolean(item));
+  const rowsWithShipping: PrimeLotImportRow[] = baseRows.map((item) => ({
+    ...item,
+    row: {
+      ...item.row,
+      shipping_cost: Number(item.card.shippingCharge || 0),
+    },
   }));
-  const rowsWithSourceTracking = rowsWithShipping.map((row, index) => ({
-    ...row,
-    source_platform: "wickedcardtracker",
-    source_id: cards[index].id,
+  const rowsWithSourceTracking: PrimeLotImportRow[] = rowsWithShipping.map((item) => ({
+    ...item,
+    row: {
+      ...item.row,
+      source_platform: "wickedcardtracker",
+      source_id: item.card.id,
+    },
   }));
 
-  let insertedUsingSourceTracking = true;
-  let insertedUsingShipping = true;
-  let insertResult = await primeLotSupabase
-    .from("single_cards")
-    .insert(rowsWithSourceTracking)
-    .select("id, source_id, status");
+  const createdListings: CreatedListing[] = [];
+  for (const listingType of allowedListingTypes) {
+    const target = primeLotListingTargets[listingType];
+    let group = rowsWithSourceTracking.filter((item) => item.listingType === listingType);
+    if (!group.length) continue;
 
-  if (insertResult.error && photoColumnError(insertResult.error.message)) {
-    if (hasRequestedPhotos) return jsonError("PrimeLot could not save the front/back photos because its image_url_front/image_url_back fields are missing. The listings were not posted without your photos.", 502, "PRIMELOT_PHOTOS_NOT_CONFIGURED");
-    const rowsWithoutPhotos = rowsWithSourceTracking.map(({ image_url_front: _frontPhoto, image_url_back: _backPhoto, ...row }) => row);
-    insertResult = await primeLotSupabase
-      .from("single_cards")
-      .insert(rowsWithoutPhotos)
+    let insertedUsingSourceTracking = true;
+    let insertResult = await primeLotSupabase
+      .from(target.table)
+      .insert(group.map((item) => item.row))
       .select("id, source_id, status");
+
+    if (insertResult.error && photoColumnError(insertResult.error.message)) {
+      if (hasRequestedPhotos) return jsonError("PrimeLot could not save the front/back photos because its image_url_front/image_url_back fields are missing. The listings were not posted without your photos.", 502, "PRIMELOT_PHOTOS_NOT_CONFIGURED");
+      group = group.map((item) => {
+        const { image_url_front: _frontPhoto, image_url_back: _backPhoto, ...row } = item.row;
+        return { ...item, row };
+      });
+      insertResult = await primeLotSupabase
+        .from(target.table)
+        .insert(group.map((item) => item.row))
+        .select("id, source_id, status");
+    }
+
+    if (insertResult.error && shippingColumnError(insertResult.error.message)) {
+      if (hasRequestedShipping) return jsonError("PrimeLot could not save buyer shipping because its shipping_cost field is missing. The listings were not posted without your shipping charges.", 502, "PRIMELOT_SHIPPING_NOT_CONFIGURED");
+      group = group.map((item) => {
+        const { shipping_cost: _shippingCost, ...row } = item.row;
+        return { ...item, row };
+      });
+      insertResult = await primeLotSupabase
+        .from(target.table)
+        .insert(group.map((item) => item.row))
+        .select("id, source_id, status");
+    }
+
+    if (insertResult.error && sourceTrackingColumnError(insertResult.error.message)) {
+      insertedUsingSourceTracking = false;
+      group = group.map((item) => {
+        const { source_id: _sourceId, source_platform: _sourcePlatform, ...row } = item.row;
+        return { ...item, row };
+      });
+      insertResult = await primeLotSupabase
+        .from(target.table)
+        .insert(group.map((item) => item.row))
+        .select("id, status");
+    }
+
+    if (insertResult.error) return jsonError(`PrimeLot rejected the ${target.table} imports: ${insertResult.error.message}`, 502);
+
+    createdListings.push(...(insertResult.data || []).map((row: { id: string; source_id?: string; status: string }, index: number) => ({
+      cardTrackerId: insertedUsingSourceTracking ? row.source_id || group[index]?.card.id || "" : group[index]?.card.id || "",
+      primeLotListingId: row.id,
+      url: `${primeLotSiteUrl}/${target.path}/${row.id}`,
+      status: row.status,
+    })).filter((listing: CreatedListing) => Boolean(listing.cardTrackerId)));
   }
-
-  if (insertResult.error && shippingColumnError(insertResult.error.message)) {
-    insertedUsingShipping = false;
-    if (hasRequestedShipping) return jsonError("PrimeLot could not save buyer shipping because its shipping_cost field is missing. The listings were not posted without your shipping charges.", 502, "PRIMELOT_SHIPPING_NOT_CONFIGURED");
-    const rowsWithoutShipping = rowsWithSourceTracking.map(({ shipping_cost: _shippingCost, ...row }) => row);
-    insertResult = await primeLotSupabase
-      .from("single_cards")
-      .insert(rowsWithoutShipping)
-      .select("id, source_id, status");
-  }
-
-  if (insertResult.error && sourceTrackingColumnError(insertResult.error.message)) {
-    insertedUsingSourceTracking = false;
-    const rowsWithoutSource = insertedUsingShipping ? rowsWithShipping : baseRows;
-    insertResult = await primeLotSupabase
-      .from("single_cards")
-      .insert(rowsWithoutSource)
-      .select("id, status");
-  }
-
-  if (insertResult.error && photoColumnError(insertResult.error.message)) {
-    if (hasRequestedPhotos) return jsonError("PrimeLot could not save the front/back photos because its image_url_front/image_url_back fields are missing. The listings were not posted without your photos.", 502, "PRIMELOT_PHOTOS_NOT_CONFIGURED");
-    const sourceRows = insertedUsingShipping ? rowsWithShipping : baseRows;
-    const rowsWithoutPhotos = sourceRows.map(({ image_url_front: _frontPhoto, image_url_back: _backPhoto, ...row }) => row);
-    insertResult = await primeLotSupabase
-      .from("single_cards")
-      .insert(rowsWithoutPhotos)
-      .select("id, status");
-  }
-
-  if (insertResult.error && shippingColumnError(insertResult.error.message)) {
-    insertedUsingShipping = false;
-    if (hasRequestedShipping) return jsonError("PrimeLot could not save buyer shipping because its shipping_cost field is missing. The listings were not posted without your shipping charges.", 502, "PRIMELOT_SHIPPING_NOT_CONFIGURED");
-    insertResult = await primeLotSupabase
-      .from("single_cards")
-      .insert(baseRows)
-      .select("id, status");
-  }
-
-  if (insertResult.error) return jsonError(`PrimeLot rejected the listings: ${insertResult.error.message}`, 502);
-
-  const createdListings: CreatedListing[] = (insertResult.data || []).map((row: { id: string; source_id?: string; status: string }, index: number) => ({
-    cardTrackerId: insertedUsingSourceTracking ? row.source_id || cards[index]?.id || "" : cards[index]?.id || "",
-    primeLotListingId: row.id,
-    url: `${primeLotSiteUrl}/single-cards/${row.id}`,
-    status: row.status,
-  })).filter((listing) => Boolean(listing.cardTrackerId));
 
   return NextResponse.json({ createdListings });
 }

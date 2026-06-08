@@ -15,8 +15,8 @@ assert(
 );
 
 assert(
-  page.includes('This will go live in the PrimeLot marketplace'),
-  'Review modal must clearly warn that confirmed cards go live on PrimeLot.'
+  page.includes('All imports are saved as PrimeLot drafts'),
+  'Review modal must clearly explain that PrimeLot imports are drafts that need review before publishing.'
 );
 
 assert(

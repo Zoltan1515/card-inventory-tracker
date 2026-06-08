@@ -8,7 +8,7 @@ function assert(condition, message) {
 }
 
 assert(
-  route.includes('shipping_cost: Number(cards[index].shippingCharge || 0)'),
+  route.includes('shipping_cost: Number(item.card.shippingCharge || 0)'),
   'PrimeLot API should write buyer shipping to shipping_cost, the field read by the live PrimeLot listing UI.'
 );
 
@@ -28,8 +28,8 @@ assert(
 );
 
 assert(
-  route.includes('const hasActiveSellerMembership = async') && route.includes('PRIMELOT_SELLER_MEMBERSHIP_REQUIRED') && route.includes('const primeLotPostStatus = "active";'),
-  'PrimeLot API should check Seller membership and reject imports before insert unless active Seller membership is verified.'
+  route.includes('const hasActiveSellerMembership = async') && route.includes('PRIMELOT_SELLER_MEMBERSHIP_REQUIRED') && route.includes('const primeLotPostStatus = "draft";'),
+  'PrimeLot API should check Seller membership and import listings as drafts for review.'
 );
 
 assert(
