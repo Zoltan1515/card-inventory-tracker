@@ -2124,19 +2124,21 @@ export default function Home() {
     setNotice("");
     if (!sellingCard) return;
     const sourceCard = cards.find((card) => card.id === sellingCard.id) || sellingCard;
+    const updatingExistingSoldSale = sourceCard.status === "Sold";
     const availableQty = cardQuantity(sourceCard);
-    const saleQty = Math.min(availableQty, cardQuantity(sellingCard));
+    const saleQty = updatingExistingSoldSale ? cardQuantity(sellingCard) : Math.min(availableQty, cardQuantity(sellingCard));
+    const partialActiveSale = !updatingExistingSoldSale && saleQty < availableQty;
     const now = new Date().toISOString();
     const soldCard = {
       ...sellingCard,
-      id: saleQty < availableQty ? crypto.randomUUID() : sellingCard.id,
+      id: partialActiveSale ? crypto.randomUUID() : sellingCard.id,
       workspaceId: sourceCard.workspaceId,
       quantity: saleQty,
       status: "Sold" as const,
       soldAt: sellingCard.soldAt || now,
       soldBy: sellingCard.soldBy || currentUsername,
-      createdAt: saleQty < availableQty ? now : sellingCard.createdAt,
-      createdBy: saleQty < availableQty ? currentUsername : sellingCard.createdBy,
+      createdAt: partialActiveSale ? now : sellingCard.createdAt,
+      createdBy: partialActiveSale ? currentUsername : sellingCard.createdBy,
       updatedAt: now,
       updatedBy: currentUsername,
     };
@@ -2145,7 +2147,7 @@ export default function Home() {
       setError(validationError);
       return;
     }
-    if (saleQty < availableQty) {
+    if (partialActiveSale) {
       const remainingCard: CardRecord = {
         ...sourceCard,
         quantity: availableQty - saleQty,
@@ -4563,11 +4565,11 @@ export default function Home() {
               <button className="secondary" type="button" onClick={() => { setSellingCard(null); setSaleExpenseDraft(emptySaleExpenseDraft()); }}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
-              <Field label={`Quantity sold (available ${cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)})`} type="number" value={String(sellingCard.quantity)} onChange={(v) => {
+              <Field label={sellingCard.status === "Sold" ? "Quantity sold" : `Quantity sold (available ${cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)})`} type="number" value={String(sellingCard.quantity)} onChange={(v) => {
                 const availableQuantity = cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard);
                 const requestedQuantity = sanitizeQuantityInput(v);
-                const nextQuantity = Math.max(1, Math.min(availableQuantity, requestedQuantity));
-                if (requestedQuantity > availableQuantity) setError(`Only ${availableQuantity} ${availableQuantity === 1 ? "copy is" : "copies are"} available in this row. If both copies already sold, delete this leftover Not Listed row instead of selling it again.`);
+                const nextQuantity = sellingCard.status === "Sold" ? requestedQuantity : Math.max(1, Math.min(availableQuantity, requestedQuantity));
+                if (sellingCard.status !== "Sold" && requestedQuantity > availableQuantity) setError(`Only ${availableQuantity} ${availableQuantity === 1 ? "copy is" : "copies are"} available in this row. If both copies already sold, delete this leftover Not Listed row instead of selling it again.`);
                 else setError("");
                 setSellingCard({ ...sellingCard, quantity: nextQuantity, soldPrice: sellingUnitPrice * nextQuantity, shippingCharge: sellingShippingUnitPrice * nextQuantity });
               }} required />

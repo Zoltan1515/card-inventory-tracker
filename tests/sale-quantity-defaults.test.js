@@ -11,13 +11,26 @@ assert(
 
 assert(
   page.includes('Quantity sold (available ${cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)})'),
-  'Sale quantity field should show the available quantity for this exact row so qty-1 leftovers are not mistaken for qty-2 inventory.'
+  'Active sale quantity field should show the available quantity for this exact row so qty-1 leftovers are not mistaken for qty-2 inventory.'
+);
+
+assert(
+  page.includes('const nextQuantity = sellingCard.status === "Sold" ? requestedQuantity : Math.max(1, Math.min(availableQuantity, requestedQuantity));'),
+  'Update sale for an already-sold row should allow correcting the sold quantity upward instead of clamping it to the current saved quantity.'
 );
 
 assert(
   page.includes('Only ${availableQuantity} ${availableQuantity === 1 ? "copy is" : "copies are"} available in this row.') &&
-    page.includes('delete this leftover Not Listed row instead of selling it again'),
-  'Typing more than the available row quantity should explain why it cannot be sold again.'
+    page.includes('delete this leftover Not Listed row instead of selling it again') &&
+    page.includes('sellingCard.status !== "Sold" && requestedQuantity > availableQuantity'),
+  'Typing more than the available row quantity should warn only for active inventory sales, not sold-record corrections.'
+);
+
+assert(
+  page.includes('const updatingExistingSoldSale = sourceCard.status === "Sold";') &&
+    page.includes('const saleQty = updatingExistingSoldSale ? cardQuantity(sellingCard) : Math.min(availableQty, cardQuantity(sellingCard));') &&
+    page.includes('const partialActiveSale = !updatingExistingSoldSale && saleQty < availableQty;'),
+  'Saving Update sale should keep the corrected sold quantity and should not create a new partial active-inventory split.'
 );
 
 assert(
@@ -26,10 +39,9 @@ assert(
 );
 
 assert(
-  page.includes('const saleQty = Math.min(availableQty, cardQuantity(sellingCard));') &&
-    page.includes('if (saleQty < availableQty) {') &&
+  page.includes('partialActiveSale') &&
     page.includes('${availableQty - saleQty} left in inventory'),
-  'Partial sales should still intentionally leave remaining quantity in active inventory only when the user lowers the sale quantity.'
+  'Partial sales should still intentionally leave remaining quantity in active inventory only when the user lowers the quantity on an active inventory row.'
 );
 
 console.log('Sale quantity default checks passed.');
