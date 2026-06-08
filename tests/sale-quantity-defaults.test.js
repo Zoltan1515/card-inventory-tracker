@@ -10,6 +10,17 @@ assert(
 );
 
 assert(
+  page.includes('Quantity sold (available ${cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)})'),
+  'Sale quantity field should show the available quantity for this exact row so qty-1 leftovers are not mistaken for qty-2 inventory.'
+);
+
+assert(
+  page.includes('Only ${availableQuantity} ${availableQuantity === 1 ? "copy is" : "copies are"} available in this row.') &&
+    page.includes('delete this leftover Not Listed row instead of selling it again'),
+  'Typing more than the available row quantity should explain why it cannot be sold again.'
+);
+
+assert(
   page.includes('setSellingCard({ ...sellingCard, quantity: nextQuantity, soldPrice: sellingUnitPrice * nextQuantity, shippingCharge: sellingShippingUnitPrice * nextQuantity });'),
   'Changing the sale quantity should continue recalculating sold price and buyer shipping totals from per-item values.'
 );

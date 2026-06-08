@@ -4563,8 +4563,12 @@ export default function Home() {
               <button className="secondary" type="button" onClick={() => { setSellingCard(null); setSaleExpenseDraft(emptySaleExpenseDraft()); }}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
-              <Field label="Quantity sold" type="number" value={String(sellingCard.quantity)} onChange={(v) => {
-                const nextQuantity = Math.max(1, Math.min(cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard), sanitizeQuantityInput(v)));
+              <Field label={`Quantity sold (available ${cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard)})`} type="number" value={String(sellingCard.quantity)} onChange={(v) => {
+                const availableQuantity = cardQuantity(cards.find((card) => card.id === sellingCard.id) || sellingCard);
+                const requestedQuantity = sanitizeQuantityInput(v);
+                const nextQuantity = Math.max(1, Math.min(availableQuantity, requestedQuantity));
+                if (requestedQuantity > availableQuantity) setError(`Only ${availableQuantity} ${availableQuantity === 1 ? "copy is" : "copies are"} available in this row. If both copies already sold, delete this leftover Not Listed row instead of selling it again.`);
+                else setError("");
                 setSellingCard({ ...sellingCard, quantity: nextQuantity, soldPrice: sellingUnitPrice * nextQuantity, shippingCharge: sellingShippingUnitPrice * nextQuantity });
               }} required />
               <Field label="Sold price per item" type="number" value={String(sellingUnitPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) * sellingQuantity })} required />
