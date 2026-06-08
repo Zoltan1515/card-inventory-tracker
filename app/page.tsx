@@ -703,14 +703,14 @@ export default function Home() {
       const cachedCards = localCards();
       const cachedCardsById = new Map(cachedCards.map((card) => [card.id, card]));
       if (userCardsResult.error) setError(userCardsResult.error.message);
-      else setCards(mergeById((userCardsResult.data ?? []).map((row) => rowToCardWithQuantityFallback(row, cachedCardsById.get(row.id))), cachedCards));
+      else setCards((userCardsResult.data ?? []).map((row) => rowToCardWithQuantityFallback(row, cachedCardsById.get(row.id))));
 
       if (userExpensesResult.error) setError(`Expenses table needs setup: ${userExpensesResult.error.message}`);
-      else setExpenses(mergeById((userExpensesResult.data ?? []).map(rowToExpense), localExpenses()));
+      else setExpenses((userExpensesResult.data ?? []).map(rowToExpense));
 
       const cashErrorMessage = userCashResult.error?.message || "";
       if (userCashResult.error && !isMissingCashAdjustmentsTable(cashErrorMessage)) setError(`Cash adjustments need setup: ${cashErrorMessage}`);
-      setCashAdjustments(userCashResult.data?.length ? mergeById((userCashResult.data ?? []).map(rowToCashAdjustment), localCashAdjustments()) : localCashAdjustments());
+      setCashAdjustments(userCashResult.data?.length ? (userCashResult.data ?? []).map(rowToCashAdjustment) : []);
 
       const gradingResult = {
         data: userGradingResult.data ?? [],
@@ -729,8 +729,8 @@ export default function Home() {
             ? await supabase.from("grading_submission_cards").select("submission_id, card_id").in("submission_id", submissionIds)
             : { data: [], error: null };
         }
-        if (linkResult.error) setGradingSubmissions(mergeById((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row)), localGradingSubmissions()));
-        else setGradingSubmissions(mergeById((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row, linkResult.data ?? [])), localGradingSubmissions()));
+        if (linkResult.error) setGradingSubmissions((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row)));
+        else setGradingSubmissions((gradingResult.data ?? []).map((row) => rowToGradingSubmission(row, linkResult.data ?? [])));
       }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Could not load your account data. Please refresh and try again.");

@@ -32,6 +32,18 @@ for (const snippet of forbiddenPageSnippets) {
   if (page.includes(snippet)) throw new Error(`Main app should not load workspace-shared data: ${snippet}`);
 }
 
+const forbiddenCacheMergeSnippets = [
+  'setCards(mergeById((userCardsResult.data ?? [])',
+  'setExpenses(mergeById((userExpensesResult.data ?? [])',
+  'setCashAdjustments(userCashResult.data?.length ? mergeById',
+  'setGradingSubmissions(mergeById((gradingResult.data ?? [])',
+  'localCashAdjustments()) : localCashAdjustments()',
+];
+
+for (const snippet of forbiddenCacheMergeSnippets) {
+  if (page.includes(snippet)) throw new Error(`Signed-in Supabase data must not merge stale local cache rows: ${snippet}`);
+}
+
 const mutationScopeSnippets = [
   'updateQuery = updateQuery.eq("user_id", session.user.id);',
   'deleteQuery = deleteQuery.eq("user_id", session.user.id);',
