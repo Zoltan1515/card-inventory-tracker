@@ -677,6 +677,7 @@ export default function Home() {
   const [enlargedPhotoCard, setEnlargedPhotoCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
   const [expenseModalOpen, setExpenseModalOpen] = useState(false);
+  const [deletingExpense, setDeletingExpense] = useState<ExpenseRecord | null>(null);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [selectedGradingQuantities, setSelectedGradingQuantities] = useState<Record<string, number>>({});
   const [gradingDraft, setGradingDraft] = useState<GradingSubmission>(emptyGradingSubmission());
@@ -2266,6 +2267,21 @@ export default function Home() {
     setExpenseModalOpen(false);
   };
 
+  const requestDeleteExpense = (expense: ExpenseRecord) => {
+    setError("");
+    setNotice("");
+    setDeletingExpense(expense);
+  };
+
+  const confirmDeleteExpense = async () => {
+    if (!deletingExpense) return;
+    const expenseToDelete = deletingExpense;
+    const deleted = await deleteExpense(expenseToDelete);
+    if (!deleted) return;
+    setDeletingExpense(null);
+    setNotice(`Deleted ${expenseToDelete.category} expense for ${money(expenseToDelete.amount)}.`);
+  };
+
   const saveExpense = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -2349,10 +2365,11 @@ export default function Home() {
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
-        return;
+        return false;
       }
     }
     setExpenses((current) => current.filter((expenseRecord) => expenseRecord.id !== expense.id));
+    return true;
   };
 
   const saveCashAdjustment = async (event: FormEvent) => {
@@ -3991,7 +4008,7 @@ export default function Home() {
                 <strong>{money(expense.amount)}</strong>
                 <div className="rowActions">
                   <button className="secondary" type="button" onClick={() => openEditExpenseModal(expense)}>Edit</button>
-                  <button className="danger" type="button" onClick={() => deleteExpense(expense)}>Delete</button>
+                  <button className="danger" type="button" onClick={() => requestDeleteExpense(expense)}>Delete</button>
                 </div>
               </article>
             ))}
@@ -4123,6 +4140,32 @@ export default function Home() {
             <div className="confirmActions">
               <button className="secondary" type="button" onClick={() => setDeletingCard(null)}>Keep card</button>
               <button className="danger" type="button" onClick={confirmDeleteCard}>Yes, delete it</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingExpense && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Confirm delete expense">
+          <div className="modal panel confirmDeleteModal">
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow dangerEyebrow">Delete expense</p>
+                <h2>Delete this {deletingExpense.category} expense?</h2>
+                <p className="muted">This removes the expense from your records and updates Expenses and Cash on Hand. This cannot be undone.</p>
+              </div>
+              <button className="secondary" type="button" onClick={() => setDeletingExpense(null)}>Cancel</button>
+            </div>
+            <div className="deleteSummary">
+              <span>Type: <strong>{deletingExpense.category}</strong></span>
+              <span>Amount: <strong>{money(deletingExpense.amount)}</strong></span>
+              <span>Date: <strong>{deletingExpense.expenseDate}</strong></span>
+              <span>Vendor/source: <strong>{deletingExpense.vendor || "Not entered"}</strong></span>
+              <span>Description: <strong>{deletingExpense.description || "No description"}</strong></span>
+            </div>
+            <div className="confirmActions">
+              <button className="secondary" type="button" onClick={() => setDeletingExpense(null)}>Keep expense</button>
+              <button className="danger" type="button" onClick={confirmDeleteExpense}>Yes, delete it</button>
             </div>
           </div>
         </div>

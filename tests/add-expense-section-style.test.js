@@ -15,5 +15,9 @@ assert(!page.includes('<section className="addExpenseCard" aria-labelledby="add-
 assert(page.includes('{expenseModalOpen && (') && page.includes('aria-label={editingExpenseId ? "Edit expense" : "Add expense"}'), 'Add/edit expense should render in a modal dialog.');
 assert(page.includes('<button className="secondary" type="button" onClick={() => openEditExpenseModal(expense)}>Edit</button>'), 'Edit should open the expense modal instead of filling an inline form.');
 assert(page.includes('value={activeExpense.amount ? String(activeExpense.amount) : ""}'), 'New expense amount field should appear blank instead of showing 0.');
+assert(page.includes('const [deletingExpense, setDeletingExpense] = useState<ExpenseRecord | null>(null);'), 'Expenses should track a pending delete confirmation.');
+assert(page.includes('<button className="danger" type="button" onClick={() => requestDeleteExpense(expense)}>Delete</button>'), 'Expense Delete buttons should request confirmation instead of deleting immediately.');
+assert(page.includes('aria-label="Confirm delete expense"') && page.includes('Keep expense') && page.includes('Yes, delete it'), 'Deleting an expense should show a confirmation modal with keep/delete choices.');
+assert(page.includes('This removes the expense from your records and updates Expenses and Cash on Hand. This cannot be undone.'), 'Expense delete confirmation should clearly explain the impact.');
 
 console.log('Add expense modal checks passed.');
