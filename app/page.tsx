@@ -2093,7 +2093,7 @@ export default function Home() {
     setSaleExpenseDraft(card.status === "Sold" ? saleExpenseDraftFromCard(card) : emptySaleExpenseDraft());
     setSellingCard({
       ...card,
-      quantity: card.status === "Sold" ? cardQuantity(card) : 1,
+      quantity: cardQuantity(card),
       shippingCharge: Number(card.shippingCharge || 0),
       saleDate: card.saleDate || todayIso(),
     });

@@ -15,9 +15,10 @@ assert(card.includes('"Marketplace Fees"'), 'Expense categories should include M
 assert(dbCard.includes('category === "Marketplace Fees"'), 'DB expense category normalization should preserve Marketplace Fees.');
 assert(page.includes('type SaleExpenseDraft = { hst: string; fees: string; shippingLabel: string }'), 'Sale modal should have a draft for HST, fees, and shipping label cost.');
 assert(page.includes('const saleExpenseRowsForCard'), 'Sale modal should create expense rows for sale expenses.');
-assert(page.includes('{ category: "HST", amount: expenseDraftAmount(saleExpenseDraft.hst), label: "Sale HST" }'), 'Sale HST should save as an HST expense.');
-assert(page.includes('{ category: "Marketplace Fees", amount: expenseDraftAmount(saleExpenseDraft.fees), label: "Sale fees" }'), 'Sale fees should save as Marketplace Fees expenses.');
-assert(page.includes('description: `${row.label}: ${card.name}`'), 'Sale expense descriptions should identify the card sale.');
+assert(page.includes('{ category: "HST", amount: expenseDraftAmount(saleExpenseDraft.hst) }'), 'Sale HST should save as an HST expense.');
+assert(page.includes('{ category: "Marketplace Fees", amount: expenseDraftAmount(saleExpenseDraft.fees) }'), 'Sale fees should save as Marketplace Fees expenses.');
+assert(page.includes('{ category: "Shipping", amount: expenseDraftAmount(saleExpenseDraft.shippingLabel) }'), 'Shipping label cost should save as a Shipping expense.');
+assert(page.includes('description: saleExpenseDescriptionForCard(row.category, card)'), 'Sale expense descriptions should identify the card sale from the expense category.');
 assert(page.includes('vendor: card.salePlatform || "Sale"'), 'Sale expenses should use the sold platform/vendor when available.');
 assert(page.includes('const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard'), 'Saving a sale should insert sale expense rows.');
 assert(page.includes('setSaleExpenseDraft(emptySaleExpenseDraft())'), 'Sale expense inputs should reset after opening/canceling/saving.');
