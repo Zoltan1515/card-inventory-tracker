@@ -28,8 +28,8 @@ assert(
 );
 
 assert(
-  route.includes('const hasActiveSellerMembership = async') && route.includes('const primeLotPostStatus = primeLotSellerMembershipActive ? "active" : "draft";'),
-  'PrimeLot API should check Seller membership and save imports as drafts unless an active Seller membership is verified.'
+  route.includes('const hasActiveSellerMembership = async') && route.includes('PRIMELOT_SELLER_MEMBERSHIP_REQUIRED') && route.includes('const primeLotPostStatus = "active";'),
+  'PrimeLot API should check Seller membership and reject imports before insert unless active Seller membership is verified.'
 );
 
 assert(

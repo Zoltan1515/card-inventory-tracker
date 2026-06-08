@@ -693,6 +693,7 @@ export default function Home() {
   const [primeLotReviewOpen, setPrimeLotReviewOpen] = useState(false);
   const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, { askingPrice: string; shippingCharge: string; gradingCompany: string }>>({});
   const [primeLotPostResult, setPrimeLotPostResult] = useState<PrimeLotPostResult | null>(null);
+  const [primeLotMembershipRequiredOpen, setPrimeLotMembershipRequiredOpen] = useState(false);
   const [primeLotIntent, setPrimeLotIntent] = useState<"create" | "connect">("create");
   const [primeLotEmail, setPrimeLotEmail] = useState("");
   const [primeLotStoreSlug, setPrimeLotStoreSlug] = useState("");
@@ -2822,6 +2823,7 @@ export default function Home() {
   const postSelectedCardsToPrimeLot = async (cardsToPost: CardRecord[]) => {
     setError("");
     setNotice("");
+    setPrimeLotMembershipRequiredOpen(false);
     if (!session?.access_token) {
       setError("Sign in before posting to PrimeLot.");
       return;
@@ -2840,6 +2842,11 @@ export default function Home() {
       const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string; code?: string } = await response.json();
       if (!response.ok) {
         if (result.code === "PRIMELOT_NOT_CONNECTED") openPrimeLotModal();
+        if (result.code === "PRIMELOT_SELLER_MEMBERSHIP_REQUIRED" || response.status === 403) {
+          setPrimeLotMembershipRequiredOpen(true);
+          setError("");
+          return;
+        }
         setError(result.error || "PrimeLot posting failed.");
         return;
       }
@@ -3255,7 +3262,7 @@ export default function Home() {
               <p className="eyebrow">PrimeLot import complete</p>
               <h2 id="primelot-post-success-title">Your cards imported successfully.</h2>
               {primeLotSuccessHasDrafts ? (
-                <p className="muted">Because you don’t have an active Seller membership yet, your imported listings have been saved as drafts in PrimeLot. Start a Seller membership when you’re ready, and you’ll be able to publish them to the marketplace.</p>
+                <p className="muted">PrimeLot returned these imported listings as drafts. Open your PrimeLot drafts when you’re ready to review or publish them.</p>
               ) : (
                 <p className="muted">Your listings are now live on the PrimeLot marketplace.</p>
               )}
@@ -3287,6 +3294,24 @@ export default function Home() {
                 <a className="primary buttonLink" href={primeLotSuccessViewListingsUrl} target="_blank" rel="noreferrer">View Listings</a>
               )}
               <button className="secondary" type="button" onClick={() => setPrimeLotPostResult(null)}>Done</button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {primeLotMembershipRequiredOpen && (
+        <div className="modalBackdrop" role="presentation">
+          <section className="modalCard primeLotSuccessModal" role="dialog" aria-modal="true" aria-labelledby="primelot-membership-required-title">
+            <div className="successIcon" aria-hidden="true">!</div>
+            <div>
+              <p className="eyebrow">PrimeLot Seller membership needed</p>
+              <h2 id="primelot-membership-required-title">Start a PrimeLot Seller membership to import and publish your listings.</h2>
+              <p className="muted">PrimeLot is not accepting non-seller draft imports yet. Once PrimeLot adds that API support, WCT can show draft-import messaging.</p>
+            </div>
+            <div className="rowActions">
+              <a className="primary buttonLink" href={PRIMELOT_SELLER_MEMBERSHIP_URL} target="_blank" rel="noreferrer">Start Seller Membership</a>
+              <a className="secondary buttonLink" href={PRIMELOT_DASHBOARD_URL} target="_blank" rel="noreferrer">View Drafts</a>
+              <button className="secondary" type="button" onClick={() => setPrimeLotMembershipRequiredOpen(false)}>Close</button>
             </div>
           </section>
         </div>

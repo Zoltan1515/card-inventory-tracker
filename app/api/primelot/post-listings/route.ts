@@ -240,7 +240,10 @@ export async function POST(request: NextRequest) {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const primeLotSellerMembershipActive = await hasActiveSellerMembership(primeLotSupabase, primeLotSellerUserId);
-  const primeLotPostStatus = primeLotSellerMembershipActive ? "active" : "draft";
+  if (!primeLotSellerMembershipActive) {
+    return jsonError("Start a PrimeLot Seller membership to import and publish your listings.", 403, "PRIMELOT_SELLER_MEMBERSHIP_REQUIRED");
+  }
+  const primeLotPostStatus = "active";
 
   const baseRows = cards.map((card) => {
     const grading = gradingDetailsForCard(card);
