@@ -88,9 +88,10 @@ async function getAuthedClient(request: NextRequest) {
   return { supabase, user: data.user };
 }
 
-async function currentWorkspaceId(supabase: any, userId: string) {
-  const { data } = await supabase.from("workspace_members").select("workspace_id").eq("user_id", userId).limit(1).maybeSingle();
-  return (data as { workspace_id?: string | null } | null)?.workspace_id ?? null;
+async function currentWorkspaceId(_supabase: any, _userId: string) {
+  // Privacy-first: PrimeLot connections are per-user until explicit shared-workspace
+  // controls are added back with visible member management.
+  return null;
 }
 
 async function findConnection(supabase: any, userId: string, workspaceId: string | null) {

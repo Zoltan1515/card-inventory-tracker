@@ -687,53 +687,34 @@ export default function Home() {
     setDataLoaded(false);
 
     try {
-      const membershipResult = await supabase
-        .from("workspace_members")
-        .select("workspace_id")
-        .eq("user_id", userId)
-        .limit(1)
-        .maybeSingle();
+      // Privacy-first loading: only load records owned by the logged-in user.
+      // A previous shared-workspace setup intentionally allowed two emails to see one
+      // workspace, but that made test/other-account data appear in the wrong account.
+      // Keep workspaceId null until an explicit, visible team-sharing flow is added.
+      setWorkspaceId(null);
 
-      const activeWorkspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
-      setWorkspaceId(activeWorkspaceId);
-
-      const [workspaceCardsResult, userCardsResult, workspaceExpensesResult, userExpensesResult, workspaceCashResult, userCashResult, workspaceGradingResult, userGradingResult] = await Promise.all([
-        activeWorkspaceId
-          ? supabase.from("cards").select("*").eq("workspace_id", activeWorkspaceId).order("created_at", { ascending: false })
-          : Promise.resolve({ data: [], error: null }),
+      const [userCardsResult, userExpensesResult, userCashResult, userGradingResult] = await Promise.all([
         supabase.from("cards").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
-        activeWorkspaceId
-          ? supabase.from("expenses").select("*").eq("workspace_id", activeWorkspaceId).order("expense_date", { ascending: false })
-          : Promise.resolve({ data: [], error: null }),
         supabase.from("expenses").select("*").eq("user_id", userId).order("expense_date", { ascending: false }),
-        activeWorkspaceId
-          ? supabase.from("cash_adjustments").select("*").eq("workspace_id", activeWorkspaceId).order("adjustment_date", { ascending: false })
-          : Promise.resolve({ data: [], error: null }),
         supabase.from("cash_adjustments").select("*").eq("user_id", userId).order("adjustment_date", { ascending: false }),
-        activeWorkspaceId
-          ? supabase.from("grading_submissions").select("*").eq("workspace_id", activeWorkspaceId).order("sent_date", { ascending: false })
-          : Promise.resolve({ data: [], error: null }),
         supabase.from("grading_submissions").select("*").eq("user_id", userId).order("sent_date", { ascending: false }),
       ]);
 
-      const cardRows = mergeById(workspaceCardsResult.data ?? [], userCardsResult.data ?? []);
       const cachedCards = localCards();
       const cachedCardsById = new Map(cachedCards.map((card) => [card.id, card]));
-      if (workspaceCardsResult.error && userCardsResult.error) setError(workspaceCardsResult.error.message || userCardsResult.error.message);
-      else setCards(mergeById(cardRows.map((row) => rowToCardWithQuantityFallback(row, cachedCardsById.get(row.id))), cachedCards));
+      if (userCardsResult.error) setError(userCardsResult.error.message);
+      else setCards(mergeById((userCardsResult.data ?? []).map((row) => rowToCardWithQuantityFallback(row, cachedCardsById.get(row.id))), cachedCards));
 
-      const expenseRows = mergeById(workspaceExpensesResult.data ?? [], userExpensesResult.data ?? []);
-      if (workspaceExpensesResult.error && userExpensesResult.error) setError(`Expenses table needs setup: ${workspaceExpensesResult.error.message || userExpensesResult.error.message}`);
-      else setExpenses(mergeById(expenseRows.map(rowToExpense), localExpenses()));
+      if (userExpensesResult.error) setError(`Expenses table needs setup: ${userExpensesResult.error.message}`);
+      else setExpenses(mergeById((userExpensesResult.data ?? []).map(rowToExpense), localExpenses()));
 
-      const cashRows = mergeById(workspaceCashResult.data ?? [], userCashResult.data ?? []);
-      const cashErrorMessage = workspaceCashResult.error?.message || userCashResult.error?.message || "";
-      if (workspaceCashResult.error && userCashResult.error && !isMissingCashAdjustmentsTable(cashErrorMessage)) setError(`Cash adjustments need setup: ${cashErrorMessage}`);
-      setCashAdjustments(cashRows.length ? mergeById(cashRows.map(rowToCashAdjustment), localCashAdjustments()) : localCashAdjustments());
+      const cashErrorMessage = userCashResult.error?.message || "";
+      if (userCashResult.error && !isMissingCashAdjustmentsTable(cashErrorMessage)) setError(`Cash adjustments need setup: ${cashErrorMessage}`);
+      setCashAdjustments(userCashResult.data?.length ? mergeById((userCashResult.data ?? []).map(rowToCashAdjustment), localCashAdjustments()) : localCashAdjustments());
 
       const gradingResult = {
-        data: mergeById(workspaceGradingResult.data ?? [], userGradingResult.data ?? []),
-        error: workspaceGradingResult.error && userGradingResult.error ? workspaceGradingResult.error : null,
+        data: userGradingResult.data ?? [],
+        error: userGradingResult.error ?? null,
       };
 
       if (gradingResult.error) {
@@ -1612,14 +1593,14 @@ export default function Home() {
         .from("cards")
         .update(cardToUpdate(card))
         .eq("id", card.id);
-      updateQuery = card.workspaceId ? updateQuery.eq("workspace_id", card.workspaceId) : updateQuery.eq("user_id", session.user.id);
+      updateQuery = updateQuery.eq("user_id", session.user.id);
       let updateResult = await updateQuery.select("*").single();
       if (updateResult.error && isBackPhotoColumnError(updateResult.error.message)) {
         let legacyBackPhotoQuery = supabase
           .from("cards")
           .update(cardToUpdate(card, true, true, true, true, false))
           .eq("id", card.id);
-        legacyBackPhotoQuery = card.workspaceId ? legacyBackPhotoQuery.eq("workspace_id", card.workspaceId) : legacyBackPhotoQuery.eq("user_id", session.user.id);
+        legacyBackPhotoQuery = legacyBackPhotoQuery.eq("user_id", session.user.id);
         updateResult = await legacyBackPhotoQuery.select("*").single();
         if (!updateResult.error) setNotice("Card updated. Run the back-photo SQL migration so back photos save to account storage.");
       }
@@ -1628,7 +1609,7 @@ export default function Home() {
           .from("cards")
           .update(cardToUpdate(card, true, true, true, false))
           .eq("id", card.id);
-        legacyMarketplaceQuery = card.workspaceId ? legacyMarketplaceQuery.eq("workspace_id", card.workspaceId) : legacyMarketplaceQuery.eq("user_id", session.user.id);
+        legacyMarketplaceQuery = legacyMarketplaceQuery.eq("user_id", session.user.id);
         updateResult = await legacyMarketplaceQuery.select("*").single();
       }
       if (updateResult.error && isQuantityColumnError(updateResult.error.message)) {
@@ -1636,7 +1617,7 @@ export default function Home() {
           .from("cards")
           .update(cardToUpdate(card, true, true, false))
           .eq("id", card.id);
-        legacyQuantityQuery = card.workspaceId ? legacyQuantityQuery.eq("workspace_id", card.workspaceId) : legacyQuantityQuery.eq("user_id", session.user.id);
+        legacyQuantityQuery = legacyQuantityQuery.eq("user_id", session.user.id);
         updateResult = await legacyQuantityQuery.select("*").single();
         if (!updateResult.error) setNotice("Card updated. Run the quantity SQL migration so item quantities save to account storage.");
       }
@@ -1645,7 +1626,7 @@ export default function Home() {
           .from("cards")
           .update(cardToUpdate(card, true, false, !isQuantityColumnError(updateResult.error.message)))
           .eq("id", card.id);
-        legacyAuditQuery = card.workspaceId ? legacyAuditQuery.eq("workspace_id", card.workspaceId) : legacyAuditQuery.eq("user_id", session.user.id);
+        legacyAuditQuery = legacyAuditQuery.eq("user_id", session.user.id);
         updateResult = await legacyAuditQuery.select("*").single();
         if (!updateResult.error) setNotice("Card updated. Run the audit SQL migration so usernames save to account storage.");
       }
@@ -1654,7 +1635,7 @@ export default function Home() {
           .from("cards")
           .update(cardToUpdate(card, false, false, !isQuantityColumnError(updateResult.error.message)))
           .eq("id", card.id);
-        legacyUpdateQuery = card.workspaceId ? legacyUpdateQuery.eq("workspace_id", card.workspaceId) : legacyUpdateQuery.eq("user_id", session.user.id);
+        legacyUpdateQuery = legacyUpdateQuery.eq("user_id", session.user.id);
         updateResult = await legacyUpdateQuery.select("*").single();
         if (!updateResult.error) setNotice("Card updated. Finish account storage setup so listing price/date fields save for both users.");
       }
@@ -1724,7 +1705,7 @@ export default function Home() {
     }
     if (usingSupabase && supabase && session?.user.id) {
       let deleteQuery = supabase.from("cards").delete().eq("id", card.id);
-      deleteQuery = card.workspaceId ? deleteQuery.eq("workspace_id", card.workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      deleteQuery = deleteQuery.eq("user_id", session.user.id);
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
@@ -2172,14 +2153,14 @@ export default function Home() {
           .from("expenses")
           .update(expenseToUpdate(expenseToSave))
           .eq("id", expenseToSave.id);
-        updateQuery = expenseToSave.workspaceId ? updateQuery.eq("workspace_id", expenseToSave.workspaceId) : updateQuery.eq("user_id", session.user.id);
+        updateQuery = updateQuery.eq("user_id", session.user.id);
         let updateResult = await updateQuery.select("*").single();
         if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
           let legacyExpenseQuery = supabase
             .from("expenses")
             .update(expenseToUpdate(expenseToSave, false))
             .eq("id", expenseToSave.id);
-          legacyExpenseQuery = expenseToSave.workspaceId ? legacyExpenseQuery.eq("workspace_id", expenseToSave.workspaceId) : legacyExpenseQuery.eq("user_id", session.user.id);
+          legacyExpenseQuery = legacyExpenseQuery.eq("user_id", session.user.id);
           updateResult = await legacyExpenseQuery.select("*").single();
           if (!updateResult.error) setNotice("Expense updated. Run the audit SQL migration so usernames save to account storage.");
         }
@@ -2226,7 +2207,7 @@ export default function Home() {
     setError("");
     if (usingSupabase && supabase && session?.user.id) {
       let deleteQuery = supabase.from("expenses").delete().eq("id", expense.id);
-      deleteQuery = expense.workspaceId ? deleteQuery.eq("workspace_id", expense.workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      deleteQuery = deleteQuery.eq("user_id", session.user.id);
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);
@@ -2257,7 +2238,7 @@ export default function Home() {
     if (usingSupabase && supabase && session?.user.id) {
       if (editingCashAdjustmentId) {
         let updateQuery = supabase.from("cash_adjustments").update(cashAdjustmentToUpdate(entryToSave)).eq("id", entryToSave.id);
-        updateQuery = entryToSave.workspaceId ? updateQuery.eq("workspace_id", entryToSave.workspaceId) : updateQuery.eq("user_id", session.user.id);
+        updateQuery = updateQuery.eq("user_id", session.user.id);
         const updateResult = await updateQuery.select("*").single();
         if (updateResult.error) {
           if (isMissingCashAdjustmentsTable(updateResult.error.message)) setError("Run the cash-on-hand SQL migration before saving cash entries to account storage.");
@@ -2291,7 +2272,7 @@ export default function Home() {
     setError("");
     if (usingSupabase && supabase && session?.user.id) {
       let deleteQuery = supabase.from("cash_adjustments").delete().eq("id", entry.id);
-      deleteQuery = entry.workspaceId ? deleteQuery.eq("workspace_id", entry.workspaceId) : deleteQuery.eq("user_id", session.user.id);
+      deleteQuery = deleteQuery.eq("user_id", session.user.id);
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
         setError(deleteError.message);

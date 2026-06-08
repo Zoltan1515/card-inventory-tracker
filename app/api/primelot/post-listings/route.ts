@@ -120,13 +120,7 @@ export async function POST(request: NextRequest) {
   const { data: authData, error: authError } = await cardTrackerSupabase.auth.getUser(token);
   if (authError || !authData.user) return jsonError("Your Wicked Card Tracker session could not be verified.", 401);
 
-  const membershipResult = await cardTrackerSupabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("user_id", authData.user.id)
-    .limit(1)
-    .maybeSingle();
-  const workspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
+  const workspaceId = null;
 
   const connectionSelect = "primelot_seller_user_id,primelot_seller_email,primelot_store_slug,status";
   let connectionResult: any = workspaceId

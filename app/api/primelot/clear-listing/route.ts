@@ -93,13 +93,7 @@ export async function POST(request: NextRequest) {
   const primeLotListingId = (body.primeLotListingId || primeLotListingIdFromUrl(body.listingUrl)).trim();
   if (!primeLotListingId && !cardTrackerId) return jsonError("A PrimeLot listing URL or Card Tracker ID is required.");
 
-  const membershipResult = await cardTrackerSupabase
-    .from("workspace_members")
-    .select("workspace_id")
-    .eq("user_id", authData.user.id)
-    .limit(1)
-    .maybeSingle();
-  const workspaceId = membershipResult.error ? null : membershipResult.data?.workspace_id ?? null;
+  const workspaceId = null;
 
   let primeLotSellerUserId = "";
   try {
