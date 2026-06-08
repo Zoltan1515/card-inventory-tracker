@@ -5,8 +5,9 @@ export const metadata: Metadata = {
   title: "Card Inventory Tracker",
   description: "Track trading card inventory, sales, fees, and profit/loss.",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/wicked-card-tracker-icon.png",
   },
 };
 
