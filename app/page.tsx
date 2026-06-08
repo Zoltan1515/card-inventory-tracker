@@ -98,6 +98,8 @@ const FREE_INVENTORY_ADD_STORAGE_KEY = "card-inventory-tracker.free-inventory-ad
 const FREE_INVENTORY_ADD_LIMIT = 5;
 const PRICING_PATH = "/pricing";
 const BILLING_PATH = "/billing";
+const PRIMELOT_SELLER_MEMBERSHIP_URL = "https://primelot.cards/pricing";
+const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -2954,6 +2956,9 @@ export default function Home() {
     if (supabase) await supabase.auth.signOut();
   };
 
+  const primeLotSuccessHasDrafts = Boolean(primeLotPostResult?.draftListingCount);
+  const primeLotSuccessViewListingsUrl = primeLotConnection.storeUrl || primeLotPostResult?.listings[0]?.url || PRIMELOT_DASHBOARD_URL;
+
   return (
     <main className="shell mobileDashboardShell">
       <header className="mobileTopHeader" aria-label="Wicked Card Tracker dashboard header">
@@ -3247,11 +3252,16 @@ export default function Home() {
           <section className="modalCard primeLotSuccessModal" role="dialog" aria-modal="true" aria-labelledby="primelot-post-success-title">
             <div className="successIcon" aria-hidden="true">✓</div>
             <div>
-              <p className="eyebrow">PrimeLot posted live</p>
-              <h2 id="primelot-post-success-title">Posted {primeLotPostResult.postedCount} card{primeLotPostResult.postedCount === 1 ? "" : "s"}</h2>
-              <p className="muted">Total listing amount: <strong>{money(primeLotPostResult.totalAmount)}</strong></p>
+              <p className="eyebrow">PrimeLot import complete</p>
+              <h2 id="primelot-post-success-title">Your cards imported successfully.</h2>
+              {primeLotSuccessHasDrafts ? (
+                <p className="muted">Because you don’t have an active Seller membership yet, your imported listings have been saved as drafts in PrimeLot. Start a Seller membership when you’re ready, and you’ll be able to publish them to the marketplace.</p>
+              ) : (
+                <p className="muted">Your listings are now live on the PrimeLot marketplace.</p>
+              )}
             </div>
             <div className="successSummaryGrid">
+              <span><small>Imported cards</small><strong>{primeLotPostResult.postedCount}</strong></span>
               <span><small>Live listings</small><strong>{primeLotPostResult.publicListingCount}</strong></span>
               <span><small>Drafts</small><strong>{primeLotPostResult.draftListingCount}</strong></span>
               <span><small>Total amount</small><strong>{money(primeLotPostResult.totalAmount)}</strong></span>
@@ -3261,15 +3271,22 @@ export default function Home() {
                 <article key={listing.primeLotListingId}>
                   <div>
                     <strong>{listing.cardName}</strong>
-                    <p className="muted">{money(listing.amount)}{listing.shippingCharge ? ` • Shipping ${money(listing.shippingCharge)}` : " • Free shipping"} • {isPrimeLotPublicListing(listing.status) ? "Listed" : "Draft"}</p>
+                    <p className="muted">{money(listing.amount)}{listing.shippingCharge ? ` • Shipping ${money(listing.shippingCharge)}` : " • Free shipping"} • {isPrimeLotPublicListing(listing.status) ? "Live on PrimeLot" : "Draft in PrimeLot"}</p>
                   </div>
-                  <a href={listing.url} target="_blank" rel="noreferrer">Open</a>
+                  {isPrimeLotPublicListing(listing.status) ? <a href={listing.url} target="_blank" rel="noreferrer">Open</a> : <a href={PRIMELOT_DASHBOARD_URL} target="_blank" rel="noreferrer">Drafts</a>}
                 </article>
               ))}
             </div>
             <div className="rowActions">
-              <button className="primary" type="button" onClick={() => setPrimeLotPostResult(null)}>Done</button>
-              {primeLotPostResult.listings[0]?.url && <a className="secondary buttonLink" href={primeLotPostResult.listings[0].url} target="_blank" rel="noreferrer">Open first listing</a>}
+              {primeLotSuccessHasDrafts ? (
+                <>
+                  <a className="primary buttonLink" href={PRIMELOT_SELLER_MEMBERSHIP_URL} target="_blank" rel="noreferrer">Start Seller Membership</a>
+                  <a className="secondary buttonLink" href={PRIMELOT_DASHBOARD_URL} target="_blank" rel="noreferrer">View Drafts</a>
+                </>
+              ) : (
+                <a className="primary buttonLink" href={primeLotSuccessViewListingsUrl} target="_blank" rel="noreferrer">View Listings</a>
+              )}
+              <button className="secondary" type="button" onClick={() => setPrimeLotPostResult(null)}>Done</button>
             </div>
           </section>
         </div>
