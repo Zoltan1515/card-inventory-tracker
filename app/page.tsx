@@ -5,6 +5,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "re
 import { CardRecord, CardStatus, CashAdjustmentRecord, ExpenseCategory, ExpenseRecord, GradingSubmission, appendCardRefundNote, cardNetSoldPrice, cardProfit, cardPurchaseCost, cardQuantity, cardRefundTotal, cardRoi, emptyCard, emptyCashAdjustment, emptyExpense, emptyGradingSubmission, listedPotentialProfit, money, parseCardRefunds, percent } from "@/lib/card";
 import { cardsToCsv, expensesToCsv, profitSummaryToCsv, salesToCsv } from "@/lib/csv";
 import { cardToInsert, cardToUpdate, cashAdjustmentToInsert, cashAdjustmentToUpdate, expenseToInsert, expenseToUpdate, gradingSubmissionCardRows, gradingSubmissionToInsert, gradingSubmissionToUpdate, rowToCard, rowToCashAdjustment, rowToExpense, rowToGradingSubmission } from "@/lib/dbCard";
+import { parsePsaOrderCsv, psaCsvLooksLikeOrderExport } from "@/lib/psaImport";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit" | "glance";
@@ -1348,9 +1349,11 @@ export default function Home() {
 
     try {
       const text = await file.text();
-      const parsedRows = parseCsvText(text)
-        .map((row, index) => importCardFromCsvRow(row, index + 2))
-        .filter((preview): preview is ImportCardPreview => Boolean(preview));
+      const parsedRows = psaCsvLooksLikeOrderExport(text)
+        ? parsePsaOrderCsv(text)
+        : parseCsvText(text)
+          .map((row, index) => importCardFromCsvRow(row, index + 2))
+          .filter((preview): preview is ImportCardPreview => Boolean(preview));
       setImportPreviews(parsedRows);
       if (!parsedRows.length) setError("No card rows found in that CSV. Make sure the first row has column headers.");
       else setNotice(`Previewed ${parsedRows.length} cards from ${file.name}. Review them, then import selected.`);
@@ -3237,8 +3240,8 @@ export default function Home() {
             <div className="importHeader">
               <div>
                 <p className="eyebrow">Bulk import</p>
-                <h3>Import cards from PrimeLot CSV</h3>
-                <p className="muted">Upload the CSV, preview the rows, select the cards you want, then import them into your account inventory.</p>
+                <h3>Import cards from PrimeLot or PSA CSV</h3>
+                <p className="muted">Upload a PrimeLot or PSA CSV, preview the rows, select the cards you want, then import them into your account inventory.</p>
               </div>
               <label className="secondary importFileButton">Choose CSV
                 <input accept=".csv,text/csv" type="file" onChange={handleCardImportFile} />
