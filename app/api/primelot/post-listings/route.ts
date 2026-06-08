@@ -41,6 +41,15 @@ type PrimeLotConnection = {
   status: string | null;
 };
 
+type SellerMembershipProbe = {
+  table: string;
+  userColumn: string;
+  select: string;
+  statusKeys: string[];
+  planKeys: string[];
+  endKeys: string[];
+};
+
 const jsonError = (message: string, status = 400, code?: string) => NextResponse.json({ error: message, code }, { status });
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
 const sourceTrackingColumnError = (message = "") => /source_id|source_platform/i.test(message) && /schema cache|column|Could not find/i.test(message);
@@ -68,6 +77,55 @@ const cardTypeForCategory = (category?: string) => {
 };
 
 const cleanGrade = (value?: string) => (value || "").trim().replace(/^grade:\s*/i, "");
+const sellerMembershipActiveStatuses = new Set(["active", "trialing"]);
+const sellerMembershipPlanTokens = ["seller", "buyer_seller", ...(process.env.PRIMELOT_SELLER_PLAN_TOKENS || "").split(",").map((token) => token.trim().toLowerCase()).filter(Boolean)];
+const sellerMembershipStatusIsActive = (value: unknown) => sellerMembershipActiveStatuses.has(String(value || "").toLowerCase());
+const sellerMembershipPlanIsSeller = (value: unknown) => sellerMembershipPlanTokens.some((token) => String(value || "").toLowerCase().includes(token));
+const sellerMembershipDateIsCurrent = (value: unknown) => {
+  if (!value) return true;
+  const date = new Date(String(value));
+  return Number.isNaN(date.getTime()) || date.getTime() >= Date.now();
+};
+const rowShowsActiveSellerMembership = (row: Record<string, unknown>, probe: SellerMembershipProbe) => {
+  const statusActive = probe.statusKeys.some((key) => sellerMembershipStatusIsActive(row[key]));
+  const planIsSeller = !probe.planKeys.length || probe.planKeys.some((key) => sellerMembershipPlanIsSeller(row[key]));
+  const dateIsCurrent = probe.endKeys.every((key) => sellerMembershipDateIsCurrent(row[key]));
+  return statusActive && planIsSeller && dateIsCurrent;
+};
+const membershipProbeFromEnv = (): SellerMembershipProbe | null => {
+  const table = process.env.PRIMELOT_SELLER_MEMBERSHIP_TABLE;
+  if (!table) return null;
+  const statusColumn = process.env.PRIMELOT_SELLER_MEMBERSHIP_STATUS_COLUMN || "status";
+  const planColumn = process.env.PRIMELOT_SELLER_MEMBERSHIP_PLAN_COLUMN || "plan";
+  const endColumn = process.env.PRIMELOT_SELLER_MEMBERSHIP_END_COLUMN || "current_period_end";
+  return {
+    table,
+    userColumn: process.env.PRIMELOT_SELLER_MEMBERSHIP_USER_COLUMN || "user_id",
+    select: "*",
+    statusKeys: [statusColumn, "status", "subscription_status", "membership_status"],
+    planKeys: planColumn ? [planColumn, "plan", "plan_id", "price_id", "membership_plan", "subscription_plan"] : [],
+    endKeys: endColumn ? [endColumn] : [],
+  };
+};
+const defaultMembershipProbes: SellerMembershipProbe[] = [
+  { table: "subscriptions", userColumn: "user_id", select: "*", statusKeys: ["status", "subscription_status"], planKeys: ["plan", "plan_id", "price_id", "membership_plan", "subscription_plan"], endKeys: ["current_period_end"] },
+  { table: "stripe_subscriptions", userColumn: "user_id", select: "*", statusKeys: ["status", "subscription_status"], planKeys: ["plan", "plan_id", "price_id", "membership_plan", "subscription_plan"], endKeys: ["current_period_end"] },
+  { table: "memberships", userColumn: "user_id", select: "*", statusKeys: ["status", "membership_status"], planKeys: ["plan", "plan_id", "price_id", "membership_plan"], endKeys: ["current_period_end", "expires_at", "ends_at"] },
+  { table: "profiles", userColumn: "id", select: "*", statusKeys: ["membership_status", "subscription_status"], planKeys: ["membership_plan", "plan", "plan_id", "price_id", "subscription_plan"], endKeys: [] },
+];
+const hasActiveSellerMembership = async (primeLotSupabase: any, primeLotSellerUserId: string) => {
+  const probes = [membershipProbeFromEnv(), ...defaultMembershipProbes].filter((probe): probe is SellerMembershipProbe => Boolean(probe));
+  for (const probe of probes) {
+    const { data, error } = await primeLotSupabase
+      .from(probe.table)
+      .select(probe.select)
+      .eq(probe.userColumn, primeLotSellerUserId)
+      .limit(10);
+    if (error) continue;
+    if ((data || []).some((row: Record<string, unknown>) => rowShowsActiveSellerMembership(row, probe))) return true;
+  }
+  return false;
+};
 const gradeParts = (value?: string) => {
   const clean = cleanGrade(value);
   const match = clean.match(/^(PSA|BGS|SGC|CGC|TAG)\s+(.+)$/i);
@@ -101,7 +159,6 @@ export async function POST(request: NextRequest) {
   const primeLotSupabaseUrl = process.env.PRIMELOT_SUPABASE_URL;
   const primeLotServiceRoleKey = process.env.PRIMELOT_SUPABASE_SERVICE_ROLE_KEY;
   const primeLotSiteUrl = (process.env.PRIMELOT_SITE_URL || "https://primelot.cards").replace(/\/$/, "");
-  const primeLotPostStatus = process.env.PRIMELOT_POST_STATUS || "active";
 
   if (!cardTrackerSupabaseUrl || !cardTrackerSupabaseAnonKey) {
     return jsonError("Wicked Card Tracker Supabase auth is not configured.", 503);
@@ -182,6 +239,8 @@ export async function POST(request: NextRequest) {
   const primeLotSupabase = createClient(primeLotSupabaseUrl, primeLotServiceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
+  const primeLotSellerMembershipActive = await hasActiveSellerMembership(primeLotSupabase, primeLotSellerUserId);
+  const primeLotPostStatus = primeLotSellerMembershipActive ? "active" : "draft";
 
   const baseRows = cards.map((card) => {
     const grading = gradingDetailsForCard(card);

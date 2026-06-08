@@ -13,6 +13,7 @@ assert(page.includes('Start a Seller membership when you’re ready, and you’l
 assert(page.includes('Your listings are now live on the PrimeLot marketplace.'), 'Active seller copy should explain listings are live.');
 assert(page.includes('Start Seller Membership'), 'Non-seller modal should include a clear seller membership CTA.');
 assert(page.includes('View Drafts'), 'Non-seller modal should include a drafts/dashboard CTA.');
+assert(page.includes('https://primelot.cards/dashboard/seller?tab=listings&status=draft'), 'View Drafts should open the PrimeLot seller listings drafts view.');
 assert(page.includes('View Listings'), 'Active seller modal should include a view listings CTA.');
 assert(page.includes('const primeLotSuccessHasDrafts = Boolean(primeLotPostResult?.draftListingCount);'), 'Success modal should branch from draft listing status.');
 assert(!page.includes('PrimeLot posted live'), 'Success modal should not always claim PrimeLot listings went live.');

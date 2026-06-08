@@ -99,7 +99,7 @@ const FREE_INVENTORY_ADD_LIMIT = 5;
 const PRICING_PATH = "/pricing";
 const BILLING_PATH = "/billing";
 const PRIMELOT_SELLER_MEMBERSHIP_URL = "https://primelot.cards/pricing";
-const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard";
+const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard/seller?tab=listings&status=draft";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);

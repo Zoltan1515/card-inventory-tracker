@@ -27,4 +27,14 @@ assert(
   'PrimeLot API must not silently create listings without shipping when non-zero shipping was requested.'
 );
 
+assert(
+  route.includes('const hasActiveSellerMembership = async') && route.includes('const primeLotPostStatus = primeLotSellerMembershipActive ? "active" : "draft";'),
+  'PrimeLot API should check Seller membership and save imports as drafts unless an active Seller membership is verified.'
+);
+
+assert(
+  route.includes('buyer_seller') && route.includes('sellerMembershipActiveStatuses'),
+  'Seller membership detection should treat Seller-style plans with active/trialing status as publishable.'
+);
+
 console.log('PrimeLot post-listings shipping route checks passed.');
