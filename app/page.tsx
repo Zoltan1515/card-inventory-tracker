@@ -99,7 +99,8 @@ const FREE_INVENTORY_ADD_LIMIT = 5;
 const PRICING_PATH = "/pricing";
 const BILLING_PATH = "/billing";
 const PRIMELOT_SELLER_MEMBERSHIP_URL = "https://primelot.cards/pricing";
-const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard/seller?tab=listings&status=draft";
+const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard/seller?tab=listings";
+const PRIMELOT_DRAFTS_URL = "https://primelot.cards/dashboard/seller?tab=listings&status=draft";
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -3280,7 +3281,7 @@ export default function Home() {
                     <strong>{listing.cardName}</strong>
                     <p className="muted">{money(listing.amount)}{listing.shippingCharge ? ` • Shipping ${money(listing.shippingCharge)}` : " • Free shipping"} • {isPrimeLotPublicListing(listing.status) ? "Live on PrimeLot" : "Draft in PrimeLot"}</p>
                   </div>
-                  {isPrimeLotPublicListing(listing.status) ? <a href={listing.url} target="_blank" rel="noreferrer">Open</a> : <a href={PRIMELOT_DASHBOARD_URL} target="_blank" rel="noreferrer">Drafts</a>}
+                  {isPrimeLotPublicListing(listing.status) ? <a href={listing.url} target="_blank" rel="noreferrer">Open</a> : <a href={PRIMELOT_DRAFTS_URL} target="_blank" rel="noreferrer">Drafts</a>}
                 </article>
               ))}
             </div>
@@ -3288,7 +3289,7 @@ export default function Home() {
               {primeLotSuccessHasDrafts ? (
                 <>
                   <a className="primary buttonLink" href={PRIMELOT_SELLER_MEMBERSHIP_URL} target="_blank" rel="noreferrer">Start Seller Membership</a>
-                  <a className="secondary buttonLink" href={PRIMELOT_DASHBOARD_URL} target="_blank" rel="noreferrer">View Drafts</a>
+                  <a className="secondary buttonLink" href={PRIMELOT_DRAFTS_URL} target="_blank" rel="noreferrer">View Drafts</a>
                 </>
               ) : (
                 <a className="primary buttonLink" href={primeLotSuccessViewListingsUrl} target="_blank" rel="noreferrer">View Listings</a>
@@ -3310,7 +3311,7 @@ export default function Home() {
             </div>
             <div className="rowActions">
               <a className="primary buttonLink" href={PRIMELOT_SELLER_MEMBERSHIP_URL} target="_blank" rel="noreferrer">Start Seller Membership</a>
-              <a className="secondary buttonLink" href={PRIMELOT_DASHBOARD_URL} target="_blank" rel="noreferrer">View Drafts</a>
+              <a className="secondary buttonLink" href={PRIMELOT_DASHBOARD_URL} target="_blank" rel="noreferrer">Go to PrimeLot Dashboard</a>
               <button className="secondary" type="button" onClick={() => setPrimeLotMembershipRequiredOpen(false)}>Close</button>
             </div>
           </section>
