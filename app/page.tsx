@@ -3238,7 +3238,7 @@ export default function Home() {
               <div>
                 <p className="eyebrow">Bulk import</p>
                 <h3>Import cards from PrimeLot CSV</h3>
-                <p className="muted">Upload the CSV, preview the rows, select the cards you want, then import them into the shared workspace inventory.</p>
+                <p className="muted">Upload the CSV, preview the rows, select the cards you want, then import them into your account inventory.</p>
               </div>
               <label className="secondary importFileButton">Choose CSV
                 <input accept=".csv,text/csv" type="file" onChange={handleCardImportFile} />
