@@ -18,7 +18,8 @@ assert(page.includes('aria-label="Confirm clear listing"'), 'Clear listing shoul
 assert(page.includes('Clear listing for {confirmingClearListing.name || "this card"}?'), 'Confirmation modal should name the card being cleared.');
 assert(page.includes('Yes, clear listing'), 'Confirmation modal should have an explicit destructive confirmation button.');
 assert(page.includes('Keep listing'), 'Confirmation modal should have a safe cancel action.');
-assert(page.includes('{card.status === "Listed" && (') && page.includes('<button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear all WCT listings</button>'), 'Listed cards should always show a WCT clear listing action, but route clicks through the confirmation modal.');
+assert(!page.includes('Clear all WCT listings'), 'Listed inventory rows should not show a duplicate clear-all link.');
+assert(page.includes('{card.status === "Listed" && activeListingsForCard(card).some((listing) => listing.url) && ('), 'Listed rows should only render the external listing link row when a URL exists.');
 assert(page.includes('onClick={() => requestClearListing(listingCard)}>Clear old listing / make Not Listed</button>'), 'Listing edit modal clear action should also require confirmation.');
 assert(page.includes('activeListingsForCard(card).map((listing) => listing.url ? <a') && page.includes('Open {listing.platform}'), 'Listed cards should show each marketplace listing link when a URL exists.');
 

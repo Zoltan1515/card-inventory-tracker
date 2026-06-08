@@ -17,7 +17,7 @@ assert(page.includes('Saving another platform here does not create another card.
 assert(page.includes('Current listings for this inventory item'), 'Listing modal should show current platform listings before adding another.');
 assert(page.includes('Manage listings'), 'Listed inventory rows should let users manage multiple platform listings.');
 assert(page.includes('activeListingsForCard(card).map((listing) => listing.url ? <a'), 'Listed rows should show each marketplace listing link.');
-assert(page.includes('Clear all WCT listings'), 'Clear action should make it clear it removes WCT listing records.');
+assert(!page.includes('Clear all WCT listings'), 'Inventory rows should not show the duplicate clear-all WCT listing action.');
 assert(page.includes('listingRemovalReminder: otherListingsAfterSale(card)'), 'Sold flow should calculate other listings that may need removal.');
 assert(page.includes('Remove/update this listing in WCT and on the real marketplace so it cannot sell twice.'), 'Sold notice should remind users to update WCT and real marketplaces.');
 assert(page.includes('This sale is saved in WCT, but you still need to remove/update any other live marketplace listings so the card cannot sell twice.'), 'Sold celebration should remind users to remove/update remaining real marketplace listings.');

@@ -3846,10 +3846,9 @@ export default function Home() {
                   ) : (
                     <p className="muted auditTrail">Added {formatDateLabel(card.createdAt.slice(0, 10))}</p>
                   )}
-                  {card.status === "Listed" && (
+                  {card.status === "Listed" && activeListingsForCard(card).some((listing) => listing.url) && (
                     <div className="listingLinkRow">
                       {activeListingsForCard(card).map((listing) => listing.url ? <a key={`${card.id}-${listing.id}-open`} href={listing.url} target="_blank" rel="noreferrer">Open {listing.platform}</a> : null)}
-                      <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear all WCT listings</button>
                     </div>
                   )}
                 </div>
