@@ -193,14 +193,22 @@ const cardGradingCompanyValue = (card: Pick<CardRecord, "gradingCompany" | "note
 const emptyInventoryExpenseDraft = (): InventoryExpenseDraft => ({ shipping: "", hst: "", duties: "" });
 const emptySaleExpenseDraft = (): SaleExpenseDraft => ({ hst: "", fees: "", shippingLabel: "" });
 const emptyRefundDraft = (): RefundDraft => ({ amount: "", refundDate: todayIso(), note: "" });
+const saleExpenseCategories: ExpenseCategory[] = ["Shipping", "Marketplace Fees", "HST", "Other"];
+const saleExpenseLabelForCategory = (category: ExpenseCategory) => {
+  if (category === "HST") return "Sale HST";
+  if (category === "Marketplace Fees") return "Sale fees";
+  if (category === "Shipping") return "Shipping label";
+  return "Sale expense";
+};
+const saleExpenseDescriptionForCard = (category: ExpenseCategory, card: Pick<CardRecord, "name">) => `${saleExpenseLabelForCategory(category)}: ${card.name}`;
 const expenseDraftAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
 const inventoryExpenseAmount = expenseDraftAmount;
 const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
 const saleExpenseDraftTotal = (draft: SaleExpenseDraft) => expenseDraftAmount(draft.hst) + expenseDraftAmount(draft.fees) + expenseDraftAmount(draft.shippingLabel);
 const isSaleExpenseForCard = (expense: ExpenseRecord, card: CardRecord) => {
-  const isSaleExpense = expense.category === "HST" || expense.category === "Marketplace Fees" || expense.category === "Shipping";
+  const isSaleExpense = expense.category === "HST" || expense.category === "Marketplace Fees" || expense.category === "Shipping" || expense.category === "Other";
   if (!isSaleExpense) return false;
-  const matchesDescription = expense.description === `Sale HST: ${card.name}` || expense.description === `Sale fees: ${card.name}` || expense.description === `Shipping label: ${card.name}`;
+  const matchesDescription = expense.description === `Sale HST: ${card.name}` || expense.description === `Sale fees: ${card.name}` || expense.description === `Shipping label: ${card.name}` || expense.description === `Sale expense: ${card.name}`;
   const matchesDate = !card.saleDate || expense.expenseDate === card.saleDate;
   const matchesVendor = !card.salePlatform || expense.vendor === card.salePlatform;
   return matchesDescription && matchesDate && matchesVendor;
@@ -659,6 +667,7 @@ export default function Home() {
   const [inventoryExpenseDraft, setInventoryExpenseDraft] = useState<InventoryExpenseDraft>(emptyInventoryExpenseDraft());
   const [saleExpenseDraft, setSaleExpenseDraft] = useState<SaleExpenseDraft>(emptySaleExpenseDraft());
   const [activeExpense, setActiveExpense] = useState<ExpenseRecord>(emptyExpense());
+  const [expenseForSoldCard, setExpenseForSoldCard] = useState<CardRecord | null>(null);
   const [activeCashAdjustment, setActiveCashAdjustment] = useState<CashAdjustmentRecord>(emptyCashAdjustment());
   const [editingCashAdjustmentId, setEditingCashAdjustmentId] = useState<string | null>(null);
   const [cashOnboardingDismissed, setCashOnboardingDismissed] = useState(false);
@@ -1269,10 +1278,10 @@ export default function Home() {
   const saleExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
     const now = new Date().toISOString();
     const expenseDate = card.saleDate || todayIso();
-    const rows: Array<{ category: ExpenseCategory; amount: number; label: string }> = [
-      { category: "HST", amount: expenseDraftAmount(saleExpenseDraft.hst), label: "Sale HST" },
-      { category: "Marketplace Fees", amount: expenseDraftAmount(saleExpenseDraft.fees), label: "Sale fees" },
-      { category: "Shipping", amount: expenseDraftAmount(saleExpenseDraft.shippingLabel), label: "Shipping label" },
+    const rows: Array<{ category: ExpenseCategory; amount: number }> = [
+      { category: "HST", amount: expenseDraftAmount(saleExpenseDraft.hst) },
+      { category: "Marketplace Fees", amount: expenseDraftAmount(saleExpenseDraft.fees) },
+      { category: "Shipping", amount: expenseDraftAmount(saleExpenseDraft.shippingLabel) },
     ];
     return rows.filter((row) => row.amount > 0).map((row) => ({
       ...emptyExpense(),
@@ -1282,13 +1291,28 @@ export default function Home() {
       amount: row.amount,
       expenseDate,
       vendor: card.salePlatform || "Sale",
-      description: `${row.label}: ${card.name}`,
+      description: saleExpenseDescriptionForCard(row.category, card),
       createdAt: now,
       createdBy: currentUsername,
       updatedAt: now,
       updatedBy: currentUsername,
     }));
   };
+  const saleExpenseDraftFromCard = (card: CardRecord): SaleExpenseDraft => {
+    const matchedExpenses = expenses.filter((expense) => isSaleExpenseForCard(expense, card));
+    return {
+      hst: String(matchedExpenses.filter((expense) => expense.category === "HST").reduce((sum, expense) => sum + expense.amount, 0) || ""),
+      fees: String(matchedExpenses.filter((expense) => expense.category === "Marketplace Fees").reduce((sum, expense) => sum + expense.amount, 0) || ""),
+      shippingLabel: String(matchedExpenses.filter((expense) => expense.category === "Shipping").reduce((sum, expense) => sum + expense.amount, 0) || ""),
+    };
+  };
+  const normalizeSaleExpenseForCard = (expense: ExpenseRecord, card: CardRecord): ExpenseRecord => ({
+    ...expense,
+    category: saleExpenseCategories.includes(expense.category) ? expense.category : "Other",
+    expenseDate: card.saleDate || expense.expenseDate || todayIso(),
+    vendor: card.salePlatform || "Sale",
+    description: saleExpenseDescriptionForCard(saleExpenseCategories.includes(expense.category) ? expense.category : "Other", card),
+  });
   const isSoldInventoryView = statusFilter === "Sold";
   const activeInventoryMainView: InventoryMainView = statusFilter === "Listed" ? "Listed" : "Not Listed";
   const saleExpenseTotalForCard = (card: CardRecord) => expenses.filter((expense) => isSaleExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
@@ -2066,10 +2090,10 @@ export default function Home() {
 
   const openSaleModal = (card: CardRecord) => {
     setSaleCelebration(null);
-    setSaleExpenseDraft(emptySaleExpenseDraft());
+    setSaleExpenseDraft(card.status === "Sold" ? saleExpenseDraftFromCard(card) : emptySaleExpenseDraft());
     setSellingCard({
       ...card,
-      quantity: 1,
+      quantity: card.status === "Sold" ? cardQuantity(card) : 1,
       shippingCharge: Number(card.shippingCharge || 0),
       saleDate: card.saleDate || todayIso(),
     });
@@ -2151,7 +2175,7 @@ export default function Home() {
 
     const ok = await updateCard(soldCard);
     if (ok) {
-      const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(soldCard));
+      const savedSaleExpenses = sourceCard.status === "Sold" ? await replaceSaleExpensesForCard(soldCard, saleExpenseRowsForCard(soldCard)) : await insertExpenseRecords(saleExpenseRowsForCard(soldCard));
       if (savedSaleExpenses === null) return;
       showSaleCelebration(soldCard, savedSaleExpenses);
       setNotice(`Sold ${soldCard.name} for ${money(cardNetSoldPrice(soldCard))} collected${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. Remove/update this listing in WCT and on the real marketplace so it cannot sell twice.`);
@@ -2248,6 +2272,25 @@ export default function Home() {
   const openAddExpenseModal = () => {
     setActiveExpense(emptyExpense());
     setEditingExpenseId(null);
+    setExpenseForSoldCard(null);
+    setExpenseModalOpen(true);
+    setError("");
+    setNotice("");
+  };
+
+  const openSoldCardExpenseModal = (card: CardRecord) => {
+    const draft = emptyExpense();
+    const category: ExpenseCategory = "Shipping";
+    setActiveExpense({
+      ...draft,
+      workspaceId: workspaceId || undefined,
+      category,
+      expenseDate: card.saleDate || todayIso(),
+      vendor: card.salePlatform || "Sale",
+      description: saleExpenseDescriptionForCard(category, card),
+    });
+    setEditingExpenseId(null);
+    setExpenseForSoldCard(card);
     setExpenseModalOpen(true);
     setError("");
     setNotice("");
@@ -2256,6 +2299,7 @@ export default function Home() {
   const openEditExpenseModal = (expense: ExpenseRecord) => {
     setActiveExpense({ ...expense });
     setEditingExpenseId(expense.id);
+    setExpenseForSoldCard(null);
     setExpenseModalOpen(true);
     setError("");
     setNotice("");
@@ -2264,6 +2308,7 @@ export default function Home() {
   const closeExpenseModal = () => {
     setActiveExpense(emptyExpense());
     setEditingExpenseId(null);
+    setExpenseForSoldCard(null);
     setExpenseModalOpen(false);
   };
 
@@ -2294,7 +2339,8 @@ export default function Home() {
       updatedAt: now,
       updatedBy: currentUsername,
     };
-    const validationError = validateExpenseBusinessRules(expenseToSave);
+    const normalizedSaleExpenseForCard = expenseForSoldCard ? normalizeSaleExpenseForCard(expenseToSave, expenseForSoldCard) : expenseToSave;
+    const validationError = validateExpenseBusinessRules(normalizedSaleExpenseForCard);
     if (validationError) {
       setError(validationError);
       return;
@@ -2304,15 +2350,15 @@ export default function Home() {
       if (editingExpenseId) {
         let updateQuery = supabase
           .from("expenses")
-          .update(expenseToUpdate(expenseToSave))
-          .eq("id", expenseToSave.id);
+          .update(expenseToUpdate(normalizedSaleExpenseForCard))
+          .eq("id", normalizedSaleExpenseForCard.id);
         updateQuery = updateQuery.eq("user_id", session.user.id);
         let updateResult = await updateQuery.select("*").single();
         if (updateResult.error && isAuditColumnError(updateResult.error.message)) {
           let legacyExpenseQuery = supabase
             .from("expenses")
-            .update(expenseToUpdate(expenseToSave, false))
-            .eq("id", expenseToSave.id);
+            .update(expenseToUpdate(normalizedSaleExpenseForCard, false))
+            .eq("id", normalizedSaleExpenseForCard.id);
           legacyExpenseQuery = legacyExpenseQuery.eq("user_id", session.user.id);
           updateResult = await legacyExpenseQuery.select("*").single();
           if (!updateResult.error) setNotice("Expense updated. Run the audit SQL migration so usernames save to account storage.");
@@ -2326,13 +2372,13 @@ export default function Home() {
       } else {
         let insertResult = await supabase
           .from("expenses")
-          .insert(expenseToInsert(expenseToSave, session.user.id, workspaceId))
+          .insert(expenseToInsert(normalizedSaleExpenseForCard, session.user.id, workspaceId))
           .select("*")
           .single();
         if (insertResult.error && isAuditColumnError(insertResult.error.message)) {
           insertResult = await supabase
             .from("expenses")
-            .insert(expenseToInsert(expenseToSave, session.user.id, workspaceId, false))
+            .insert(expenseToInsert(normalizedSaleExpenseForCard, session.user.id, workspaceId, false))
             .select("*")
             .single();
           if (!insertResult.error) setNotice("Expense saved. Run the audit SQL migration so usernames save to account storage.");
@@ -2346,14 +2392,15 @@ export default function Home() {
       }
     } else {
       setExpenses((current) => {
-        const exists = current.some((expense) => expense.id === expenseToSave.id);
-        return exists ? current.map((expense) => (expense.id === expenseToSave.id ? expenseToSave : expense)) : [{ ...expenseToSave, id: crypto.randomUUID() }, ...current];
+        const exists = current.some((expense) => expense.id === normalizedSaleExpenseForCard.id);
+        return exists ? current.map((expense) => (expense.id === normalizedSaleExpenseForCard.id ? normalizedSaleExpenseForCard : expense)) : [{ ...normalizedSaleExpenseForCard, id: crypto.randomUUID() }, ...current];
       });
     }
 
-    setNotice("Expense saved.");
+    setNotice(expenseForSoldCard ? `Expense saved for ${expenseForSoldCard.name}. Sold-card profit updated.` : "Expense saved.");
     setActiveExpense(emptyExpense());
     setEditingExpenseId(null);
+    setExpenseForSoldCard(null);
     setExpenseModalOpen(false);
   };
 
@@ -2370,6 +2417,15 @@ export default function Home() {
     }
     setExpenses((current) => current.filter((expenseRecord) => expenseRecord.id !== expense.id));
     return true;
+  };
+
+  const replaceSaleExpensesForCard = async (card: CardRecord, nextExpenses: ExpenseRecord[]) => {
+    const existingSaleExpenses = expenses.filter((expense) => isSaleExpenseForCard(expense, card));
+    for (const expense of existingSaleExpenses) {
+      const deleted = await deleteExpense(expense);
+      if (!deleted) return null;
+    }
+    return insertExpenseRecords(nextExpenses);
   };
 
   const saveCashAdjustment = async (event: FormEvent) => {
@@ -3957,6 +4013,7 @@ export default function Home() {
                 <div className="rowActions">
                   <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
                   <button className="secondary" onClick={() => openSaleModal(card)} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
+                  {card.status === "Sold" && <button className="secondary" onClick={() => openSoldCardExpenseModal(card)} type="button">Add expense</button>}
                   {card.status === "Sold" && <button className="secondary" onClick={() => openRefundModal(card)} type="button" disabled={cardNetSoldPrice(card) <= 0}>{cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"}</button>}
                   {card.status === "Sold" && <button className="secondary" onClick={() => requestMoveBackToListed(card)} type="button">Move back to Listed</button>}
                   {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
@@ -4394,22 +4451,32 @@ export default function Home() {
       )}
 
       {expenseModalOpen && (
-        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label={editingExpenseId ? "Edit expense" : "Add expense"}>
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label={expenseForSoldCard ? `Add expense for ${expenseForSoldCard.name}` : editingExpenseId ? "Edit expense" : "Add expense"}>
           <form className="modal panel expenseModal" onSubmit={saveExpense}>
             <div className="panelHeader">
               <div>
-                <p className="eyebrow">{editingExpenseId ? "Edit expense" : "Add expense"}</p>
-                <h2>{editingExpenseId ? "Edit this cost" : "Log a new cost"}</h2>
-                <p className="muted">{editingExpenseId ? "Update only this expense record." : "Start a blank expense entry when you need to add a new cost."}</p>
+                <p className="eyebrow">{expenseForSoldCard ? "Sold-card expense" : editingExpenseId ? "Edit expense" : "Add expense"}</p>
+                <h2>{expenseForSoldCard ? `Add expense for ${expenseForSoldCard.name}` : editingExpenseId ? "Edit this cost" : "Log a new cost"}</h2>
+                <p className="muted">{expenseForSoldCard ? "This cost will lower this card’s Total profit and Profit from sold cards." : editingExpenseId ? "Update only this expense record." : "Start a blank expense entry when you need to add a new cost."}</p>
               </div>
               <button className="secondary" type="button" onClick={closeExpenseModal}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
-              <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
+              <Select label="Expense type" value={activeExpense.category} options={expenseForSoldCard ? saleExpenseCategories : expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
               <Field label="Amount" type="number" value={activeExpense.amount ? String(activeExpense.amount) : ""} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} placeholder="0.00" required />
-              <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} required />
-              <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
-              <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
+              {expenseForSoldCard ? (
+                <div className="calc full">
+                  <span>Sold card: <strong>{expenseForSoldCard.name}</strong></span>
+                  <span>Sale date: <strong>{expenseForSoldCard.saleDate ? formatDateLabel(expenseForSoldCard.saleDate) : "Today"}</strong></span>
+                  <span>Platform: <strong>{expenseForSoldCard.salePlatform || "Sale"}</strong></span>
+                </div>
+              ) : (
+                <>
+                  <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} required />
+                  <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
+                  <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
+                </>
+              )}
               <button className="primary full" type="submit">{editingExpenseId ? "Save expense" : "Add expense"}</button>
             </div>
           </form>

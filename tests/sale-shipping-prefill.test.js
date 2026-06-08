@@ -54,7 +54,7 @@ assert(
   'Sale modal should let users add shipping label cost now or later in Expenses.'
 );
 assert(
-  page.includes('{ category: "Shipping", amount: expenseDraftAmount(saleExpenseDraft.shippingLabel), label: "Shipping label" }'),
+  page.includes('{ category: "Shipping", amount: expenseDraftAmount(saleExpenseDraft.shippingLabel) }') && page.includes('description: saleExpenseDescriptionForCard(row.category, card)'),
   'Saving a sale should create a Shipping expense row for shipping label cost.'
 );
 assert(
