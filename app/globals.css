@@ -49,7 +49,7 @@ h3 { margin-bottom: 14px; }
 .brandLogo { display: inline-flex; align-items: center; justify-content: center; margin: 0 auto; }
 .brandLogo img {
   display: block;
-  width: min(220px, 100%);
+  width: min(440px, 100%);
   height: auto;
   border-radius: 999px;
   filter: drop-shadow(0 18px 34px rgba(234,179,8,.18));
@@ -449,7 +449,7 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .confirmActions button { min-height: 44px; }
 
 .mobileTopHeader { display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 12px; margin-bottom: 16px; }
-.mobileTopHeader .brandLogo img { width: 96px; max-width: 24vw; filter: drop-shadow(0 0 16px rgba(234,179,8,.34)) drop-shadow(0 0 22px rgba(120,53,15,.22)); }
+.mobileTopHeader .brandLogo img { width: 192px; max-width: 48vw; filter: drop-shadow(0 0 16px rgba(234,179,8,.34)) drop-shadow(0 0 22px rgba(120,53,15,.22)); }
 .iconCircle { width: 46px; height: 46px; border-radius: 999px; border: 1px solid rgba(103,232,249,.28); background: rgba(8,16,34,.74); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(103,232,249,.08); font-size: 1.1rem; }
 .topHeaderActions { display: flex; align-items: center; gap: 8px; }
 .signOutButton { position: static; border-radius: 999px; white-space: nowrap; min-width: 82px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
@@ -536,7 +536,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .pricingHero::before, .pricingFinalCta::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at 82% 12%, rgba(57,255,156,.16), transparent 22rem), radial-gradient(circle at 15% 82%, rgba(96,165,250,.13), transparent 20rem); }
 .pricingHero > *, .pricingFinalCta > * { position: relative; z-index: 1; }
 .pricingLogo { justify-content: flex-start; margin: 0 0 18px; }
-.pricingLogo img { width: min(190px, 100%); }
+.pricingLogo img { width: min(380px, 100%); }
 .pricingHero h1 { max-width: 720px; }
 .pricingHeroActions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 22px; }
 .pricingCta { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
@@ -633,7 +633,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .pricingFeatureCard { min-height: auto; }
   .hero, .panelHeader, .inventoryHeader { flex-direction: column; align-items: stretch; }
   .mobileTopHeader { grid-template-columns: 44px 1fr auto; gap: 8px; }
-  .mobileTopHeader .brandLogo img { width: 82px; max-width: 22vw; }
+  .mobileTopHeader .brandLogo img { width: 164px; max-width: 44vw; }
   .iconCircle { width: 44px; height: 44px; }
   .topHeaderActions .iconCircle { display: none; }
   .signOutButton { padding: 9px 11px; font-size: .78rem; min-width: 78px; }
@@ -675,7 +675,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .quickActionGrid .navText small { display: block; font-size: .78rem; }
   .panel { border-radius: 22px; padding: 18px; }
   .logoHero { align-items: center; padding: 16px; }
-  .brandLogo img { width: min(220px, 72vw); }
+  .brandLogo img { width: min(440px, 72vw); }
   .accountProfitBar { align-items: stretch; flex-direction: column; }
   .profitShortcut { justify-content: center; width: 100%; }
   .heroActions { align-items: stretch; }
