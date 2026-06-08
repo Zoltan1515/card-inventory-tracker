@@ -6,6 +6,7 @@ const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
 const pricing = fs.readFileSync(path.join(root, 'app', 'pricing', 'page.tsx'), 'utf8');
 const billing = fs.readFileSync(path.join(root, 'app', 'billing', 'page.tsx'), 'utf8');
 const layout = fs.readFileSync(path.join(root, 'app', 'layout.tsx'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'app', 'globals.css'), 'utf8');
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -30,5 +31,8 @@ const appIcon = pngDimensions(path.join(root, 'app', 'icon.png'));
 assert(logo.width === 1254 && logo.height === 1254, 'Main logo should preserve the provided square artwork size.');
 assert(publicIcon.width === 512 && publicIcon.height === 512, 'Public app icon should be a 512x512 PNG.');
 assert(appIcon.width === 512 && appIcon.height === 512, 'Next.js favicon/app icon should be a 512x512 PNG.');
+assert(css.includes('drop-shadow(0 18px 34px rgba(239,68,68,.24))'), 'Main logo glow should be red instead of gold.');
+assert(css.includes('drop-shadow(0 0 16px rgba(239,68,68,.38)) drop-shadow(0 0 22px rgba(127,29,29,.28))'), 'Mobile logo glow should be red instead of gold.');
+assert(!css.includes('rgba(234,179,8') && !css.includes('rgba(120,53,15'), 'Old gold/brown logo glow colors should not remain.');
 
 console.log('Logo asset checks passed.');
