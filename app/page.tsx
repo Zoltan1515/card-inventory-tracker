@@ -676,6 +676,7 @@ export default function Home() {
   const [confirmingClearListing, setConfirmingClearListing] = useState<CardRecord | null>(null);
   const [enlargedPhotoCard, setEnlargedPhotoCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [expenseModalOpen, setExpenseModalOpen] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<string[]>([]);
   const [selectedGradingQuantities, setSelectedGradingQuantities] = useState<Record<string, number>>({});
   const [gradingDraft, setGradingDraft] = useState<GradingSubmission>(emptyGradingSubmission());
@@ -2238,6 +2239,28 @@ export default function Home() {
     }
   };
 
+  const openAddExpenseModal = () => {
+    setActiveExpense(emptyExpense());
+    setEditingExpenseId(null);
+    setExpenseModalOpen(true);
+    setError("");
+    setNotice("");
+  };
+
+  const openEditExpenseModal = (expense: ExpenseRecord) => {
+    setActiveExpense({ ...expense });
+    setEditingExpenseId(expense.id);
+    setExpenseModalOpen(true);
+    setError("");
+    setNotice("");
+  };
+
+  const closeExpenseModal = () => {
+    setActiveExpense(emptyExpense());
+    setEditingExpenseId(null);
+    setExpenseModalOpen(false);
+  };
+
   const saveExpense = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
@@ -2310,6 +2333,7 @@ export default function Home() {
     setNotice("Expense saved.");
     setActiveExpense(emptyExpense());
     setEditingExpenseId(null);
+    setExpenseModalOpen(false);
   };
 
   const deleteExpense = async (expense: ExpenseRecord) => {
@@ -3929,7 +3953,10 @@ export default function Home() {
               <p className="eyebrow">Expenses</p>
               <h2>Record HST, duties, grading, shipping, and other expenses</h2>
             </div>
-            <button className="secondary" onClick={exportExpenses} type="button">Export filtered expenses ({totals.filteredExpenses.length})</button>
+            <div className="rowActions">
+              <button className="primary" onClick={openAddExpenseModal} type="button">Add expense</button>
+              <button className="secondary" onClick={exportExpenses} type="button">Export filtered expenses ({totals.filteredExpenses.length})</button>
+            </div>
           </div>
           <DateFilterControls
             mode={dateFilterMode}
@@ -3946,24 +3973,6 @@ export default function Home() {
               <Stat key={item.category} label={`${item.category} (${item.count})`} value={money(item.total)} />
             ))}
           </section>
-
-          <section className="addExpenseCard" aria-labelledby="add-expense-heading">
-            <div className="addExpenseHeader">
-              <div>
-                <p className="eyebrow">Add expense</p>
-                <h3 id="add-expense-heading">Log a new cost</h3>
-              </div>
-            </div>
-            <form className="formGrid expenseForm" id="expense-form" onSubmit={saveExpense}>
-              <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
-              <Field label="Amount" type="number" value={String(activeExpense.amount)} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} required />
-              <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} required />
-              <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
-              <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
-              <button className="primary" type="submit">{editingExpenseId ? "Save expense" : "Add expense"}</button>
-            </form>
-          </section>
-
           <div className="expenseList">
             {totals.filteredExpenses.map((expense) => (
               <article className="expenseRow" key={expense.id}>
@@ -3976,7 +3985,7 @@ export default function Home() {
                 <span>{expense.expenseDate}</span>
                 <strong>{money(expense.amount)}</strong>
                 <div className="rowActions">
-                  <button className="secondary" type="button" onClick={() => { setActiveExpense(expense); setEditingExpenseId(expense.id); }}>Edit</button>
+                  <button className="secondary" type="button" onClick={() => openEditExpenseModal(expense)}>Edit</button>
                   <button className="danger" type="button" onClick={() => deleteExpense(expense)}>Delete</button>
                 </div>
               </article>
@@ -4331,6 +4340,29 @@ export default function Home() {
                 })}
               </div>
               <button className="primary full" type="submit">Mark order returned</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {expenseModalOpen && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label={editingExpenseId ? "Edit expense" : "Add expense"}>
+          <form className="modal panel expenseModal" onSubmit={saveExpense}>
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">{editingExpenseId ? "Edit expense" : "Add expense"}</p>
+                <h2>{editingExpenseId ? "Edit this cost" : "Log a new cost"}</h2>
+                <p className="muted">{editingExpenseId ? "Update only this expense record." : "Start a blank expense entry when you need to add a new cost."}</p>
+              </div>
+              <button className="secondary" type="button" onClick={closeExpenseModal}>Cancel</button>
+            </div>
+            <div className="formGrid simpleForm">
+              <Select label="Expense type" value={activeExpense.category} options={expenseCategories} onChange={(v) => setActiveExpense({ ...activeExpense, category: v as ExpenseCategory })} placeholder="Select expense type" required />
+              <Field label="Amount" type="number" value={activeExpense.amount ? String(activeExpense.amount) : ""} onChange={(v) => setActiveExpense({ ...activeExpense, amount: Number(v || 0) })} placeholder="0.00" required />
+              <Field label="Date" type="date" value={activeExpense.expenseDate} onChange={(v) => setActiveExpense({ ...activeExpense, expenseDate: v })} required />
+              <Field label="Vendor / source" value={activeExpense.vendor} onChange={(v) => setActiveExpense({ ...activeExpense, vendor: v })} placeholder="PSA, Canada Post, customs..." />
+              <Field label="Description" value={activeExpense.description} onChange={(v) => setActiveExpense({ ...activeExpense, description: v })} placeholder="What was this for?" />
+              <button className="primary full" type="submit">{editingExpenseId ? "Save expense" : "Add expense"}</button>
             </div>
           </form>
         </div>
