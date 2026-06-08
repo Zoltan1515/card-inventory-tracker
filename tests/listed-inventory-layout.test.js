@@ -9,7 +9,7 @@ const pageSnippets = [
   'card.status === "Listed" ? "listedCardRow"',
   'className="listedMetaChips"',
   'Profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}',
-  'Minimum {money(card.lowestAcceptablePrice)}',
+  'listing.lowestAcceptablePrice ? ` • Min ${money(listing.lowestAcceptablePrice)}`',
 ];
 
 for (const snippet of pageSnippets) {

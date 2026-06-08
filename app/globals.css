@@ -366,6 +366,9 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .saleCelebrationList strong { font-size: 1.2rem; text-align: right; }
 .saleCelebrationProfit { border-color: rgba(57,255,156,.48) !important; background: rgba(57,255,156,.1) !important; }
 .saleCelebrationProfit strong { font-size: 1.45rem; }
+.saleListingReminder { position: relative; z-index: 1; width: 100%; border: 1px solid rgba(251,191,36,.42); border-radius: 16px; background: rgba(251,191,36,.1); padding: 12px; text-align: left; display: grid; gap: 6px; }
+.saleListingReminder strong { color: var(--warning); }
+.saleListingReminder p { margin: 0; color: var(--muted); font-size: .9rem; line-height: 1.4; }
 .saleCelebrationActions { position: relative; z-index: 1; width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; }
 .postedListingList { width: 100%; display: grid; gap: 8px; }
 .postedListingList article { border: 1px solid rgba(148,163,184,.18); border-radius: 14px; background: rgba(8,15,28,.52); padding: 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; }

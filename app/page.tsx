@@ -38,8 +38,18 @@ type AttentionGroup = {
   description: string;
   items: AttentionItem[];
 };
+type MultiPlatformListing = {
+  id: string;
+  platform: string;
+  url: string;
+  askingPrice: number;
+  lowestAcceptablePrice: number;
+  shippingCharge: number;
+  listedDate: string;
+};
 type ListedReviewItem = {
   card: CardRecord;
+  listing: MultiPlatformListing;
   age: number;
   referenceDate: string;
   tone: "current" | "warning" | "urgent";
@@ -57,7 +67,7 @@ type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: str
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string; shippingLabel: string };
 type RefundDraft = { amount: string; refundDate: string; note: string };
-type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleUnitPrice: number; shippingCharge: number; shippingUnitPrice: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string };
+type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleUnitPrice: number; shippingCharge: number; shippingUnitPrice: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string; listingRemovalReminder: MultiPlatformListing[] };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
@@ -287,6 +297,88 @@ const listingReviewTone = (age: number): ListedReviewItem["tone"] => {
 };
 const dateValue = (date: string) => (date ? new Date(`${date}T00:00:00`).getTime() || 0 : 0);
 const uniqueSorted = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+const listingNotesPrefix = "WCT_LISTINGS_JSON:";
+const listingKey = (listing: Pick<MultiPlatformListing, "platform" | "url">) => `${listing.platform.trim().toLowerCase()}|${listing.url.trim().toLowerCase()}`;
+const cleanListingNotes = (notes = "") => notes.split("\n").filter((line) => !line.startsWith(listingNotesPrefix)).join("\n").trim();
+const parseStoredListings = (notes = ""): MultiPlatformListing[] => {
+  const line = notes.split("\n").find((entry) => entry.startsWith(listingNotesPrefix));
+  if (!line) return [];
+  try {
+    const parsed = JSON.parse(line.slice(listingNotesPrefix.length));
+    if (!Array.isArray(parsed)) return [];
+    return parsed.map((item): MultiPlatformListing => ({
+      id: typeof item.id === "string" && item.id ? item.id : crypto.randomUUID(),
+      platform: String(item.platform || "").trim(),
+      url: String(item.url || "").trim(),
+      askingPrice: Number(item.askingPrice || 0) || 0,
+      lowestAcceptablePrice: Number(item.lowestAcceptablePrice || 0) || 0,
+      shippingCharge: Number(item.shippingCharge || 0) || 0,
+      listedDate: String(item.listedDate || "").trim(),
+    })).filter((listing) => listing.platform || listing.url);
+  } catch {
+    return [];
+  }
+};
+const notesWithListings = (notes: string, listings: MultiPlatformListing[]) => {
+  const cleanNotes = cleanListingNotes(notes);
+  const activeListings = listings.filter((listing) => listing.platform || listing.url);
+  if (!activeListings.length) return cleanNotes;
+  return [cleanNotes, `${listingNotesPrefix}${JSON.stringify(activeListings)}`].filter(Boolean).join("\n");
+};
+const legacyListingForCard = (card: Pick<CardRecord, "listedPlatform" | "listingUrl" | "askingPrice" | "lowestAcceptablePrice" | "shippingCharge" | "listedDate" | "updatedAt" | "purchaseDate">): MultiPlatformListing | null => {
+  if (!card.listedPlatform.trim() && !card.listingUrl.trim()) return null;
+  return {
+    id: "legacy-primary",
+    platform: listingPlatformLabel(card),
+    url: card.listingUrl.trim(),
+    askingPrice: Number(card.askingPrice || 0) || 0,
+    lowestAcceptablePrice: Number(card.lowestAcceptablePrice || 0) || 0,
+    shippingCharge: Number(card.shippingCharge || 0) || 0,
+    listedDate: card.listedDate || card.updatedAt?.slice(0, 10) || card.purchaseDate || todayIso(),
+  };
+};
+const activeListingsForCard = (card: CardRecord): MultiPlatformListing[] => {
+  const stored = parseStoredListings(card.notes);
+  const legacy = legacyListingForCard(card);
+  const listings = stored.length ? stored : legacy ? [legacy] : [];
+  const seen = new Set<string>();
+  return listings.filter((listing) => {
+    const key = listingKey(listing);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+const cardWithListings = (card: CardRecord, listings: MultiPlatformListing[]): CardRecord => {
+  const primary = listings[0];
+  return {
+    ...card,
+    status: primary ? "Listed" : "Not Listed",
+    listedPlatform: primary?.platform || "",
+    listingUrl: primary?.url || "",
+    askingPrice: primary?.askingPrice || 0,
+    lowestAcceptablePrice: primary?.lowestAcceptablePrice || 0,
+    shippingCharge: primary?.shippingCharge || 0,
+    listedDate: primary?.listedDate || "",
+    notes: notesWithListings(card.notes, listings),
+  };
+};
+const listingCardProjection = (card: CardRecord, listing: MultiPlatformListing): CardRecord => ({
+  ...card,
+  listedPlatform: listing.platform,
+  listingUrl: listing.url,
+  askingPrice: listing.askingPrice,
+  lowestAcceptablePrice: listing.lowestAcceptablePrice,
+  shippingCharge: listing.shippingCharge,
+  listedDate: listing.listedDate,
+});
+const primeLotListingForCard = (card: CardRecord) => activeListingsForCard(card).find((listing) => {
+  const platform = listing.platform.toLowerCase();
+  const listingUrl = listing.url.toLowerCase();
+  return platform.includes("primelot") || listingUrl.includes("primelot.cards") || listingUrl.includes("primelot");
+}) || null;
+const otherListingsAfterSale = (card: CardRecord) => activeListingsForCard(card).filter((listing) => listing.platform.trim().toLowerCase() !== (card.salePlatform || "").trim().toLowerCase());
 
 const firstUrlInText = (value: string) => value.match(/https?:\/\/\S+/i)?.[0]?.replace(/[),.;]+$/, "") || "";
 const listingHref = (card: Pick<CardRecord, "listingUrl" | "listedPlatform">) => card.listingUrl.trim() || firstUrlInText(card.listedPlatform || "");
@@ -825,7 +917,7 @@ export default function Home() {
   const activeInventoryCards = useMemo(() => cards.filter((card) => card.status !== "Sold"), [cards]);
   const soldInventoryCards = useMemo(() => cards.filter((card) => card.status === "Sold"), [cards]);
   const inventoryCategories = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.category)), [activeInventoryCards]);
-  const inventoryPlatforms = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.listedPlatform)), [activeInventoryCards]);
+  const inventoryPlatforms = useMemo(() => uniqueSorted(activeInventoryCards.flatMap((card) => activeListingsForCard(card).map((listing) => listing.platform))), [activeInventoryCards]);
   const filtersAreActive = Boolean(
     query.trim() ||
     categoryFilter !== "All" ||
@@ -916,12 +1008,13 @@ export default function Home() {
     const filtered = inventorySource.filter((card) => {
       const matchesStatus = statusFilter === "All" || card.status === statusFilter;
       const matchesCategory = categoryFilter === "All" || card.category === categoryFilter;
-      const matchesPlatform = platformFilter === "All" || card.listedPlatform === platformFilter;
+      const cardListings = activeListingsForCard(card);
+      const matchesPlatform = platformFilter === "All" || cardListings.some((listing) => listing.platform === platformFilter);
       const hasPhoto = Boolean(card.frontPhotoUrl.trim());
       const matchesPhoto = photoFilter === "All" || (photoFilter === "Has photo" ? hasPhoto : !hasPhoto);
-      const hasListingUrl = Boolean(card.listingUrl.trim());
+      const hasListingUrl = Boolean(card.listingUrl.trim()) || cardListings.some((listing) => listing.url);
       const matchesListingUrl = listingUrlFilter === "All" || (listingUrlFilter === "Has listing URL" ? hasListingUrl : !hasListingUrl);
-      const searchableText = [card.name, card.category, card.year, card.setName, card.cardNumber, card.notes, card.listedPlatform, card.listingUrl, card.salePlatform]
+      const searchableText = [card.name, card.category, card.year, card.setName, card.cardNumber, cleanListingNotes(card.notes), card.listedPlatform, card.listingUrl, card.salePlatform, ...cardListings.map((listing) => `${listing.platform} ${listing.url}`)]
         .join(" ")
         .toLowerCase();
       const matchesQuery = !q || searchableText.includes(q);
@@ -1075,12 +1168,12 @@ export default function Home() {
 
   const listingReviewItems = useMemo<ListedReviewItem[]>(() => cards
     .filter((card) => card.status === "Listed")
-    .map((card) => ({ card, referenceDate: listedAgeDate(card) }))
-    .map(({ card, referenceDate }) => ({ card, referenceDate, age: daysSince(referenceDate) }))
-    .filter((item): item is { card: CardRecord; referenceDate: string; age: number } => item.age !== null)
-    .map(({ card, referenceDate, age }) => ({ card, referenceDate, age, tone: listingReviewTone(age) }))
+    .flatMap((card) => activeListingsForCard(card).map((listing) => ({ card, listing, referenceDate: listing.listedDate || listedAgeDate(card) })))
+    .map(({ card, listing, referenceDate }) => ({ card, listing, referenceDate, age: daysSince(referenceDate) }))
+    .filter((item): item is { card: CardRecord; listing: MultiPlatformListing; referenceDate: string; age: number } => item.age !== null)
+    .map(({ card, listing, referenceDate, age }) => ({ card, listing, referenceDate, age, tone: listingReviewTone(age) }))
     .sort((a, b) => b.age - a.age), [cards]);
-  const listedAskingValue = (card: CardRecord) => card.askingPrice * cardQuantity(card);
+  const listedAskingValue = (item: ListedReviewItem) => item.listing.askingPrice * cardQuantity(item.card);
   const listingReviewGroups = {
     current: listingReviewItems.filter((item) => item.tone === "current"),
     warning: listingReviewItems.filter((item) => item.tone === "warning"),
@@ -1092,9 +1185,9 @@ export default function Home() {
     urgent: listingReviewGroups.urgent.length,
   };
   const listingReviewAskingTotals = {
-    current: listingReviewGroups.current.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
-    warning: listingReviewGroups.warning.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
-    urgent: listingReviewGroups.urgent.reduce((sum, item) => sum + listedAskingValue(item.card), 0),
+    current: listingReviewGroups.current.reduce((sum, item) => sum + listedAskingValue(item), 0),
+    warning: listingReviewGroups.warning.reduce((sum, item) => sum + listedAskingValue(item), 0),
+    urgent: listingReviewGroups.urgent.reduce((sum, item) => sum + listedAskingValue(item), 0),
   };
   const activeListingReviewItems = activeListingReviewBucket === "current" ? listingReviewGroups.current
     : activeListingReviewBucket === "warning" ? listingReviewGroups.warning
@@ -1121,11 +1214,7 @@ export default function Home() {
     .map((cardId) => cardById.get(cardId))
     .filter((card): card is CardRecord => Boolean(card))
     .filter((card) => card.status !== "Sold");
-  const alreadyOnPrimeLot = (card: CardRecord) => {
-    const platform = (card.listedPlatform || "").toLowerCase();
-    const listingUrl = (card.listingUrl || "").toLowerCase();
-    return platform.includes("primelot") || listingUrl.includes("primelot.cards") || listingUrl.includes("primelot");
-  };
+  const alreadyOnPrimeLot = (card: CardRecord) => Boolean(primeLotListingForCard(card));
   const canPostCardToPrimeLot = (card: CardRecord) => card.status !== "Sold" && !alreadyOnPrimeLot(card);
   const selectedPrimeLotCards = selectedCards.filter(canPostCardToPrimeLot);
   const selectedQuantityForCard = (card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(selectedGradingQuantities[card.id]) || cardQuantity(card))));
@@ -1798,7 +1887,8 @@ export default function Home() {
   };
 
   const removePrimeLotListingIfNeeded = async (card: CardRecord) => {
-    if (!alreadyOnPrimeLot(card)) return true;
+    const primeLotListing = primeLotListingForCard(card);
+    if (!primeLotListing) return true;
     if (!session?.access_token) {
       setError("Sign in before clearing a PrimeLot listing.");
       return false;
@@ -1812,7 +1902,7 @@ export default function Home() {
       },
       body: JSON.stringify({
         cardTrackerId: card.id,
-        listingUrl: card.listingUrl,
+        listingUrl: primeLotListing.url,
       }),
     });
     const result: { error?: string } = await response.json();
@@ -1849,6 +1939,7 @@ export default function Home() {
       listedDate: "",
       listedAt: "",
       listedBy: "",
+      notes: cleanListingNotes(card.notes),
       updatedAt: new Date().toISOString(),
       updatedBy: currentUsername,
     });
@@ -1870,14 +1961,28 @@ export default function Home() {
     const availableQty = cardQuantity(sourceCard);
     const listingQty = Math.max(1, Math.min(availableQty, cardQuantity(normalizedListingCard)));
     const now = new Date().toISOString();
+    const newListing: MultiPlatformListing = {
+      id: crypto.randomUUID(),
+      platform: normalizedListingCard.listedPlatform.trim(),
+      url: normalizedListingCard.listingUrl.trim(),
+      askingPrice: Number(normalizedListingCard.askingPrice || 0) || 0,
+      lowestAcceptablePrice: Number(normalizedListingCard.lowestAcceptablePrice || 0) || 0,
+      shippingCharge: Number(normalizedListingCard.shippingCharge || 0) || 0,
+      listedDate: normalizedListingCard.listedDate || todayIso(),
+    };
+
+    if (!newListing.platform) {
+      setError("Add where the card is listed before saving the listing.");
+      return;
+    }
+
+    const existingListings = activeListingsForCard(sourceCard);
+    const nextListings = [...existingListings.filter((listing) => listing.platform.toLowerCase() !== newListing.platform.toLowerCase()), newListing];
     const nextListedCard: CardRecord = {
-      ...normalizedListingCard,
+      ...cardWithListings(normalizedListingCard, nextListings),
       id: listingQty < availableQty ? crypto.randomUUID() : sourceCard.id,
       workspaceId: sourceCard.workspaceId,
       quantity: listingQty,
-      status: "Listed",
-      listedPlatform: normalizedListingCard.listedPlatform.trim(),
-      listedDate: normalizedListingCard.listedDate || todayIso(),
       listedAt: sourceCard.status !== "Listed" ? now : (normalizedListingCard.listedAt || now),
       listedBy: sourceCard.status !== "Listed" ? currentUsername : (normalizedListingCard.listedBy || currentUsername),
       saleDate: "",
@@ -1890,11 +1995,6 @@ export default function Home() {
       updatedAt: now,
       updatedBy: currentUsername,
     };
-
-    if (!nextListedCard.listedPlatform) {
-      setError("Add where the card is listed before saving the listing.");
-      return;
-    }
 
     const validationError = validateCardBusinessRules(nextListedCard);
     if (validationError) {
@@ -1914,6 +2014,7 @@ export default function Home() {
         listedDate: "",
         listedAt: "",
         listedBy: "",
+        notes: cleanListingNotes(sourceCard.notes),
         updatedAt: now,
         updatedBy: currentUsername,
       };
@@ -1930,7 +2031,7 @@ export default function Home() {
 
     const ok = await updateCard(nextListedCard);
     if (ok) {
-      setNotice(`Listed ${nextListedCard.name} on ${nextListedCard.listedPlatform}.`);
+      setNotice(`${nextListedCard.name} is listed on ${nextListings.map((listing) => listing.platform).join(", ")}. Inventory count was not duplicated.`);
       setListingCard(null);
       setTab("inventory");
     }
@@ -1978,6 +2079,7 @@ export default function Home() {
       netProfit: cardProfit(card) - savedSaleExpenseTotal,
       remainingQuantity,
       platform: card.salePlatform || "Sale",
+      listingRemovalReminder: otherListingsAfterSale(card),
     });
   };
 
@@ -2029,7 +2131,7 @@ export default function Home() {
       const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(insertedSold));
       if (savedSaleExpenses === null) return;
       showSaleCelebration(insertedSold, savedSaleExpenses, availableQty - saleQty);
-      setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(cardNetSoldPrice(soldCard))} collected${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. ${availableQty - saleQty} left in inventory.`);
+      setNotice(`Sold ${saleQty} of ${availableQty} ${soldCard.name} for ${money(cardNetSoldPrice(soldCard))} collected${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. ${availableQty - saleQty} left in inventory. Check WCT and the real marketplaces to remove/update any remaining listings.`);
       setSellingCard(null);
       setSaleExpenseDraft(emptySaleExpenseDraft());
       setTab("inventory");
@@ -2041,7 +2143,7 @@ export default function Home() {
       const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard(soldCard));
       if (savedSaleExpenses === null) return;
       showSaleCelebration(soldCard, savedSaleExpenses);
-      setNotice(`Sold ${soldCard.name} for ${money(cardNetSoldPrice(soldCard))} collected${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}.`);
+      setNotice(`Sold ${soldCard.name} for ${money(cardNetSoldPrice(soldCard))} collected${savedSaleExpenses.length ? ` and logged ${money(savedSaleExpenses.reduce((sum, expense) => sum + expense.amount, 0))} in sale expenses` : ""}. Remove/update this listing in WCT and on the real marketplace so it cannot sell twice.`);
       setSellingCard(null);
       setSaleExpenseDraft(emptySaleExpenseDraft());
       setTab("profit");
@@ -2667,21 +2769,18 @@ export default function Home() {
     setNotice("");
     const primeLotRemoved = await removePrimeLotListingIfNeeded(card);
     if (!primeLotRemoved) return;
+    const remainingListings = activeListingsForCard(card).filter((listing) => listing.id !== primeLotListingForCard(card)?.id);
     const updatedCard: CardRecord = {
-      ...card,
-      status: "Not Listed",
-      listedPlatform: "",
-      listingUrl: "",
-      listedDate: "",
-      listedAt: "",
-      listedBy: "",
+      ...cardWithListings(card, remainingListings),
+      listedAt: remainingListings.length ? card.listedAt : "",
+      listedBy: remainingListings.length ? card.listedBy : "",
       updatedAt: new Date().toISOString(),
       updatedBy: currentUsername,
     };
     const saved = await updateCard(updatedCard);
     if (saved) {
-      setNotice(`Removed ${card.name} from PrimeLot and moved it back to Not Listed.`);
-      setStatusFilter("Not Listed");
+      setNotice(remainingListings.length ? `Removed ${card.name} from PrimeLot in WCT. It is still listed on ${remainingListings.map((listing) => listing.platform).join(", ")}.` : `Removed ${card.name} from PrimeLot and moved it back to Not Listed.`);
+      if (!remainingListings.length) setStatusFilter("Not Listed");
       setPrimeLotReviewDrafts((drafts) => ({
         ...drafts,
         [card.id]: {
@@ -2753,12 +2852,21 @@ export default function Home() {
         const isPublicListing = isPrimeLotPublicListing(listing.status);
         if (isPublicListing) publicListingCount += 1;
         else draftListingCount += 1;
+        const primeLotListing: MultiPlatformListing = {
+          id: listing.primeLotListingId || crypto.randomUUID(),
+          platform: "PrimeLot",
+          url: listing.url,
+          askingPrice: Number(card.askingPrice || 0) || 0,
+          lowestAcceptablePrice: Number(card.lowestAcceptablePrice || 0) || 0,
+          shippingCharge: Number(card.shippingCharge || 0) || 0,
+          listedDate: todayIso(),
+        };
+        const nextListings = isPublicListing
+          ? [...activeListingsForCard(card).filter((item) => item.platform.toLowerCase() !== "primelot"), primeLotListing]
+          : activeListingsForCard(card);
         const updatedCard: CardRecord = {
-          ...card,
+          ...cardWithListings(card, nextListings),
           status: isPublicListing ? "Listed" : card.status,
-          listedPlatform: isPublicListing ? "PrimeLot" : card.listedPlatform,
-          listingUrl: listing.url,
-          listedDate: isPublicListing ? todayIso() : card.listedDate,
           listedAt: isPublicListing ? new Date().toISOString() : card.listedAt,
           listedBy: isPublicListing ? currentUsername : card.listedBy,
           updatedAt: new Date().toISOString(),
@@ -3427,8 +3535,8 @@ export default function Home() {
                 <button className="secondary" type="button" onClick={() => setActiveListingReviewBucket(null)}>Hide listings</button>
               </div>
               <div className="cardsList listingReviewList">
-                {activeListingReviewItems.map(({ card, age, referenceDate, tone }) => (
-                  <article className={`cardRow compactRow listingReviewRow ${tone}`} key={card.id}>
+                {activeListingReviewItems.map(({ card, listing, age, referenceDate, tone }) => (
+                  <article className={`cardRow compactRow listingReviewRow ${tone}`} key={`${card.id}-${listing.id}`}>
                     <div>
                       <div className="rowTitle">
                         <strong>{card.name || "Unnamed card"}</strong>
@@ -3436,18 +3544,18 @@ export default function Home() {
                       </div>
                       <div className="listingReviewMeta" aria-label={`Listing details for ${card.name || "card"}`}>
                         <span><small>Listed</small><strong>{referenceDate ? formatDateLabel(referenceDate) : "Date unknown"}</strong></span>
-                        <span><small>Platform</small><strong>{listingPlatformLabel(card) || "Not entered"}</strong></span>
-                        <span><small>Asking</small><strong>{money(card.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span>
+                        <span><small>Platform</small><strong>{listing.platform || "Not entered"}</strong></span>
+                        <span><small>Asking</small><strong>{money(listing.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span>
                         <span><small>Cost</small><strong>{money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""}</strong></span>
                         <span><small>Potential profit</small><strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong></span>
-                        {card.lowestAcceptablePrice ? <span><small>Minimum</small><strong>{money(card.lowestAcceptablePrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span> : null}
+                        {listing.lowestAcceptablePrice ? <span><small>Minimum</small><strong>{money(listing.lowestAcceptablePrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span> : null}
                       </div>
                       {activeGradingCardIds.has(card.id) && (
                         <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
                       )}
                       {card.status === "Listed" && (
                         <div className="listingLinkRow">
-                          {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
+                          {listing.url && <a href={listing.url} target="_blank" rel="noreferrer">Open {listing.platform}</a>}
                           <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
                         </div>
                       )}
@@ -3728,18 +3836,20 @@ export default function Home() {
                     </>
                   ) : card.status === "Listed" ? (
                     <div className="listedMetaChips" aria-label="Listed card details">
-                      <span>{listingPlatformLabel(card)}{listedDays(card) !== null ? ` • ${listedDays(card)}d` : ""}</span>
+                      {activeListingsForCard(card).map((listing) => {
+                        const age = daysSince(listing.listedDate || listedAgeDate(card));
+                        return <span key={`${card.id}-${listing.id}`}>{listing.platform || "Listed"}{listing.askingPrice ? ` ${money(listing.askingPrice)}` : ""}{listing.lowestAcceptablePrice ? ` • Min ${money(listing.lowestAcceptablePrice)}` : ""}{age !== null ? ` • ${age}d` : ""}</span>;
+                      })}
                       <span>Added {formatDateLabel(card.createdAt.slice(0, 10))}</span>
                       <span>Profit <strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong></span>
-                      {card.lowestAcceptablePrice ? <span>Minimum {money(card.lowestAcceptablePrice)}{cardQuantity(card) > 1 ? " each" : ""}</span> : null}
                     </div>
                   ) : (
                     <p className="muted auditTrail">Added {formatDateLabel(card.createdAt.slice(0, 10))}</p>
                   )}
                   {card.status === "Listed" && (
                     <div className="listingLinkRow">
-                      {listingHref(card) && <a href={listingHref(card)} target="_blank" rel="noreferrer">Open listing</a>}
-                      <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
+                      {activeListingsForCard(card).map((listing) => listing.url ? <a key={`${card.id}-${listing.id}-open`} href={listing.url} target="_blank" rel="noreferrer">Open {listing.platform}</a> : null)}
+                      <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear all WCT listings</button>
                     </div>
                   )}
                 </div>
@@ -3752,7 +3862,7 @@ export default function Home() {
                 {!isSoldInventoryView && (
                   <div className="inventoryControls">
                     <button className="secondary listingEditButton" type="button" onClick={() => beginListingEdit(card)}>
-                      {card.status === "Listed" ? "Update listing" : "Add listing"}
+                      {card.status === "Listed" ? "Manage listings" : "Add listing"}
                     </button>
                   </div>
                 )}
@@ -3920,7 +4030,7 @@ export default function Home() {
               <div>
                 <p className="eyebrow dangerEyebrow">Clear listing</p>
                 <h2>Clear listing for {confirmingClearListing.name || "this card"}?</h2>
-                <p className="muted">This moves the card back to Not Listed and removes the saved marketplace link/details from Card Tracker. If it is linked to PrimeLot, Card Tracker will try to remove the PrimeLot listing first.</p>
+                <p className="muted">This removes all saved platform listings from WCT and moves the card back to Not Listed. Also remove/end the real listings on eBay, PrimeLot, or any other marketplace so the item cannot sell twice. If it is linked to PrimeLot, Card Tracker will try to remove the PrimeLot listing first.</p>
               </div>
               <button className="secondary" type="button" onClick={() => setConfirmingClearListing(null)}>Cancel</button>
             </div>
@@ -3969,11 +4079,20 @@ export default function Home() {
               <div>
                 <p className="eyebrow">Listing details</p>
                 <h2>{listingCard.name || "Card listing"}</h2>
-                <p className="muted">Add the marketplace, asking price, listed date, and quantity. Saving moves the card into Listed.</p>
+                <p className="muted">Add one marketplace at a time. Existing platform listings stay attached to this same inventory item, so your card count and profit math are not duplicated.</p>
               </div>
               <button className="secondary" type="button" onClick={() => setListingCard(null)}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
+              {activeListingsForCard(cards.find((card) => card.id === listingCard.id) || listingCard).length > 0 && (
+                <div className="existingListings full" aria-label="Existing platform listings">
+                  <strong>Current listings for this inventory item</strong>
+                  {activeListingsForCard(cards.find((card) => card.id === listingCard.id) || listingCard).map((listing) => (
+                    <span key={`${listingCard.id}-${listing.id}`}>{listing.platform || "Listed"}{listing.askingPrice ? ` • ${money(listing.askingPrice)}` : ""}{listing.listedDate ? ` • ${formatDateLabel(listing.listedDate)}` : ""}</span>
+                  ))}
+                  <p className="muted">Saving another platform here does not create another card. It only adds another place where this same inventory is advertised.</p>
+                </div>
+              )}
               <Field label="Listed where?" value={listingCard.listedPlatform} onChange={(v) => setListingCard({ ...listingCard, listedPlatform: v })} placeholder="eBay, Whatnot, TCGplayer..." required />
               <Field label="Asking price per item" type="number" value={String(listingCard.askingPrice)} onChange={(v) => setListingCard({ ...listingCard, askingPrice: Number(v || 0) })} required />
               <Field label="Listed date" type="date" value={listingCard.listedDate || todayIso()} onChange={(v) => setListingCard({ ...listingCard, listedDate: v })} required />
@@ -4227,6 +4346,15 @@ export default function Home() {
               <span><small>Platform</small><strong>{saleCelebration.platform}</strong></span>
               {saleCelebration.remainingQuantity !== undefined && <span><small>Still in inventory</small><strong>{saleCelebration.remainingQuantity}</strong></span>}
             </div>
+            {saleCelebration.listingRemovalReminder.length > 0 && (
+              <div className="saleListingReminder" role="alert">
+                <strong>Remove remaining listings</strong>
+                <p>This sale is saved in WCT, but you still need to remove/update any other live marketplace listings so the card cannot sell twice.</p>
+                <div className="listingLinkRow">
+                  {saleCelebration.listingRemovalReminder.map((listing) => listing.url ? <a key={listing.id} href={listing.url} target="_blank" rel="noreferrer">Open {listing.platform}</a> : <span key={listing.id}>{listing.platform}</span>)}
+                </div>
+              </div>
+            )}
             <div className="saleCelebrationActions">
               <button className="primary full" type="button" onClick={() => setSaleCelebration(null)}>Nice — continue</button>
               <button className="secondary" type="button" onClick={() => { setSaleCelebration(null); setTab("expenses"); window.setTimeout(() => document.getElementById("expenses-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0); }}>View expenses</button>
