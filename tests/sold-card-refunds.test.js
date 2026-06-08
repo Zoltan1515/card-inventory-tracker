@@ -25,7 +25,7 @@ assert(page.includes('const openRefundModal = (card: CardRecord)'), 'Sold cards 
 assert(page.includes('const saveRefund = async (event: FormEvent)'), 'Refunds should have a save handler.');
 assert(page.includes('appendCardRefundNote(currentCard.notes, refundAmount, refundDraft.refundDate || todayIso(), refundDraft.note)'), 'Refund save should persist refund details to the card.');
 assert(page.includes('const revenue = soldCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0);'), 'Dashboard revenue should use net sold amount.');
-assert(page.includes('const cash = cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal;'), 'Cash dashboard should be driven from net revenue.');
+assert(page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'), 'Cash dashboard should be driven from all-time net revenue and expenses.');
 assert(page.includes('const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0) : 0;'), 'Sold inventory totals should use net sold amount.');
 assert(page.includes('Net sold amount shown'), 'Sold inventory stat label should clarify net sold amount.');
 assert(page.includes('Refund full remaining amount'), 'Refund modal should offer a full refund action.');

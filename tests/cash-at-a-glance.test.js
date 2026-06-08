@@ -46,7 +46,8 @@ assert(css.includes('.dashboardCashEntryPanel'), 'Dashboard cash entry layout st
 assert(css.includes('.cashEntryToggle'), 'Dashboard cash entry should have compact toggle styles.');
 assert(css.includes('.dashboardCashEntryBody'), 'Dashboard cash entry body should be separate from the compact toggle.');
 assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
-assert(page.includes('cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal'), 'Cash on hand should include cash entries plus sales minus purchases and expenses.');
+assert(page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'), 'Cash on hand should use all-time cash entries plus sales minus purchases and expenses so new expenses update cash immediately.');
+assert(page.includes('const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);'), 'Filtered expense totals should sum actual expense rows directly.');
 assert(page.includes('unlistedInventoryValue + listedInventoryValue'), 'Total inventory value should include unlisted and listed inventory.');
 assert(page.includes('DateFilterControls'), 'At a Glance should reuse date filters.');
 

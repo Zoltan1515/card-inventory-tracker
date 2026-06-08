@@ -1078,6 +1078,11 @@ export default function Home() {
     const soldCards = cards.filter(soldInRange);
     const inventoryCostCards = cards.filter(purchasedInRange);
     const filteredExpenses = expenses.filter(expenseInRange);
+    const allSoldCards = cards.filter((card) => card.status === "Sold");
+    const allRevenue = allSoldCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0);
+    const allTotalInventoryCost = cards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+    const allExpensesTotal = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const allCashAdjustmentsTotal = cashAdjustments.reduce((sum, entry) => sum + (entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount), 0);
     const revenue = soldCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0);
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
@@ -1096,12 +1101,12 @@ export default function Home() {
     });
     const filteredCashAdjustments = cashAdjustments.filter(cashInRange);
     const cashAdjustmentsTotal = filteredCashAdjustments.reduce((sum, entry) => sum + (entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount), 0);
-    const expensesTotal = expenseBreakdown.reduce((sum, item) => sum + item.total, 0);
+    const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const saleExpensesForSoldCardsTotal = filteredExpenses
       .filter((expense) => soldCards.some((card) => isSaleExpenseForCard(expense, card)))
       .reduce((sum, expense) => sum + expense.amount, 0);
     const soldCardProfit = revenue - soldInventoryCost - saleExpensesForSoldCardsTotal;
-    const cash = cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal;
+    const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;
     const profit = soldCardProfit;
     return {
       revenue,

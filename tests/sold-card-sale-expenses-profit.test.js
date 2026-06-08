@@ -26,8 +26,8 @@ assert(
   'Profit from sold cards should subtract sale expenses entered in the mark-sold modal.'
 );
 assert(
-  page.includes('const cash = cashAdjustmentsTotal + revenue - totalInventoryCost - expensesTotal;'),
-  'Cash should still subtract all expenses once; sold-card profit subtracts only matched sale expenses for profit display.'
+  page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'),
+  'Cash should still subtract all expenses once using all-time totals; sold-card profit subtracts only matched sale expenses for profit display.'
 );
 
 const exampleProfit = 80 + 15 - 70 - 16.52;
