@@ -1119,7 +1119,7 @@ export default function Home() {
     const filteredCashAdjustments = cashAdjustments.filter(cashInRange);
     const cashAdjustmentsTotal = filteredCashAdjustments.reduce((sum, entry) => sum + (entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount), 0);
     const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const saleExpensesForSoldCardsTotal = filteredExpenses
+    const saleExpensesForSoldCardsTotal = expenses
       .filter((expense) => soldCards.some((card) => isSaleExpenseForCard(expense, card)))
       .reduce((sum, expense) => sum + expense.amount, 0);
     const soldCardProfit = revenue - soldInventoryCost - saleExpensesForSoldCardsTotal;
