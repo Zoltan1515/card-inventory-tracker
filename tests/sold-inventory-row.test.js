@@ -14,8 +14,12 @@ assert(
   page.includes('<span>Card sold</span>') &&
   page.includes('<strong>{money(card.soldPrice)}</strong>') &&
   page.includes('<span>Shipping collected</span>') &&
-  page.includes('<strong>{money(card.shippingCharge || 0)}</strong>'),
-  'Sold inventory rows should separate the card sale amount from shipping collected.'
+  page.includes('<strong>{money(card.shippingCharge || 0)}</strong>') &&
+  page.includes('<span>Original cost</span>') &&
+  page.includes('<strong>{money(cardPurchaseCost(card))}</strong>') &&
+  page.includes('<span>Fees taken off</span>') &&
+  page.includes('<strong>{money(saleExpenseTotalForCard(card))}</strong>'),
+  'Sold inventory rows should separate the card sale amount, shipping collected, original cost, and fees taken off.'
 );
 assert(
   page.includes('card.status !== "Sold" && (') && page.includes('<span>{money(card.purchasePrice)}</span>'),
@@ -32,16 +36,22 @@ assert(
 
 assert(
   page.includes('const saleExpenseTotalForCard = (card: CardRecord) => expenses.filter((expense) => isSaleExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);') &&
-  page.includes('const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);'),
-  'Sold inventory rows should compute total profit after card cost and any sale expenses.'
+  page.includes('const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);') &&
+  page.includes('const soldViewSaleExpenses = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + saleExpenseTotalForCard(card), 0) : 0;') &&
+  page.includes('const soldViewProfit = soldViewRevenue - soldViewCost - soldViewSaleExpenses;'),
+  'Sold inventory rows and sold-section totals should compute total profit after original cost and any sale expenses.'
+);
+assert(
+  page.includes('<Stat label="Fees taken off shown" value={money(soldViewSaleExpenses)}') && page.includes('<Stat label="Original cost shown" value={money(soldViewCost)} />'),
+  'Sold inventory section totals should show original cost and fees taken off before profit.'
 );
 assert(
   page.includes('<span>Total profit</span>') && page.includes('<strong>{money(totalProfitForCard(card))}</strong>') && page.includes('className={totalProfitForCard(card) >= 0 ? "soldProfit positive" : "soldProfit negative"}'),
   'Sold inventory rows should show total profit under the shipping collected column.'
 );
 assert(
-  css.includes('.soldSummary .soldProfit.positive strong { color: var(--good); }') && css.includes('.soldSummary .soldProfit.negative strong { color: var(--bad); }'),
-  'Sold row total profit should be color-coded positive or negative.'
+  css.includes('.soldSummary .soldProfit.positive strong { color: var(--good); }') && css.includes('.soldSummary .soldProfit.negative strong { color: var(--bad); }') && css.includes('.soldSummary .soldDeduction strong { color: var(--bad); }'),
+  'Sold row fees taken off and total profit should be color-coded clearly.'
 );
 
 console.log('Sold inventory row checks passed.');

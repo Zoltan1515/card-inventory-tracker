@@ -1326,7 +1326,8 @@ export default function Home() {
   const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);
   const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0) : 0;
   const soldViewCost = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0) : 0;
-  const soldViewProfit = soldViewRevenue - soldViewCost;
+  const soldViewSaleExpenses = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + saleExpenseTotalForCard(card), 0) : 0;
+  const soldViewProfit = soldViewRevenue - soldViewCost - soldViewSaleExpenses;
 
   useEffect(() => {
     if (!isSoldInventoryView) return;
@@ -3919,6 +3920,7 @@ export default function Home() {
               <Stat label="Sold cards shown" value={String(filteredInventoryQuantity)} />
               <Stat label="Net sold amount shown" value={money(soldViewRevenue)} tone="positive" />
               <Stat label="Original cost shown" value={money(soldViewCost)} />
+              <Stat label="Fees taken off shown" value={money(soldViewSaleExpenses)} tone={soldViewSaleExpenses > 0 ? "negative" : undefined} />
               <Stat label="Profit from shown sold cards" value={money(soldViewProfit)} tone={soldViewProfit >= 0 ? "positive" : "negative"} />
             </section>
           )}
@@ -3973,7 +3975,7 @@ export default function Home() {
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
-                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected`}>
+                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected, ${money(cardPurchaseCost(card))} original cost, and ${money(saleExpenseTotalForCard(card))} fees taken off`}>
                         <div>
                           <span>Card sold</span>
                           <strong>{money(card.soldPrice)}</strong>
@@ -3981,6 +3983,14 @@ export default function Home() {
                         <div>
                           <span>Shipping collected</span>
                           <strong>{money(card.shippingCharge || 0)}</strong>
+                        </div>
+                        <div>
+                          <span>Original cost</span>
+                          <strong>{money(cardPurchaseCost(card))}</strong>
+                        </div>
+                        <div className="soldDeduction">
+                          <span>Fees taken off</span>
+                          <strong>{money(saleExpenseTotalForCard(card))}</strong>
                         </div>
                         {cardRefundTotal(card) > 0 && (
                           <div>
