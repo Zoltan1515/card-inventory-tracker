@@ -49,22 +49,43 @@ function validateSecret(request: NextRequest) {
   return Boolean(expectedSecret && timingSafeEqualString(receivedSecret, expectedSecret));
 }
 
-async function resolveConnection(supabase: ReturnType<typeof createServerSupabaseClient>, payload: PrimeLotImportPayload) {
+async function findConnectionRows(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  field: "primelot_seller_user_id" | "primelot_seller_email",
+  value: string,
+) {
   const baseSelect = "id,user_id,workspace_id,primelot_seller_user_id,primelot_seller_email,status";
+  const { data, error } = await supabase
+    .from("primelot_connections")
+    .select(baseSelect)
+    .eq("status", "active")
+    .eq(field, value)
+    .limit(2);
+  if (error) throw error;
+  return (data || []) as ConnectionRow[];
+}
+
+function resolveConnectionRows(rows: ConnectionRow[]) {
+  if (rows.length > 1) return { error: jsonError(409, "AMBIGUOUS_WCT_ACCOUNT", "Multiple Wicked Card Tracker accounts match this PrimeLot seller.") };
+  if (rows.length === 1) return { connection: rows[0] };
+  return null;
+}
+
+async function resolveConnection(supabase: ReturnType<typeof createServerSupabaseClient>, payload: PrimeLotImportPayload) {
   const sellerId = normalizePrimeLotSellerUserId(payload.primeLotSellerUserId);
   const sellerEmail = normalizePrimeLotEmail(payload.primeLotSellerEmail);
 
-  let query = supabase.from("primelot_connections").select(baseSelect).eq("status", "active");
-  if (sellerId) query = query.eq("primelot_seller_user_id", sellerId);
-  else query = query.eq("primelot_seller_email", sellerEmail);
+  if (sellerId) {
+    const resolvedById = resolveConnectionRows(await findConnectionRows(supabase, "primelot_seller_user_id", sellerId));
+    if (resolvedById) return resolvedById;
+  }
 
-  const { data, error } = await query.limit(2);
-  if (error) throw error;
+  if (sellerEmail) {
+    const resolvedByEmail = resolveConnectionRows(await findConnectionRows(supabase, "primelot_seller_email", sellerEmail));
+    if (resolvedByEmail) return resolvedByEmail;
+  }
 
-  const rows = (data || []) as ConnectionRow[];
-  if (rows.length === 0) return { error: jsonError(404, "WCT_ACCOUNT_NOT_CONNECTED", "No active Wicked Card Tracker account is connected to this PrimeLot seller.") };
-  if (rows.length > 1) return { error: jsonError(409, "AMBIGUOUS_WCT_ACCOUNT", "Multiple Wicked Card Tracker accounts match this PrimeLot seller.") };
-  return { connection: rows[0] };
+  return { error: jsonError(404, "WCT_ACCOUNT_NOT_CONNECTED", "No active Wicked Card Tracker account is connected to this PrimeLot seller.") };
 }
 
 async function findDuplicateBySourceColumns(supabase: ReturnType<typeof createServerSupabaseClient>, row: WctCardInsert) {

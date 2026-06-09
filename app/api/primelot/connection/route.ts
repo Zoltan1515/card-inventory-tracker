@@ -176,6 +176,7 @@ export async function POST(request: NextRequest) {
     status: shouldAutoApprove ? "active" : "pending",
     requested_intent: intent,
     connected_at: shouldAutoApprove ? new Date().toISOString() : null,
+    disconnected_at: null,
     updated_at: new Date().toISOString(),
   };
 
@@ -186,4 +187,28 @@ export async function POST(request: NextRequest) {
   const { data, error } = await query;
   if (error) return jsonError(`Could not save PrimeLot connection request: ${error.message}`, 500);
   return NextResponse.json(rowToResponse(data as ConnectionRow));
+}
+
+export async function DELETE(request: NextRequest) {
+  const authed = await getAuthedClient(request);
+  if (authed.error) return authed.error;
+  const { supabase, user } = authed;
+
+  const workspaceId = await currentWorkspaceId(supabase, user.id);
+  const existing = await findConnection(supabase, user.id, workspaceId);
+  if (existing.error && !missingTable(existing.error.message)) return jsonError(`Could not check PrimeLot connection: ${existing.error.message}`, 500);
+  if (existing.error && missingTable(existing.error.message)) return jsonError("PrimeLot connection storage is not set up yet.", 503, "PRIMELOT_CONNECTION_MIGRATION_REQUIRED");
+  if (!existing.data?.id) return NextResponse.json(rowToResponse(null));
+
+  const { error } = await supabase
+    .from("primelot_connections")
+    .update({
+      status: "disconnected",
+      disconnected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", existing.data.id);
+
+  if (error) return jsonError(`Could not disconnect PrimeLot: ${error.message}`, 500);
+  return NextResponse.json(rowToResponse(null));
 }
