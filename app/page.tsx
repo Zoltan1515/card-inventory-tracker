@@ -220,6 +220,9 @@ const isSaleExpenseForCard = (expense: ExpenseRecord, card: CardRecord) => {
   const matchesVendor = !card.salePlatform || expense.vendor === card.salePlatform;
   return matchesDescription && matchesDate && matchesVendor;
 };
+const saleExpensesTotalForCards = (sourceExpenses: ExpenseRecord[], sourceCards: CardRecord[]) => sourceExpenses
+  .filter((expense) => sourceCards.some((card) => isSaleExpenseForCard(expense, card)))
+  .reduce((sum, expense) => sum + expense.amount, 0);
 const cardGradeLabel = (card: Pick<CardRecord, "grade" | "gradingCompany" | "notes">) => [cardGradingCompanyValue(card), cardGradeValue(card)].filter(Boolean).join(" ").trim();
 const notesWithGrade = (notes: string, grade: string, gradingCompany = "") => {
   const withoutGrade = notes.split("\n").filter((line) => !/^grade:|^grader:/i.test(line.trim())).join("\n").trim();
@@ -1119,9 +1122,7 @@ export default function Home() {
     const filteredCashAdjustments = cashAdjustments.filter(cashInRange);
     const cashAdjustmentsTotal = filteredCashAdjustments.reduce((sum, entry) => sum + (entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount), 0);
     const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const saleExpensesForSoldCardsTotal = expenses
-      .filter((expense) => soldCards.some((card) => isSaleExpenseForCard(expense, card)))
-      .reduce((sum, expense) => sum + expense.amount, 0);
+    const saleExpensesForSoldCardsTotal = saleExpensesTotalForCards(expenses, soldCards);
     const soldCardProfit = revenue - soldInventoryCost - saleExpensesForSoldCardsTotal;
     const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;
     const profit = soldCardProfit;
@@ -1326,7 +1327,7 @@ export default function Home() {
   const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);
   const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0) : 0;
   const soldViewCost = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0) : 0;
-  const soldViewSaleExpenses = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + saleExpenseTotalForCard(card), 0) : 0;
+  const soldViewSaleExpenses = isSoldInventoryView ? saleExpensesTotalForCards(expenses, filteredCards) : 0;
   const soldViewProfit = soldViewRevenue - soldViewCost - soldViewSaleExpenses;
 
   useEffect(() => {

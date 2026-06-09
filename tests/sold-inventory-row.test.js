@@ -37,9 +37,9 @@ assert(
 assert(
   page.includes('const saleExpenseTotalForCard = (card: CardRecord) => expenses.filter((expense) => isSaleExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);') &&
   page.includes('const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);') &&
-  page.includes('const soldViewSaleExpenses = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + saleExpenseTotalForCard(card), 0) : 0;') &&
+  page.includes('const soldViewSaleExpenses = isSoldInventoryView ? saleExpensesTotalForCards(expenses, filteredCards) : 0;') &&
   page.includes('const soldViewProfit = soldViewRevenue - soldViewCost - soldViewSaleExpenses;'),
-  'Sold inventory rows and sold-section totals should compute total profit after original cost and any sale expenses.'
+  'Sold inventory rows and sold-section totals should compute total profit after original cost and any sale expenses, while section totals count each shown sale-expense row once.'
 );
 assert(
   page.includes('<Stat label="Fees/Shipping label shown" value={money(soldViewSaleExpenses)}') && page.includes('<Stat label="Original cost shown" value={money(soldViewCost)} />'),

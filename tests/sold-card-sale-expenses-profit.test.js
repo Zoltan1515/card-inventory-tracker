@@ -20,10 +20,11 @@ assert(
   'Sale expense matching should only include expenses tied to that sold card sale.'
 );
 assert(
-  page.includes('const saleExpensesForSoldCardsTotal = expenses') &&
-  page.includes('.filter((expense) => soldCards.some((card) => isSaleExpenseForCard(expense, card)))') &&
+  page.includes('const saleExpensesTotalForCards = (sourceExpenses: ExpenseRecord[], sourceCards: CardRecord[]) => sourceExpenses') &&
+  page.includes('.filter((expense) => sourceCards.some((card) => isSaleExpenseForCard(expense, card)))') &&
+  page.includes('const saleExpensesForSoldCardsTotal = saleExpensesTotalForCards(expenses, soldCards);') &&
   page.includes('const soldCardProfit = revenue - soldInventoryCost - saleExpensesForSoldCardsTotal;'),
-  'Profit from sold cards should subtract every sale expense tied to the sold cards in the selected sold-date period, even if the expense was entered later.'
+  'Profit from sold cards should subtract every sale expense tied to the sold cards in the selected sold-date period, even if the expense was entered later, while counting each expense row once.'
 );
 assert(
   page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'),
