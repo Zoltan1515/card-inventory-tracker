@@ -17,9 +17,9 @@ assert(
   page.includes('<strong>{money(card.shippingCharge || 0)}</strong>') &&
   page.includes('<span>Original cost</span>') &&
   page.includes('<strong>{money(cardPurchaseCost(card))}</strong>') &&
-  page.includes('<span>Fees taken off</span>') &&
+  page.includes('<span>Fees/Shipping label</span>') &&
   page.includes('<strong>{money(saleExpenseTotalForCard(card))}</strong>'),
-  'Sold inventory rows should separate the card sale amount, shipping collected, original cost, and fees taken off.'
+  'Sold inventory rows should separate the card sale amount, shipping collected, original cost, and fees/shipping label.'
 );
 assert(
   page.includes('card.status !== "Sold" && (') && page.includes('<span>{money(card.purchasePrice)}</span>'),
@@ -42,8 +42,8 @@ assert(
   'Sold inventory rows and sold-section totals should compute total profit after original cost and any sale expenses.'
 );
 assert(
-  page.includes('<Stat label="Fees taken off shown" value={money(soldViewSaleExpenses)}') && page.includes('<Stat label="Original cost shown" value={money(soldViewCost)} />'),
-  'Sold inventory section totals should show original cost and fees taken off before profit.'
+  page.includes('<Stat label="Fees/Shipping label shown" value={money(soldViewSaleExpenses)}') && page.includes('<Stat label="Original cost shown" value={money(soldViewCost)} />'),
+  'Sold inventory section totals should show original cost and fees/shipping label before profit.'
 );
 assert(
   page.includes('<span>Total profit</span>') && page.includes('<strong>{money(totalProfitForCard(card))}</strong>') && page.includes('className={totalProfitForCard(card) >= 0 ? "soldProfit positive" : "soldProfit negative"}'),
@@ -51,7 +51,7 @@ assert(
 );
 assert(
   css.includes('.soldSummary .soldProfit.positive strong { color: var(--good); }') && css.includes('.soldSummary .soldProfit.negative strong { color: var(--bad); }') && css.includes('.soldSummary .soldDeduction strong { color: var(--bad); }'),
-  'Sold row fees taken off and total profit should be color-coded clearly.'
+  'Sold row fees/shipping label and total profit should be color-coded clearly.'
 );
 
 console.log('Sold inventory row checks passed.');

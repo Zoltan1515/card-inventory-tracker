@@ -3920,7 +3920,7 @@ export default function Home() {
               <Stat label="Sold cards shown" value={String(filteredInventoryQuantity)} />
               <Stat label="Net sold amount shown" value={money(soldViewRevenue)} tone="positive" />
               <Stat label="Original cost shown" value={money(soldViewCost)} />
-              <Stat label="Fees taken off shown" value={money(soldViewSaleExpenses)} tone={soldViewSaleExpenses > 0 ? "negative" : undefined} />
+              <Stat label="Fees/Shipping label shown" value={money(soldViewSaleExpenses)} tone={soldViewSaleExpenses > 0 ? "negative" : undefined} />
               <Stat label="Profit from shown sold cards" value={money(soldViewProfit)} tone={soldViewProfit >= 0 ? "positive" : "negative"} />
             </section>
           )}
@@ -3975,7 +3975,7 @@ export default function Home() {
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
-                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected, ${money(cardPurchaseCost(card))} original cost, and ${money(saleExpenseTotalForCard(card))} fees taken off`}>
+                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected, ${money(cardPurchaseCost(card))} original cost, and ${money(saleExpenseTotalForCard(card))} fees/shipping label`}>
                         <div>
                           <span>Card sold</span>
                           <strong>{money(card.soldPrice)}</strong>
@@ -3989,7 +3989,7 @@ export default function Home() {
                           <strong>{money(cardPurchaseCost(card))}</strong>
                         </div>
                         <div className="soldDeduction">
-                          <span>Fees taken off</span>
+                          <span>Fees/Shipping label</span>
                           <strong>{money(saleExpenseTotalForCard(card))}</strong>
                         </div>
                         {cardRefundTotal(card) > 0 && (
