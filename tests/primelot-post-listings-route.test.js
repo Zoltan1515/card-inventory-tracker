@@ -29,7 +29,17 @@ assert(
 
 assert(
   route.includes('const hasActiveSellerMembership = async') && route.includes('PRIMELOT_SELLER_MEMBERSHIP_REQUIRED') && route.includes('const primeLotPostStatus = "draft";'),
-  'PrimeLot API should check Seller membership and import listings as drafts for review.'
+  'PrimeLot API should check Seller membership and keep temporary direct fallback imports as drafts.'
+);
+
+assert(
+  route.includes("Temporary fallback while PrimeLot's browser-session-protected WCT import endpoint") && route.includes('PrimeLot should own live publishing, duplicate checks'),
+  'Temporary direct Supabase fallback should be documented as non-final architecture until PrimeLot exposes server-to-server multipart import.'
+);
+
+assert(
+  !route.includes('const primeLotPostStatus = "active";') && !route.includes('status: primeLotPublic') && !route.includes('status: "live"'),
+  'Temporary direct Supabase fallback must never directly create active PrimeLot listings.'
 );
 
 assert(

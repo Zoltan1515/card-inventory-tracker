@@ -19,6 +19,7 @@ assert(route.includes('listingTypeForCard(card)') && route.includes('if (!listin
 assert(route.includes('single_card: { table: "single_cards", path: "single-cards" }') && route.includes('sealed_product: { table: "sealed_products", path: "sealed-products" }') && route.includes('lot: { table: "lots", path: "lots" }'), 'Route should map listingType to PrimeLot draft tables and URLs.');
 assert(route.includes('formData.append("listingType", listingType);') && route.includes('formData.append("cardType", cardTypeForCategory') && route.includes('formData.append("file",'), 'Route should include listingType, cardType, and file when posting to PrimeLot WCT import endpoint.');
 assert(route.includes('const primeLotPostStatus = "draft";'), 'PrimeLot WCT imports should be drafts by default.');
+assert(route.includes("Temporary fallback while PrimeLot's browser-session-protected WCT import endpoint"), 'Direct Supabase inserts should be marked as a temporary fallback, not final architecture.');
 assert(!route.includes('const primeLotPostStatus = "active";'), 'WCT should not publish PrimeLot imports as active by default.');
 
 console.log('PrimeLot listing type checks passed.');

@@ -264,6 +264,10 @@ export async function POST(request: NextRequest) {
   if (!primeLotSellerMembershipActive) {
     return jsonError("Start a PrimeLot Seller membership to import and publish your listings.", 403, "PRIMELOT_SELLER_MEMBERSHIP_REQUIRED");
   }
+  // Temporary fallback while PrimeLot's browser-session-protected WCT import endpoint
+  // is replaced with a server-to-server multipart endpoint. Do not change this
+  // fallback to active/live: PrimeLot should own live publishing, duplicate checks,
+  // and final membership rules when the import API is available.
   const primeLotPostStatus = "draft";
 
   const primeLotImportFormDataForCard = (card: CardPayload, row: Record<string, unknown>) => {
