@@ -231,7 +231,7 @@ const purchasePriceFromText = (value: unknown) => {
   return 0;
 };
 
-const purchasePriceForListing = (listing: PrimeLotImportListing) => {
+export const purchasePriceForListing = (listing: PrimeLotImportListing) => {
   const direct = numeric(valueFromAliases(listing, purchasePriceAliases));
   if (direct > 0) return direct;
 
@@ -252,6 +252,8 @@ const purchasePriceForListing = (listing: PrimeLotImportListing) => {
 
   return scanTextFields(listing);
 };
+
+export const primeLotPurchasePriceFromAny = (value: unknown) => purchasePriceForListing((value || {}) as PrimeLotImportListing);
 
 const metadataLines = (listing: PrimeLotImportListing, listingType: PrimeLotListingType, importedAt: string) => {
   const sourceUrl = validHttpUrl(listing.listingUrl);

@@ -31,6 +31,8 @@ assert(mapper.includes('friendlyCategory') && mapper.includes('titleCaseCategory
 assert(mapper.includes('purchasePriceAliases') && mapper.includes('purchasePriceFromText') && mapper.includes('originalPurchasePrice') && mapper.includes('pricePaid') && mapper.includes('costBasis') && mapper.includes('acquisitionCost'), "Mapper accepts PrimeLot purchase-price aliases and parses WCT-exported purchase price text.");
 assert(mapper.includes('wctPurchasePrice') && mapper.includes('costEach') && mapper.includes('totalPurchasePrice') && mapper.includes('scanTextFields'), "Mapper handles PrimeLot/WCT purchase-cost aliases and nested description/notes text.");
 assert(route.includes('refreshDuplicateMissingCost') && route.includes('purchase_price') && route.includes('Existing WCT card was already imported; filled missing purchase price'), "Import route refreshes missing purchase price on an already-imported duplicate instead of leaving the old $0 row unchanged.");
+assert(route.includes('enrichListingsFromPrimeLotSource') && route.includes('PRIMELOT_SUPABASE_URL') && route.includes('primeLotPurchasePriceFromAny') && route.includes('PrimeLot Recovered Purchase Price'), "Import route falls back to reading the PrimeLot listing row when the inbound webhook payload does not include purchase cost.");
+assert(mapper.includes('export const purchasePriceForListing') && mapper.includes('primeLotPurchasePriceFromAny'), "Purchase-cost extraction is exported for the PrimeLot source-row fallback.");
 
 assert(serverSupabase.includes('SUPABASE_SERVICE_ROLE_KEY'), "Server Supabase client uses service role env var.");
 assert(migration.includes('source_platform') && migration.includes('source_id'), "Migration adds source tracking columns.");

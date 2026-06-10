@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { createServerSupabaseClient } from "@/lib/serverSupabase";
 import {
   normalizePrimeLotEmail,
   normalizePrimeLotSellerUserId,
   primeLotListingsToWctRows,
+  primeLotPurchasePriceFromAny,
   rowWithoutSourceTracking,
   validatePrimeLotImportPayload,
   type NormalizedPrimeLotListing,
@@ -43,6 +45,12 @@ const jsonError = (status: number, code: string, error: string, extra: Record<st
 const schemaMissingSourceTracking = (message = "") => /source_platform|source_id|source_url|source_listing_type/i.test(message)
   && /schema cache|column|Could not find/i.test(message);
 const missingColumnName = (message = "") => message.match(/Could not find the '([^']+)' column/i)?.[1] || "";
+const primeLotTablesByListingType: Record<string, string> = {
+  single_card: "single_cards",
+  sealed_product: "sealed_products",
+  lot: "lots",
+};
+
 const optionalInsertColumns = new Set([
   "workspace_id",
   "outbound_shipping",
@@ -215,6 +223,57 @@ async function insertCard(supabase: ReturnType<typeof createServerSupabaseClient
   };
 }
 
+async function enrichListingsFromPrimeLotSource(listings: NormalizedPrimeLotListing[]) {
+  const primeLotSupabaseUrl = process.env.PRIMELOT_SUPABASE_URL;
+  const primeLotServiceRoleKey = process.env.PRIMELOT_SUPABASE_SERVICE_ROLE_KEY;
+  if (!primeLotSupabaseUrl || !primeLotServiceRoleKey) return listings;
+
+  const primeLotSupabase = createClient(primeLotSupabaseUrl, primeLotServiceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  const enriched: NormalizedPrimeLotListing[] = [];
+  for (const listing of listings) {
+    if (numberValue(listing.row.purchase_price) > 0) {
+      enriched.push(listing);
+      continue;
+    }
+
+    const table = primeLotTablesByListingType[listing.listingType];
+    if (!table || !listing.primeLotListingId) {
+      enriched.push(listing);
+      continue;
+    }
+
+    const { data, error } = await primeLotSupabase
+      .from(table)
+      .select("*")
+      .eq("id", listing.primeLotListingId)
+      .maybeSingle();
+
+    if (error || !data) {
+      enriched.push(listing);
+      continue;
+    }
+
+    const recoveredPurchasePrice = primeLotPurchasePriceFromAny(data);
+    if (recoveredPurchasePrice <= 0) {
+      enriched.push(listing);
+      continue;
+    }
+
+    enriched.push({
+      ...listing,
+      row: {
+        ...listing.row,
+        purchase_price: recoveredPurchasePrice,
+        notes: `${listing.row.notes}\nPrimeLot Recovered Purchase Price: ${recoveredPurchasePrice.toFixed(2)}`,
+      },
+    });
+  }
+  return enriched;
+}
+
 async function importListing(supabase: ReturnType<typeof createServerSupabaseClient>, listing: NormalizedPrimeLotListing): Promise<ImportItemResult> {
   const duplicate = await findDuplicateBySourceColumns(supabase, listing.row);
   if (duplicate.error && !schemaMissingSourceTracking(duplicate.error.message)) throw duplicate.error;
@@ -299,7 +358,7 @@ export async function POST(request: NextRequest) {
     const resolved = await resolveConnection(supabase, payload);
     if (resolved.error) return resolved.error;
     const connection = resolved.connection!;
-    const listings = primeLotListingsToWctRows(payload, connection.user_id, connection.workspace_id);
+    const listings = await enrichListingsFromPrimeLotSource(primeLotListingsToWctRows(payload, connection.user_id, connection.workspace_id));
     const items: ImportItemResult[] = [];
 
     for (const listing of listings) {
