@@ -17,6 +17,8 @@ assert(route.includes('WCT_ACCOUNT_NOT_CONNECTED'), "Route returns a not-connect
 assert(route.includes('AMBIGUOUS_WCT_ACCOUNT'), "Route returns an ambiguous-account error.");
 assert(route.includes('source_platform'), "Route uses source tracking columns for duplicate detection.");
 assert(route.includes('skipped_duplicate'), "Route skips duplicates instead of creating another card.");
+assert(route.includes('missingColumnName') && route.includes('created_by') && route.includes('updated_by'), "Route gracefully skips missing optional audit columns instead of crashing.");
+assert(route.includes('WCT_CARD_INSERT_FAILED') && route.includes('WCT_IMPORT_UNEXPECTED_ERROR'), "Route returns structured import errors instead of generic WCT_IMPORT_FAILED.");
 assert(route.includes('rowWithoutSourceTracking'), "Route has notes-based fallback if source columns are missing.");
 
 assert(mapper.includes('status: "Not Listed"'), "Mapper defaults imported listings to Not Listed.");

@@ -35,6 +35,34 @@ const jsonError = (status: number, code: string, error: string, extra: Record<st
 );
 const schemaMissingSourceTracking = (message = "") => /source_platform|source_id|source_url|source_listing_type/i.test(message)
   && /schema cache|column|Could not find/i.test(message);
+const missingColumnName = (message = "") => message.match(/Could not find the '([^']+)' column/i)?.[1] || "";
+const optionalInsertColumns = new Set([
+  "workspace_id",
+  "outbound_shipping",
+  "grading_company",
+  "grade",
+  "front_photo_url",
+  "back_photo_url",
+  "created_by",
+  "updated_by",
+  "source_platform",
+  "source_id",
+  "source_url",
+  "source_listing_type",
+]);
+
+class StructuredImportError extends Error {
+  status: number;
+  code: string;
+  details?: unknown;
+
+  constructor(status: number, code: string, message: string, details?: unknown) {
+    super(message);
+    this.status = status;
+    this.code = code;
+    this.details = details;
+  }
+}
 
 function timingSafeEqualString(a: string, b: string) {
   if (!a || !b || a.length !== b.length) return false;
@@ -111,22 +139,42 @@ async function findDuplicateByNotes(supabase: ReturnType<typeof createServerSupa
 }
 
 async function insertCard(supabase: ReturnType<typeof createServerSupabaseClient>, listing: NormalizedPrimeLotListing) {
-  const { data, error } = await supabase
-    .from("cards")
-    .insert(listing.row)
-    .select("id,status")
-    .single();
+  let row: Record<string, unknown> = { ...listing.row };
+  const removedColumns: string[] = [];
 
-  if (!error) return { data, usedSourceColumns: true };
-  if (!schemaMissingSourceTracking(error.message)) return { error };
+  for (let attempt = 0; attempt <= optionalInsertColumns.size; attempt += 1) {
+    const { data, error } = await supabase
+      .from("cards")
+      .insert(row)
+      .select("id,status")
+      .single();
 
-  const fallback = await supabase
-    .from("cards")
-    .insert(rowWithoutSourceTracking(listing.row))
-    .select("id,status")
-    .single();
-  if (fallback.error) return { error: fallback.error };
-  return { data: fallback.data, usedSourceColumns: false };
+    if (!error) {
+      const usedSourceColumns = !removedColumns.some((column) => column.startsWith("source_"));
+      return { data, usedSourceColumns, removedColumns };
+    }
+
+    const missingColumn = missingColumnName(error.message);
+    if (!missingColumn || !optionalInsertColumns.has(missingColumn) || !(missingColumn in row)) {
+      return { error, removedColumns };
+    }
+
+    const { [missingColumn]: _removed, ...nextRow } = row;
+    row = nextRow;
+    removedColumns.push(missingColumn);
+
+    if (missingColumn.startsWith("source_")) {
+      row = rowWithoutSourceTracking(row as WctCardInsert);
+      for (const sourceColumn of ["source_platform", "source_id", "source_url", "source_listing_type"]) {
+        if (!removedColumns.includes(sourceColumn)) removedColumns.push(sourceColumn);
+      }
+    }
+  }
+
+  return {
+    error: { message: "Could not save the card because WCT schema fallback exceeded the expected optional columns." },
+    removedColumns,
+  };
 }
 
 async function importListing(supabase: ReturnType<typeof createServerSupabaseClient>, listing: NormalizedPrimeLotListing): Promise<ImportItemResult> {
@@ -157,13 +205,26 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
   }
 
   const inserted = await insertCard(supabase, listing);
-  if (inserted.error) throw inserted.error;
+  if (inserted.error) {
+    throw new StructuredImportError(422, "WCT_CARD_INSERT_FAILED", "Wicked Card Tracker could not save this PrimeLot listing as a card.", {
+      primeLotListingId: listing.primeLotListingId,
+      supabaseCode: "code" in inserted.error ? inserted.error.code : undefined,
+      message: inserted.error.message,
+      removedColumns: inserted.removedColumns || [],
+    });
+  }
+  const warnings = [
+    ...(inserted.usedSourceColumns ? [] : ["Source tracking columns are not available; PrimeLot source metadata was preserved in notes."]),
+    ...((inserted.removedColumns || []).filter((column) => !column.startsWith("source_")).length
+      ? [`WCT schema is missing optional columns skipped during import: ${(inserted.removedColumns || []).filter((column) => !column.startsWith("source_")).join(", ")}.`]
+      : []),
+  ];
   return {
     primeLotListingId: listing.primeLotListingId,
     wctCardId: inserted.data.id,
     status: "Not Listed",
     action: "created",
-    warnings: inserted.usedSourceColumns ? [] : ["Source tracking columns are not available; PrimeLot source metadata was preserved in notes."],
+    warnings,
   };
 }
 
@@ -211,6 +272,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("PrimeLot import failed", error);
-    return jsonError(500, "WCT_IMPORT_FAILED", "Could not import PrimeLot listings into Wicked Card Tracker.");
+    if (error instanceof StructuredImportError) {
+      return jsonError(error.status, error.code, error.message, { details: error.details });
+    }
+    const message = error instanceof Error ? error.message : "Unknown import error.";
+    return jsonError(502, "WCT_IMPORT_UNEXPECTED_ERROR", "Wicked Card Tracker could not finish the PrimeLot import.", { details: { message } });
   }
 }
