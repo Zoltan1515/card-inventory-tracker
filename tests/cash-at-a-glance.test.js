@@ -49,7 +49,7 @@ assert(css.includes('.dashboardCashEntryBody'), 'Dashboard cash entry body shoul
 assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
 assert(page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'), 'Cash on hand should use all-time cash entries plus sales minus purchases and expenses so new expenses update cash immediately.');
 assert(page.includes('const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);'), 'Filtered expense totals should sum actual expense rows directly.');
-assert(page.includes('unlistedInventoryValue + listedInventoryValue'), 'Total inventory value should include unlisted and listed inventory.');
+assert(page.includes('const totalInventoryValue = unlistedInventoryValue + listedInventoryCost;'), 'Total inventory value should include unlisted and listed inventory cost basis.');
 assert(page.includes('DateFilterControls'), 'At a Glance should reuse date filters.');
 
 assert(css.includes('@media print'), 'Print stylesheet should exist.');

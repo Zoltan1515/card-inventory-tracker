@@ -1158,9 +1158,9 @@ export default function Home() {
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const listedInventoryCost = listedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
-    const unlistedInventoryValue = notListedCards.reduce((sum, card) => sum + ((card.askingPrice || card.purchasePrice) * cardQuantity(card)), 0);
+    const unlistedInventoryValue = unlistedInventoryCost;
     const listedInventoryValue = listedCards.reduce((sum, card) => sum + ((card.askingPrice || card.purchasePrice) * cardQuantity(card)), 0);
-    const totalInventoryValue = unlistedInventoryValue + listedInventoryValue;
+    const totalInventoryValue = unlistedInventoryValue + listedInventoryCost;
     const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const expenseBreakdown = expenseCategories.map((category) => {
       const categoryExpenses = filteredExpenses.filter((expense) => expense.category === category);
@@ -4212,7 +4212,7 @@ export default function Home() {
             <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
             <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             <Stat label="Unlisted inventory" value={money(totals.unlistedInventoryCost)} />
-            <Stat label="Listed asking value" value={money(totals.totalInventoryValue)} />
+            <Stat label="Listed asking value" value={money(totals.listedInventoryValue)} />
           </section>
 
           <section className="businessExports" aria-label="Business exports">
@@ -4231,7 +4231,7 @@ export default function Home() {
 
           <div className="profitSections">
             <ProfitStatusSection title="Unlisted cards" cards={totals.notListedCards} totalLabel="Money in unlisted cards" total={totals.unlistedInventoryCost} emptyText="No unlisted cards." />
-            <ProfitStatusSection title="Listed cards" cards={totals.listedCards} totalLabel="Listed asking value" total={totals.totalInventoryValue} emptyText="No listed cards." />
+            <ProfitStatusSection title="Listed cards" cards={totals.listedCards} totalLabel="Listed asking value" total={totals.listedInventoryValue} emptyText="No listed cards." />
             <ProfitStatusSection title="Sold cards" cards={totals.soldCards} totalLabel="Sold inventory cost" total={totals.soldInventoryCost} emptyText="No sold cards yet. Use Inventory → Enter sale." showSale />
           </div>
         </section>
