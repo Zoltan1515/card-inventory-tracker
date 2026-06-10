@@ -96,6 +96,10 @@ const EXPENSE_STORAGE_KEY = "card-inventory-tracker.expenses.v1";
 const CASH_STORAGE_KEY = "card-inventory-tracker.cash-adjustments.v1";
 const CASH_ONBOARDING_DISMISSED_KEY = "card-inventory-tracker.cash-onboarding-dismissed.v1";
 const GRADING_STORAGE_KEY = "card-inventory-tracker.grading-submissions.v1";
+const GUEST_CARD_STORAGE_KEY = "card-inventory-tracker.guest-cards.v1";
+const GUEST_EXPENSE_STORAGE_KEY = "card-inventory-tracker.guest-expenses.v1";
+const GUEST_CASH_STORAGE_KEY = "card-inventory-tracker.guest-cash-adjustments.v1";
+const GUEST_GRADING_STORAGE_KEY = "card-inventory-tracker.guest-grading-submissions.v1";
 const FREE_INVENTORY_ADD_STORAGE_KEY = "card-inventory-tracker.free-inventory-adds.v1";
 const FREE_INVENTORY_ADD_LIMIT = 5;
 const PRICING_PATH = "/pricing";
@@ -242,36 +246,50 @@ const mergeById = <T extends { id: string }>(primary: T[], fallback: T[]) => {
   primary.forEach((item) => rows.set(item.id, item));
   return Array.from(rows.values());
 };
-const localCards = () => {
+const localCards = (storageKey = CARD_STORAGE_KEY) => {
   try {
-    const rawCards = window.localStorage.getItem(CARD_STORAGE_KEY);
+    const rawCards = window.localStorage.getItem(storageKey);
     return rawCards ? JSON.parse(rawCards).map(normalizeStoredCard) as CardRecord[] : [];
   } catch {
     return [];
   }
 };
-const localExpenses = () => {
+const localExpenses = (storageKey = EXPENSE_STORAGE_KEY) => {
   try {
-    const rawExpenses = window.localStorage.getItem(EXPENSE_STORAGE_KEY);
+    const rawExpenses = window.localStorage.getItem(storageKey);
     return rawExpenses ? JSON.parse(rawExpenses).map(normalizeStoredExpense) as ExpenseRecord[] : [];
   } catch {
     return [];
   }
 };
-const localCashAdjustments = () => {
+const localCashAdjustments = (storageKey = CASH_STORAGE_KEY) => {
   try {
-    const rawCash = window.localStorage.getItem(CASH_STORAGE_KEY);
+    const rawCash = window.localStorage.getItem(storageKey);
     return rawCash ? JSON.parse(rawCash).map(normalizeStoredCashAdjustment) as CashAdjustmentRecord[] : [];
   } catch {
     return [];
   }
 };
-const localGradingSubmissions = () => {
+const localGradingSubmissions = (storageKey = GRADING_STORAGE_KEY) => {
   try {
-    const rawGrading = window.localStorage.getItem(GRADING_STORAGE_KEY);
+    const rawGrading = window.localStorage.getItem(storageKey);
     return rawGrading ? JSON.parse(rawGrading).map(normalizeStoredGradingSubmission) as GradingSubmission[] : [];
   } catch {
     return [];
+  }
+};
+const localGuestCards = () => localCards(GUEST_CARD_STORAGE_KEY);
+const localGuestExpenses = () => localExpenses(GUEST_EXPENSE_STORAGE_KEY);
+const localGuestCashAdjustments = () => localCashAdjustments(GUEST_CASH_STORAGE_KEY);
+const localGuestGradingSubmissions = () => localGradingSubmissions(GUEST_GRADING_STORAGE_KEY);
+const clearLegacyLocalAccountCache = () => {
+  try {
+    window.localStorage.removeItem(CARD_STORAGE_KEY);
+    window.localStorage.removeItem(EXPENSE_STORAGE_KEY);
+    window.localStorage.removeItem(CASH_STORAGE_KEY);
+    window.localStorage.removeItem(GRADING_STORAGE_KEY);
+  } catch {
+    // If localStorage is unavailable, keep the in-memory signed-out state empty.
   }
 };
 const localFreeInventoryAdds = () => {
@@ -915,10 +933,11 @@ export default function Home() {
           void loadSupabaseData(data.session.user.id);
           void loadPrimeLotConnection(data.session.access_token);
         } else {
-          setCards(localCards());
-          setExpenses(localExpenses());
-          setCashAdjustments(localCashAdjustments());
-          setGradingSubmissions(localGradingSubmissions());
+          clearLegacyLocalAccountCache();
+          setCards(localGuestCards());
+          setExpenses(localGuestExpenses());
+          setCashAdjustments(localGuestCashAdjustments());
+          setGradingSubmissions(localGuestGradingSubmissions());
           setDataLoaded(true);
           setLoading(false);
         }
@@ -939,10 +958,11 @@ export default function Home() {
       } else {
         setWorkspaceId(null);
         setPrimeLotConnection({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
-        setCards(localCards());
-        setExpenses(localExpenses());
-        setCashAdjustments(localCashAdjustments());
-        setGradingSubmissions(localGradingSubmissions());
+        clearLegacyLocalAccountCache();
+        setCards(localGuestCards());
+        setExpenses(localGuestExpenses());
+        setCashAdjustments(localGuestCashAdjustments());
+        setGradingSubmissions(localGuestGradingSubmissions());
         setDataLoaded(true);
         setLoading(false);
       }
@@ -962,15 +982,21 @@ export default function Home() {
   }, [dataLoaded, handledPrimeLotConnectIntent, session]);
 
   useEffect(() => {
-    if (!loading && dataLoaded) {
+    if (loading || !dataLoaded) return;
+    if (!usingSupabase) {
       window.localStorage.setItem(CARD_STORAGE_KEY, JSON.stringify(cards));
       window.localStorage.setItem(GRADING_STORAGE_KEY, JSON.stringify(gradingSubmissions));
       window.localStorage.setItem(CASH_STORAGE_KEY, JSON.stringify(cashAdjustments));
-    }
-    if (!usingSupabase && !loading && dataLoaded) {
       window.localStorage.setItem(EXPENSE_STORAGE_KEY, JSON.stringify(expenses));
+      return;
     }
-  }, [cards, cashAdjustments, dataLoaded, expenses, gradingSubmissions, loading, usingSupabase]);
+    if (!isSignedIn) {
+      window.localStorage.setItem(GUEST_CARD_STORAGE_KEY, JSON.stringify(cards));
+      window.localStorage.setItem(GUEST_GRADING_STORAGE_KEY, JSON.stringify(gradingSubmissions));
+      window.localStorage.setItem(GUEST_CASH_STORAGE_KEY, JSON.stringify(cashAdjustments));
+      window.localStorage.setItem(GUEST_EXPENSE_STORAGE_KEY, JSON.stringify(expenses));
+    }
+  }, [cards, cashAdjustments, dataLoaded, expenses, gradingSubmissions, isSignedIn, loading, usingSupabase]);
 
 
   useEffect(() => {

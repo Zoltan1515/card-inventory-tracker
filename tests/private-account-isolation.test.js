@@ -44,6 +44,26 @@ for (const snippet of forbiddenCacheMergeSnippets) {
   if (page.includes(snippet)) throw new Error(`Signed-in Supabase data must not merge stale local cache rows: ${snippet}`);
 }
 
+const signedOutPrivacySnippets = [
+  'const GUEST_CARD_STORAGE_KEY = "card-inventory-tracker.guest-cards.v1";',
+  'const localGuestCards = () => localCards(GUEST_CARD_STORAGE_KEY);',
+  'clearLegacyLocalAccountCache();\n          setCards(localGuestCards());',
+  'window.localStorage.setItem(GUEST_CARD_STORAGE_KEY, JSON.stringify(cards));',
+];
+
+for (const snippet of signedOutPrivacySnippets) {
+  if (!page.includes(snippet)) throw new Error(`Signed-out Supabase mode must use isolated guest storage: ${snippet}`);
+}
+
+const forbiddenSignedOutPrivacySnippets = [
+  'else {\n          setCards(localCards());',
+  'setCards(localCards());\n        setExpenses(localExpenses());',
+];
+
+for (const snippet of forbiddenSignedOutPrivacySnippets) {
+  if (page.includes(snippet)) throw new Error(`Signed-out Supabase mode must not expose legacy account cache: ${snippet}`);
+}
+
 const mutationScopeSnippets = [
   'updateQuery = updateQuery.eq("user_id", session.user.id);',
   'deleteQuery = deleteQuery.eq("user_id", session.user.id);',
