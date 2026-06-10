@@ -17,5 +17,8 @@ assert(page.includes('<button className="primary" type="button" onClick={() => {
 assert(page.includes('<button className="secondary" type="button" onClick={() => onOpenItem(item)}>Edit card</button>'), 'Unlisted Needs Attention rows should still allow editing the card.');
 assert(css.includes('.attentionCardItem') && css.includes('grid-template-columns: 74px minmax(0, 1fr) auto'), 'Needs Attention card rows should lay out thumbnail, details, and actions.');
 assert(css.includes('.attentionItemActions') && css.includes('.attentionCardThumb'), 'Needs Attention card rows should have action and thumbnail styling.');
+assert(css.includes('.attentionStat.hasItems { border-color: rgba(57,255,156,.48)') && css.includes('.attentionCount { background: rgba(57,255,156,.16)'), 'Needs Attention summary highlights should use green, not orange.');
+assert(css.includes('.attentionGroup:not(.isClear)') && css.includes('.attentionItem { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; border: 1px solid rgba(57,255,156,.32)'), 'Needs Attention groups and card rows should be green-highlighted.');
+assert(css.includes('.listingReviewRow.warning { border-color: rgba(57,255,156,.72)') && css.includes('.listingAgeBadge.warning { border-color: rgba(57,255,156,.45); color: var(--good)'), 'Listing Review warning rows should use the same green attention highlight.');
 
 console.log('Needs Attention List Card UX checks passed.');
