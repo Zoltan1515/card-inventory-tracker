@@ -1028,7 +1028,7 @@ export default function Home() {
   };
 
   const showAddInventoryForm = () => {
-    showDashboardTab("add", "add-inventory-form");
+    showDashboardTab("add", "add-inventory-panel");
   };
 
   const scrollToDashboardCashEntry = () => {

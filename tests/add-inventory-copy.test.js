@@ -21,5 +21,6 @@ assert(page.includes('Upload a PSA CSV, preview the rows, select the cards you w
 assert(!page.includes('Import cards from PrimeLot or PSA CSV'), 'Add Inventory tab should not mention PrimeLot CSV import.');
 assert(!page.includes('Upload a PrimeLot or PSA CSV'), 'Add Inventory tab should not suggest PrimeLot CSV upload.');
 assert(css.includes('.addInventoryIntro') && css.includes('.addInventoryHeader'), 'Add Inventory guidance should have dedicated responsive styling.');
+assert(page.includes('showDashboardTab("add", "add-inventory-panel")'), 'Add Inventory quick action should scroll to the Add a card title/header, not the first form field.');
 
 console.log('Add Inventory copy checks passed.');
