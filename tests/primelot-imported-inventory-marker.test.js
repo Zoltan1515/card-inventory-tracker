@@ -20,5 +20,6 @@ assert(page.includes('isPrimeLotImportedCard(card) ? "primeLotImportedRow" : ""'
 assert(page.includes('Imported from PrimeLot') && page.includes('primeLotImportedBadge'), 'PrimeLot-imported rows should show an Imported from PrimeLot badge.');
 assert(css.includes('.primeLotImportedRow') && css.includes('rgba(8,36,34,.92)'), 'PrimeLot-imported rows should have a visibly different data-box shade.');
 assert(css.includes('.primeLotImportedBadge') && css.includes('var(--neon-green)'), 'PrimeLot-imported badge should use branded styling.');
+assert(css.includes('justify-content: center') && css.includes('text-align: center') && css.includes('min-width: 168px'), 'PrimeLot-imported badge text should be centered in the pill.');
 
 console.log('PrimeLot imported inventory marker checks passed.');

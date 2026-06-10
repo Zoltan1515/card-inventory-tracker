@@ -39,7 +39,7 @@ assert(
 );
 
 assert(
-  page.includes('className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney"}') && page.includes('card.status === "Listed" ? card.askingPrice : card.purchasePrice'),
+  page.includes('className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney unlistedCostMoney"}') && page.includes('const activeInventoryDisplayPrice = (card: CardRecord) => card.status === "Listed" ? card.askingPrice'),
   'Listed inventory rows should make asking price the prominent row price instead of purchase cost.'
 );
 

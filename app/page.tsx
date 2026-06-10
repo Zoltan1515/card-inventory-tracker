@@ -719,6 +719,7 @@ export default function Home() {
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
+  const [inlineCostDrafts, setInlineCostDrafts] = useState<Record<string, string>>({});
   const [confirmingClearListing, setConfirmingClearListing] = useState<CardRecord | null>(null);
   const [enlargedPhotoCard, setEnlargedPhotoCard] = useState<CardRecord | null>(null);
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
@@ -1294,6 +1295,7 @@ export default function Home() {
     if (card.status === "Listed" || Number(card.askingPrice || 0) > 0) return `asking${cardQuantity(card) > 1 ? ` each • Qty ${cardQuantity(card)}` : ""} • cost ${money(card.purchasePrice)}`;
     return cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each";
   };
+  const inlineCostValue = (card: CardRecord) => inlineCostDrafts[card.id] ?? String(Number(card.purchasePrice || 0));
   const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
     const now = new Date().toISOString();
     const expenseDate = card.purchaseDate || todayIso();
@@ -1819,6 +1821,17 @@ export default function Home() {
     }
     setCards((current) => current.map((item) => (item.id === card.id ? card : item)));
     return true;
+  };
+
+  const saveInlineCost = async (card: CardRecord, rawValue: string) => {
+    const nextCost = Math.max(0, Number(rawValue || 0) || 0);
+    setInlineCostDrafts((drafts) => {
+      const { [card.id]: _removed, ...rest } = drafts;
+      return rest;
+    });
+    if (nextCost === Number(card.purchasePrice || 0)) return;
+    const ok = await updateCard({ ...card, purchasePrice: nextCost, updatedAt: new Date().toISOString(), updatedBy: currentUsername });
+    if (ok) setNotice(`Updated your cost for ${card.name}. Profit, inventory value, cash snapshot, and expense math now use ${money(nextCost)}.`);
   };
 
   const insertCardRecord = async (card: CardRecord) => {
@@ -4070,9 +4083,37 @@ export default function Home() {
                   )}
                 </div>
                 {card.status !== "Sold" && (
-                  <div className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney"}>
-                    <span>{money(activeInventoryDisplayPrice(card))}</span>
-                    <small>{activeInventoryPriceLabel(card)}</small>
+                  <div className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney unlistedCostMoney"}>
+                    {card.status === "Not Listed" ? (
+                      <>
+                        {Number(card.askingPrice || 0) > 0 && (
+                          <div className="inlineAskingPrice">
+                            <span>{money(activeInventoryDisplayPrice(card))}</span>
+                            <small>asking{cardQuantity(card) > 1 ? ` each • Qty ${cardQuantity(card)}` : ""}</small>
+                          </div>
+                        )}
+                        <label className="inlineCostField">
+                          <small>Your cost</small>
+                          <input
+                            aria-label={`Your cost for ${card.name}`}
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
+                            value={inlineCostValue(card)}
+                            onChange={(event) => setInlineCostDrafts((drafts) => ({ ...drafts, [card.id]: event.target.value }))}
+                            onFocus={(event) => event.currentTarget.select()}
+                            onBlur={(event) => void saveInlineCost(card, event.currentTarget.value)}
+                            onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+                          />
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <span>{money(activeInventoryDisplayPrice(card))}</span>
+                        <small>{activeInventoryPriceLabel(card)}</small>
+                      </>
+                    )}
                   </div>
                 )}
                 {!isSoldInventoryView && (
