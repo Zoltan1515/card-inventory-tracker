@@ -189,6 +189,34 @@ const numberValue = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const textValue = (value: unknown) => String(value || "").trim();
+const primeLotSourceCardId = (value: unknown) => {
+  if (!value || typeof value !== "object") return "";
+  const row = value as Record<string, unknown>;
+  return textValue(row.source_id)
+    || textValue(row.sourceId)
+    || textValue(row.wct_card_id)
+    || textValue(row.wctCardId)
+    || textValue(row.card_tracker_id)
+    || textValue(row.cardTrackerId);
+};
+
+async function findWctOriginByPrimeLotSourceRow(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  listing: NormalizedPrimeLotListing,
+  sourceRow: unknown,
+) {
+  const sourceCardId = primeLotSourceCardId(sourceRow);
+  if (!sourceCardId) return { data: null, error: null };
+  return supabase
+    .from("cards")
+    .select("id,status,purchase_price,notes")
+    .eq("user_id", listing.row.user_id)
+    .eq("id", sourceCardId)
+    .limit(1)
+    .maybeSingle();
+}
+
 async function refreshDuplicateMissingCost(
   supabase: ReturnType<typeof createServerSupabaseClient>,
   duplicate: DuplicateCardRow,
@@ -292,7 +320,10 @@ async function enrichListingsFromWctOrigin(
   return enriched;
 }
 
-async function enrichListingsFromPrimeLotSource(listings: NormalizedPrimeLotListing[]) {
+async function enrichListingsFromPrimeLotSource(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  listings: NormalizedPrimeLotListing[],
+) {
   const primeLotSupabaseUrl = process.env.PRIMELOT_SUPABASE_URL;
   const primeLotServiceRoleKey = process.env.PRIMELOT_SUPABASE_SERVICE_ROLE_KEY;
   if (!primeLotSupabaseUrl || !primeLotServiceRoleKey) {
@@ -330,6 +361,21 @@ async function enrichListingsFromPrimeLotSource(listings: NormalizedPrimeLotList
     }
     if (!data) {
       enriched.push(withRecoveryNote(listing, `PrimeLot ${table} source row was not found for ${listing.primeLotListingId}.`));
+      continue;
+    }
+
+    const wctOrigin = await findWctOriginByPrimeLotSourceRow(supabase, listing, data);
+    if (wctOrigin.error) {
+      enriched.push(withRecoveryNote(listing, `PrimeLot ${table} source row was found, but WCT source-card lookup failed: ${wctOrigin.error.message}`));
+      continue;
+    }
+    const sourceCardPurchasePrice = numberValue(wctOrigin.data?.purchase_price);
+    if (wctOrigin.data?.id && sourceCardPurchasePrice > 0) {
+      enriched.push(withRecoveryNote(
+        listing,
+        `Recovered $${sourceCardPurchasePrice.toFixed(2)} from the original WCT card referenced by the PrimeLot source row.`,
+        sourceCardPurchasePrice,
+      ));
       continue;
     }
 
@@ -446,7 +492,7 @@ export async function POST(request: NextRequest) {
     if (resolved.error) return resolved.error;
     const connection = resolved.connection!;
     const mappedListings = primeLotListingsToWctRows(payload, connection.user_id, connection.workspace_id);
-    const listings = await enrichListingsFromPrimeLotSource(await enrichListingsFromWctOrigin(supabase, mappedListings));
+    const listings = await enrichListingsFromPrimeLotSource(supabase, await enrichListingsFromWctOrigin(supabase, mappedListings));
     const items: ImportItemResult[] = [];
 
     for (const listing of listings) {
