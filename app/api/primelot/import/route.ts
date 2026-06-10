@@ -213,6 +213,30 @@ const numberValue = (value: unknown) => {
 };
 
 const textValue = (value: unknown) => String(value || "").trim();
+const diagnosticKeyPattern = /source|wct|cost|purchase|paid|price|card|listing|url|type/i;
+const diagnosticKeys = (value: unknown) => {
+  if (!value || typeof value !== "object") return [];
+  return Object.keys(value as Record<string, unknown>).filter((key) => diagnosticKeyPattern.test(key)).sort();
+};
+const diagnosticValueSummary = (value: unknown) => {
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  const text = textValue(value);
+  if (!text) return "";
+  if (/^https?:\/\//i.test(text)) {
+    try {
+      const url = new URL(text);
+      return `${url.origin}${url.pathname}`;
+    } catch {
+      return text.slice(0, 160);
+    }
+  }
+  return text.slice(0, 160);
+};
+const diagnosticPickedValues = (value: unknown) => {
+  if (!value || typeof value !== "object") return {};
+  return Object.fromEntries(diagnosticKeys(value).map((key) => [key, diagnosticValueSummary((value as Record<string, unknown>)[key])]));
+};
+const recoveryNotes = (notes: unknown) => textValue(notes).split("\n").filter((line) => /PrimeLot Cost Recovery|Source: PrimeLot|PrimeLot Listing ID|PrimeLot Listing URL|PrimeLot Listing Type/i.test(line));
 const primeLotSourceCardId = (value: unknown) => {
   if (!value || typeof value !== "object") return "";
   const row = value as Record<string, unknown>;
@@ -530,6 +554,26 @@ export async function POST(request: NextRequest) {
     const connection = resolved.connection!;
     const mappedListings = primeLotListingsToWctRows(payload, connection.user_id, connection.workspace_id);
     const listings = await enrichListingsFromPrimeLotSource(supabase, await enrichListingsFromWctOrigin(supabase, mappedListings));
+    console.info("PrimeLot WCT import diagnostics", JSON.stringify({
+      eventId: textValue(payload.eventId).slice(0, 80),
+      listingCount: listings.length,
+      items: listings.map((listing, index) => {
+        const rawListing = Array.isArray(payload.listings) ? payload.listings[index] : null;
+        const mapped = mappedListings[index];
+        return {
+          index,
+          primeLotListingId: listing.primeLotListingId,
+          listingType: listing.listingType,
+          sourceUrl: diagnosticValueSummary(listing.sourceUrl),
+          inboundDiagnosticKeys: diagnosticKeys(rawListing),
+          inboundDiagnosticValues: diagnosticPickedValues(rawListing),
+          mappedPurchasePrice: numberValue(mapped?.row.purchase_price),
+          enrichedPurchasePrice: numberValue(listing.row.purchase_price),
+          sourceId: diagnosticValueSummary(listing.row.source_id),
+          recoveryNotes: recoveryNotes(listing.row.notes),
+        };
+      }),
+    }));
     const items: ImportItemResult[] = [];
 
     for (const listing of listings) {
