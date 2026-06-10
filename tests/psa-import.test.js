@@ -25,11 +25,20 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-const psaCsv = fs.readFileSync('/Users/zoltan/.hermes/cache/documents/doc_c5e645246287_psa-order-26013709.csv', 'utf8');
+const realPsaCsvPath = '/Users/zoltan/.hermes/cache/documents/doc_c5e645246287_psa-order-26013709.csv';
+const fallbackPsaCsv = `Cert #,Description,Grade,Images,After Service,Type
+142250342,2024 ONE PIECE PROMOS 001 SABO 2ND ANNIVERSARY TOURNAMENT-WINNER,GEM MT 10,https://example.com/sabo.zip,Shipped,One Piece
+123456789,2023 POKEMON OBSIDIAN FLAMES 228 CHARIZARD EX HYPER RARE,NM-MT 8,,Shipped,Pokemon
+`;
+const psaCsv = fs.existsSync(realPsaCsvPath) ? fs.readFileSync(realPsaCsvPath, 'utf8') : fallbackPsaCsv;
 const parsed = parsePsaOrderCsv(psaCsv, { idFactory: (rowNumber) => `psa-row-${rowNumber}`, now: '2026-06-08T00:00:00.000Z', today: '2026-06-08' });
 
-assert(psaCsvLooksLikeOrderExport(psaCsv), 'The real PSA order export should be detected from Cert #, Description, Grade, and Images headers.');
-assert(parsed.length === 22, `Expected 22 PSA card rows, got ${parsed.length}.`);
+assert(psaCsvLooksLikeOrderExport(psaCsv), 'The PSA order export should be detected from Cert #, Description, Grade, and Images headers.');
+if (fs.existsSync(realPsaCsvPath)) {
+  assert(parsed.length === 22, `Expected 22 PSA card rows, got ${parsed.length}.`);
+} else {
+  assert(parsed.length === 2, `Expected 2 fallback PSA card rows, got ${parsed.length}.`);
+}
 
 const first = parsed[0];
 assert(first.id === 'psa-row-2', 'Preview id should be stable when an idFactory is provided.');
@@ -57,7 +66,8 @@ assert(charizard.card.grade === '8', `Expected Charizard grade 8, got ${charizar
 
 const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
 assert(page.includes('parsePsaOrderCsv'), 'Add Inventory CSV handler should use the PSA parser for PSA exports.');
-assert(page.includes('PrimeLot or PSA CSV'), 'Import panel should tell users PSA CSV files are supported.');
+assert(page.includes('Import cards from PSA CSV'), 'Import panel should tell users PSA CSV files are supported.');
+assert(!page.includes('PrimeLot or PSA CSV'), 'Import panel should not mention PrimeLot CSV import.');
 
 fs.rmSync(outDir, { recursive: true, force: true });
 console.log('PSA import parser checks passed.');

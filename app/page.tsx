@@ -3543,6 +3543,47 @@ export default function Home() {
             </div>
             <p className="muted addInventoryIntro">This section uploads your card to your <strong>Not Listed</strong> Inventory. All information here should be your cost for this card and the information you want to store.</p>
           </div>
+          <section className="importPanel" aria-label="Import cards from PSA CSV">
+            <div className="importHeader">
+              <div>
+                <p className="eyebrow">PSA CSV import</p>
+                <h3>Import cards from PSA CSV</h3>
+                <p className="muted">Upload a PSA CSV, preview the rows, select the cards you want, then import them into your Not Listed inventory.</p>
+              </div>
+              <label className="secondary importFileButton">Choose PSA CSV
+                <input accept=".csv,text/csv" type="file" onChange={handleCardImportFile} />
+              </label>
+            </div>
+            {importPreviews.length > 0 && (
+              <div className="importPreview">
+                <div className="importSummary">
+                  <strong>{importReadyCount} selected of {importPreviews.length}</strong>
+                  <span className="muted">{importWarningCount ? `${importWarningCount} rows need review` : "All rows look ready"}{importFileName ? ` • ${importFileName}` : ""}</span>
+                </div>
+                <div className="rowActions importActions">
+                  <button className="secondary" type="button" onClick={selectAllImportPreviews}>Select all</button>
+                  <button className="secondary" type="button" onClick={selectCleanImportPreviews}>Select clean rows</button>
+                  <button className="secondary" type="button" onClick={clearImportPreviews}>Clear import</button>
+                  <button className="primary" type="button" onClick={importSelectedCards} disabled={!importReadyCount || importingCards}>{importingCards ? "Importing…" : `Import ${importReadyCount} cards`}</button>
+                </div>
+                <div className="importPreviewList">
+                  {importPreviews.map((preview) => (
+                    <article className={preview.warnings.length ? "importPreviewRow needsReview" : "importPreviewRow"} key={preview.id}>
+                      <label className="selectCardBox" aria-label={`Select row ${preview.sourceRow} for import`}>
+                        <input type="checkbox" checked={preview.selected} onChange={() => toggleImportPreview(preview.id)} />
+                      </label>
+                      <div>
+                        <div className="rowTitle"><strong>{preview.card.name}</strong><span className={`statusBadge ${preview.card.status.replace(" ", "").toLowerCase()}`}>{preview.card.status}</span></div>
+                        <p>{[preview.card.year, preview.card.setName, preview.card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
+                        <p className="muted">Cost {money(cardPurchaseCost(preview.card))}{cardQuantity(preview.card) > 1 ? ` (${cardQuantity(preview.card)} × ${money(preview.card.purchasePrice)})` : ""} • Bought {formatDateLabel(preview.card.purchaseDate)}</p>
+                        {preview.warnings.length > 0 && <p className="warning">Review: {preview.warnings.join(" • ")}</p>}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
           <form className="formGrid simpleForm" id="add-inventory-form" onSubmit={saveCard}>
             {!session && (
               <div className={`freeInventoryCounter full ${freeInventoryLimitReached ? "isLocked" : ""}`}>
