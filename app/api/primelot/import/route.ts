@@ -35,6 +35,7 @@ type ImportItemResult = {
 type DuplicateCardRow = {
   id: string;
   status: string | null;
+  asking_price: number | string | null;
   purchase_price: number | string | null;
   notes: string | null;
 };
@@ -135,7 +136,7 @@ async function resolveConnection(supabase: ReturnType<typeof createServerSupabas
 async function findDuplicateBySourceColumns(supabase: ReturnType<typeof createServerSupabaseClient>, row: WctCardInsert) {
   const query = supabase
     .from("cards")
-    .select("id,status,purchase_price,notes")
+    .select("id,status,asking_price,purchase_price,notes")
     .eq("user_id", row.user_id)
     .eq("source_platform", "primelot")
     .eq("source_id", row.source_id || "")
@@ -147,7 +148,7 @@ async function findDuplicateBySourceColumns(supabase: ReturnType<typeof createSe
 async function findDuplicateByNotes(supabase: ReturnType<typeof createServerSupabaseClient>, row: WctCardInsert) {
   return supabase
     .from("cards")
-    .select("id,status,purchase_price,notes")
+    .select("id,status,asking_price,purchase_price,notes")
     .eq("user_id", row.user_id)
     .ilike("notes", `%PrimeLot Listing ID: ${row.source_id}%`)
     .limit(1)
@@ -200,7 +201,7 @@ async function findDuplicateByPrimeLotListingLink(supabase: ReturnType<typeof cr
   if (!filters) return { data: null, error: null };
   return supabase
     .from("cards")
-    .select("id,status,purchase_price,notes")
+    .select("id,status,asking_price,purchase_price,notes")
     .eq("user_id", row.user_id)
     .or(filters)
     .order("purchase_price", { ascending: false })
@@ -214,7 +215,7 @@ async function findUniqueWctOriginByExactNameAndAskPrice(supabase: ReturnType<ty
   if (!name || askingPrice <= 0) return { data: null, error: null, ambiguous: false };
   const { data, error } = await supabase
     .from("cards")
-    .select("id,status,purchase_price,notes")
+    .select("id,status,asking_price,purchase_price,notes")
     .eq("user_id", row.user_id)
     .eq("name", name)
     .eq("asking_price", askingPrice)
@@ -276,7 +277,7 @@ async function findWctOriginByPrimeLotSourceRow(
   if (!sourceCardId) return { data: null, error: null };
   return supabase
     .from("cards")
-    .select("id,status,purchase_price,notes")
+    .select("id,status,asking_price,purchase_price,notes")
     .eq("user_id", listing.row.user_id)
     .eq("id", sourceCardId)
     .limit(1)
@@ -307,6 +308,27 @@ async function refreshDuplicateMissingCost(
     .eq("user_id", listing.row.user_id);
   if (error) throw error;
   return incomingPurchasePrice;
+}
+
+async function refreshDuplicateMissingListingPrice(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  duplicate: DuplicateCardRow,
+  listing: NormalizedPrimeLotListing,
+) {
+  const incomingAskingPrice = numberValue(listing.row.asking_price);
+  const existingAskingPrice = numberValue(duplicate.asking_price);
+  if (incomingAskingPrice <= 0 || existingAskingPrice > 0) return null;
+
+  const { error } = await supabase
+    .from("cards")
+    .update({
+      asking_price: incomingAskingPrice,
+      updated_by: listing.row.updated_by,
+    })
+    .eq("id", duplicate.id)
+    .eq("user_id", listing.row.user_id);
+  if (error) throw error;
+  return incomingAskingPrice;
 }
 
 async function insertCard(supabase: ReturnType<typeof createServerSupabaseClient>, listing: NormalizedPrimeLotListing) {
@@ -492,12 +514,16 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
   if (duplicate.error && !schemaMissingSourceTracking(duplicate.error.message)) throw duplicate.error;
   if (duplicate.data?.id) {
     const refreshedCost = await refreshDuplicateMissingCost(supabase, duplicate.data as DuplicateCardRow, listing);
+    const refreshedListingPrice = await refreshDuplicateMissingListingPrice(supabase, duplicate.data as DuplicateCardRow, listing);
     return {
       primeLotListingId: listing.primeLotListingId,
       wctCardId: duplicate.data.id,
       status: "Not Listed",
       action: "skipped_duplicate",
-      warnings: refreshedCost ? [`Existing WCT card was already imported; filled missing purchase price with $${refreshedCost.toFixed(2)}.`] : [],
+      warnings: [
+        ...(refreshedCost ? [`Existing WCT card was already imported; filled missing purchase price with $${refreshedCost.toFixed(2)}.`] : []),
+        ...(refreshedListingPrice ? [`Existing WCT card was already imported; filled missing PrimeLot listing price with $${refreshedListingPrice.toFixed(2)}.`] : []),
+      ],
     };
   }
 
@@ -506,6 +532,7 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
     if (notesDuplicate.error) throw notesDuplicate.error;
     if (notesDuplicate.data?.id) {
       const refreshedCost = await refreshDuplicateMissingCost(supabase, notesDuplicate.data as DuplicateCardRow, listing);
+      const refreshedListingPrice = await refreshDuplicateMissingListingPrice(supabase, notesDuplicate.data as DuplicateCardRow, listing);
       return {
         primeLotListingId: listing.primeLotListingId,
         wctCardId: notesDuplicate.data.id,
@@ -514,6 +541,7 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
         warnings: [
           "Source tracking columns are not available; duplicate was detected from notes metadata.",
           ...(refreshedCost ? [`Existing WCT card was already imported; filled missing purchase price with $${refreshedCost.toFixed(2)}.`] : []),
+          ...(refreshedListingPrice ? [`Existing WCT card was already imported; filled missing PrimeLot listing price with $${refreshedListingPrice.toFixed(2)}.`] : []),
         ],
       };
     }
@@ -523,6 +551,7 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
   if (linkedDuplicate.error) throw linkedDuplicate.error;
   if (linkedDuplicate.data?.id) {
     const refreshedCost = await refreshDuplicateMissingCost(supabase, linkedDuplicate.data as DuplicateCardRow, listing);
+    const refreshedListingPrice = await refreshDuplicateMissingListingPrice(supabase, linkedDuplicate.data as DuplicateCardRow, listing);
     return {
       primeLotListingId: listing.primeLotListingId,
       wctCardId: linkedDuplicate.data.id,
@@ -531,6 +560,7 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
       warnings: [
         "Existing WCT card already has this PrimeLot listing link; skipped duplicate import.",
         ...(refreshedCost ? [`Existing WCT card was already imported; filled missing purchase price with $${refreshedCost.toFixed(2)}.`] : []),
+        ...(refreshedListingPrice ? [`Existing WCT card was already imported; filled missing PrimeLot listing price with $${refreshedListingPrice.toFixed(2)}.`] : []),
       ],
     };
   }
@@ -602,6 +632,7 @@ export async function POST(request: NextRequest) {
           sourceUrl: diagnosticValueSummary(listing.sourceUrl),
           inboundDiagnosticKeys: diagnosticKeys(rawListing),
           inboundDiagnosticValues: diagnosticPickedValues(rawListing),
+          mappedAskingPrice: numberValue(mapped?.row.asking_price),
           mappedPurchasePrice: numberValue(mapped?.row.purchase_price),
           enrichedPurchasePrice: numberValue(listing.row.purchase_price),
           sourceId: diagnosticValueSummary(listing.row.source_id),
