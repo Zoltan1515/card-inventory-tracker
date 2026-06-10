@@ -30,6 +30,13 @@ type ImportItemResult = {
   warnings: string[];
 };
 
+type DuplicateCardRow = {
+  id: string;
+  status: string | null;
+  purchase_price: number | string | null;
+  notes: string | null;
+};
+
 const jsonError = (status: number, code: string, error: string, extra: Record<string, unknown> = {}) => (
   NextResponse.json({ ok: false, code, error, ...extra }, { status })
 );
@@ -119,7 +126,7 @@ async function resolveConnection(supabase: ReturnType<typeof createServerSupabas
 async function findDuplicateBySourceColumns(supabase: ReturnType<typeof createServerSupabaseClient>, row: WctCardInsert) {
   const query = supabase
     .from("cards")
-    .select("id,status")
+    .select("id,status,purchase_price,notes")
     .eq("user_id", row.user_id)
     .eq("source_platform", "primelot")
     .eq("source_id", row.source_id || "")
@@ -131,11 +138,42 @@ async function findDuplicateBySourceColumns(supabase: ReturnType<typeof createSe
 async function findDuplicateByNotes(supabase: ReturnType<typeof createServerSupabaseClient>, row: WctCardInsert) {
   return supabase
     .from("cards")
-    .select("id,status")
+    .select("id,status,purchase_price,notes")
     .eq("user_id", row.user_id)
     .ilike("notes", `%PrimeLot Listing ID: ${row.source_id}%`)
     .limit(1)
     .maybeSingle();
+}
+
+const numberValue = (value: unknown) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+async function refreshDuplicateMissingCost(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  duplicate: DuplicateCardRow,
+  listing: NormalizedPrimeLotListing,
+) {
+  const incomingPurchasePrice = numberValue(listing.row.purchase_price);
+  const existingPurchasePrice = numberValue(duplicate.purchase_price);
+  if (incomingPurchasePrice <= 0 || existingPurchasePrice > 0) return null;
+
+  const updatePayload: Record<string, unknown> = {
+    purchase_price: incomingPurchasePrice,
+    updated_by: listing.row.updated_by,
+  };
+  if (listing.row.notes && !String(duplicate.notes || "").includes(`PrimeLot Imported At:`)) {
+    updatePayload.notes = [duplicate.notes, listing.row.notes].filter(Boolean).join("\n\n");
+  }
+
+  const { error } = await supabase
+    .from("cards")
+    .update(updatePayload)
+    .eq("id", duplicate.id)
+    .eq("user_id", listing.row.user_id);
+  if (error) throw error;
+  return incomingPurchasePrice;
 }
 
 async function insertCard(supabase: ReturnType<typeof createServerSupabaseClient>, listing: NormalizedPrimeLotListing) {
@@ -181,12 +219,13 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
   const duplicate = await findDuplicateBySourceColumns(supabase, listing.row);
   if (duplicate.error && !schemaMissingSourceTracking(duplicate.error.message)) throw duplicate.error;
   if (duplicate.data?.id) {
+    const refreshedCost = await refreshDuplicateMissingCost(supabase, duplicate.data as DuplicateCardRow, listing);
     return {
       primeLotListingId: listing.primeLotListingId,
       wctCardId: duplicate.data.id,
       status: "Not Listed",
       action: "skipped_duplicate",
-      warnings: [],
+      warnings: refreshedCost ? [`Existing WCT card was already imported; filled missing purchase price with $${refreshedCost.toFixed(2)}.`] : [],
     };
   }
 
@@ -194,12 +233,16 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
     const notesDuplicate = await findDuplicateByNotes(supabase, listing.row);
     if (notesDuplicate.error) throw notesDuplicate.error;
     if (notesDuplicate.data?.id) {
+      const refreshedCost = await refreshDuplicateMissingCost(supabase, notesDuplicate.data as DuplicateCardRow, listing);
       return {
         primeLotListingId: listing.primeLotListingId,
         wctCardId: notesDuplicate.data.id,
         status: "Not Listed",
         action: "skipped_duplicate",
-        warnings: ["Source tracking columns are not available; duplicate was detected from notes metadata."],
+        warnings: [
+          "Source tracking columns are not available; duplicate was detected from notes metadata.",
+          ...(refreshedCost ? [`Existing WCT card was already imported; filled missing purchase price with $${refreshedCost.toFixed(2)}.`] : []),
+        ],
       };
     }
   }

@@ -57,6 +57,7 @@ const jsonError = (message: string, status = 400, code?: string) => NextResponse
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
 const sourceTrackingColumnError = (message = "") => /source_id|source_platform/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const shippingColumnError = (message = "") => /shipping_cost/i.test(message) && /schema cache|column|Could not find/i.test(message);
+const purchaseCostColumnError = (message = "") => /purchase_price|purchase_cost|original_purchase_price|cost_basis/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const photoColumnError = (message = "") => /image_url_front|image_url_back/i.test(message) && /schema cache|column|Could not find/i.test(message);
 
 const normalizePrimeLotImageUrl = (value?: string) => {
@@ -163,6 +164,7 @@ const descriptionForCard = (card: CardPayload) => [
   gradingDetailsForCard(card).grade ? `Grade: ${gradingDetailsForCard(card).grade}` : "",
   card.purchaseDate ? `Purchase Date: ${card.purchaseDate}` : "",
   Number.isFinite(card.purchasePrice) ? `Purchase Price: ${card.purchasePrice}` : "",
+  Number.isFinite(card.purchasePrice) ? `WCT Purchase Price: ${card.purchasePrice}` : "",
   card.notes?.trim() ? `Notes: ${card.notes.trim()}` : "",
 ].filter(Boolean).join("\n");
 
@@ -305,6 +307,10 @@ export async function POST(request: NextRequest) {
       is_wishlist_offer: false,
       quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
       quantity_sold: 0,
+      purchase_price: Number(card.purchasePrice || 0),
+      purchase_cost: Number(card.purchasePrice || 0),
+      original_purchase_price: Number(card.purchasePrice || 0),
+      cost_basis: Number(card.purchasePrice || 0),
     };
     return { card, listingType, row, formData: primeLotImportFormDataForCard(card, row) };
   }).filter((item): item is PrimeLotImportRow => Boolean(item));
@@ -352,6 +358,19 @@ export async function POST(request: NextRequest) {
       if (hasRequestedShipping) return jsonError("PrimeLot could not save buyer shipping because its shipping_cost field is missing. The listings were not posted without your shipping charges.", 502, "PRIMELOT_SHIPPING_NOT_CONFIGURED");
       group = group.map((item) => {
         const { shipping_cost: _shippingCost, ...row } = item.row;
+        return { ...item, row };
+      });
+      insertResult = await primeLotSupabase
+        .from(target.table)
+        .insert(group.map((item) => item.row))
+        .select("id, source_id, status");
+    }
+
+    while (insertResult.error && purchaseCostColumnError(insertResult.error.message)) {
+      const missingColumn = insertResult.error.message.match(/Could not find the '([^']+)' column/i)?.[1] || "";
+      if (!missingColumn || !group.some((item) => missingColumn in item.row)) break;
+      group = group.map((item) => {
+        const { [missingColumn]: _missingPurchaseColumn, ...row } = item.row;
         return { ...item, row };
       });
       insertResult = await primeLotSupabase

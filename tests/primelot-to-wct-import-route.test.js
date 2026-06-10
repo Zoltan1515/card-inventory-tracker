@@ -29,6 +29,8 @@ assert(mapper.includes('single_card') && mapper.includes('sealed_product') && ma
 assert(mapper.includes('images.frontUrl') && mapper.includes('images.backUrl'), "Mapper accepts front/back image URLs.");
 assert(mapper.includes('friendlyCategory') && mapper.includes('titleCaseCategory') && mapper.includes('One Piece') && mapper.includes('Pokemon'), "Mapper converts PrimeLot machine category names like one_piece, pokemon, and sports into customer-friendly labels.");
 assert(mapper.includes('purchasePriceAliases') && mapper.includes('purchasePriceFromText') && mapper.includes('originalPurchasePrice') && mapper.includes('pricePaid') && mapper.includes('costBasis') && mapper.includes('acquisitionCost'), "Mapper accepts PrimeLot purchase-price aliases and parses WCT-exported purchase price text.");
+assert(mapper.includes('wctPurchasePrice') && mapper.includes('costEach') && mapper.includes('totalPurchasePrice') && mapper.includes('scanTextFields'), "Mapper handles PrimeLot/WCT purchase-cost aliases and nested description/notes text.");
+assert(route.includes('refreshDuplicateMissingCost') && route.includes('purchase_price') && route.includes('Existing WCT card was already imported; filled missing purchase price'), "Import route refreshes missing purchase price on an already-imported duplicate instead of leaving the old $0 row unchanged.");
 
 assert(serverSupabase.includes('SUPABASE_SERVICE_ROLE_KEY'), "Server Supabase client uses service role env var.");
 assert(migration.includes('source_platform') && migration.includes('source_id'), "Migration adds source tracking columns.");

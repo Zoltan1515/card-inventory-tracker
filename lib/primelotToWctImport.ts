@@ -28,6 +28,7 @@ export type PrimeLotImportListing = {
   purchasePrice?: unknown;
   purchaseDate?: unknown;
   gradingCompany?: unknown;
+  [key: string]: unknown;
   grade?: unknown;
   condition?: unknown;
   images?: PrimeLotImages;
@@ -106,6 +107,14 @@ const numberFromMoney = (value: unknown) => {
 const numeric = numberFromMoney;
 const integer = (value: unknown, fallback = 1) => Math.max(1, Math.floor(Number(value) || fallback));
 const dateTextOrNull = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(text(value)) ? text(value) : null;
+const firstText = (...values: unknown[]) => values.map(text).find(Boolean) || "";
+const firstNumber = (...values: unknown[]) => {
+  for (const value of values) {
+    const parsed = numeric(value);
+    if (parsed > 0) return parsed;
+  }
+  return 0;
+};
 const aliasKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const valueFromAliases = (listing: PrimeLotImportListing, aliases: string[]) => {
   const normalizedAliases = new Set(aliases.map(aliasKey));
@@ -183,6 +192,22 @@ const purchasePriceAliases = [
   "inventory_cost",
   "buyPrice",
   "buy_price",
+  "purchaseCost",
+  "purchase_cost",
+  "wctPurchasePrice",
+  "wct_purchase_price",
+  "wctCost",
+  "wct_cost",
+  "unitCost",
+  "unit_cost",
+  "costEach",
+  "cost_each",
+  "totalCost",
+  "total_cost",
+  "purchaseCostTotal",
+  "purchase_cost_total",
+  "totalPurchasePrice",
+  "total_purchase_price",
   "cardCost",
   "card_cost",
   "originalCost",
@@ -196,8 +221,8 @@ const purchasePriceFromText = (value: unknown) => {
   const body = text(value);
   if (!body) return 0;
   const patterns = [
-    /(?:purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price)\s*[:=\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
-    /\$?\s*([\d,]+(?:\.\d+)?)\s*(?:purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price)/i,
+    /(?:wct\s*purchase\s*price|purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price|unit\s*cost|cost\s*each|total\s*cost)\s*[:=\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+    /\$?\s*([\d,]+(?:\.\d+)?)\s*(?:wct\s*purchase\s*price|purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price|unit\s*cost|cost\s*each|total\s*cost)/i,
   ];
   for (const pattern of patterns) {
     const match = body.match(pattern);
@@ -209,7 +234,23 @@ const purchasePriceFromText = (value: unknown) => {
 const purchasePriceForListing = (listing: PrimeLotImportListing) => {
   const direct = numeric(valueFromAliases(listing, purchasePriceAliases));
   if (direct > 0) return direct;
-  return purchasePriceFromText(listing.notes) || purchasePriceFromText(listing.description);
+
+  const seen = new Set<unknown>();
+  const scanTextFields = (source: unknown, depth = 0): number => {
+    if (!source || seen.has(source) || depth > 3) return 0;
+    if (typeof source === "string") return purchasePriceFromText(source);
+    if (typeof source !== "object") return 0;
+    seen.add(source);
+    for (const [key, value] of Object.entries(source as Record<string, unknown>)) {
+      const normalizedKey = aliasKey(key);
+      const shouldScanString = typeof value === "string" && (normalizedKey.includes("description") || normalizedKey.includes("note") || normalizedKey.includes("metadata") || normalizedKey.includes("detail"));
+      const found = shouldScanString ? purchasePriceFromText(value) : scanTextFields(value, depth + 1);
+      if (found > 0) return found;
+    }
+    return 0;
+  };
+
+  return scanTextFields(listing);
 };
 
 const metadataLines = (listing: PrimeLotImportListing, listingType: PrimeLotListingType, importedAt: string) => {
@@ -282,9 +323,13 @@ export function primeLotListingsToWctRows(
     const listing = item as PrimeLotImportListing;
     const listingType = text(listing.listingType) as PrimeLotListingType;
     const primeLotListingId = text(listing.primeLotListingId);
-    const sourceUrl = validHttpUrl(listing.listingUrl);
-    const title = text(listing.title);
-    const category = categoryForListing(listing, listingType);
+    const sourceUrl = validHttpUrl(firstText(listing.listingUrl, listing.url, listing.publicUrl, listing.public_url));
+    const title = firstText(listing.title, listing.card_name, listing.cardName, listing.name, listing.product_name, listing.productName);
+    const category = categoryForListing({
+      ...listing,
+      category: firstText(listing.category, listing.card_type, listing.cardType, listing.product_type, listing.productType),
+      cardType: firstText(listing.cardType, listing.card_type),
+    }, listingType);
     const now = importedAt;
     const row: WctCardInsert = {
       user_id: userId,
@@ -298,14 +343,14 @@ export function primeLotListingsToWctRows(
       status: "Not Listed",
       listed_platform: "",
       listing_url: "",
-      asking_price: numeric(listing.price),
-      lowest_acceptable_price: numeric(listing.lowestAcceptablePrice),
-      outbound_shipping: numeric(listing.buyerShipping),
+      asking_price: firstNumber(listing.price, listing.askingPrice, listing.asking_price, listing.listPrice, listing.list_price),
+      lowest_acceptable_price: firstNumber(listing.lowestAcceptablePrice, listing.lowest_acceptable_price, listing.minimumSalePrice, listing.minimum_sale_price),
+      outbound_shipping: firstNumber(listing.buyerShipping, listing.buyer_shipping, listing.shipping_cost, listing.shippingCost, listing.shippingCharge, listing.shipping_charge),
       grading_company: listingType === "single_card" ? text(listing.gradingCompany) : "",
       grade: listingType === "single_card" ? text(listing.grade) : "",
       listed_date: null,
-      front_photo_url: validHttpUrl(listing.images?.frontUrl),
-      back_photo_url: validHttpUrl(listing.images?.backUrl),
+      front_photo_url: validHttpUrl(firstText(listing.images?.frontUrl, listing.image_url_front, listing.imageUrlFront, listing.frontPhotoUrl, listing.front_photo_url)),
+      back_photo_url: validHttpUrl(firstText(listing.images?.backUrl, listing.image_url_back, listing.imageUrlBack, listing.backPhotoUrl, listing.back_photo_url)),
       purchase_date: dateTextOrNull(listing.purchaseDate),
       purchase_price: purchasePriceForListing(listing),
       sale_date: null,
