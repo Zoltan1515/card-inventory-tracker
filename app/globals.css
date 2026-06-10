@@ -232,7 +232,9 @@ textarea { min-height: 90px; resize: vertical; }
 .cardsList, .expenseList { display: grid; gap: 12px; }
 .cardRow { border-radius: 18px; padding: 18px; display: grid; grid-template-columns: auto 92px minmax(0, 1fr) auto minmax(180px, 260px) auto; gap: 18px; align-items: center; }
 .primeLotImportedRow { border-color: rgba(57,255,156,.46); background: linear-gradient(145deg, rgba(8,36,34,.92), rgba(4,20,24,.9)); box-shadow: 0 16px 42px rgba(0,0,0,.28), 0 0 24px rgba(57,255,156,.08); }
-.primeLotImportedBadge { color: var(--neon-green); border-color: rgba(57,255,156,.58); background: rgba(57,255,156,.12); font-weight: 900; box-shadow: 0 0 14px rgba(57,255,156,.08); display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 1.12; min-width: 168px; }
+.primeLotImportedRow:not(.listedCardRow):not(.soldCardRow) { grid-template-columns: auto 92px minmax(240px, 1fr) minmax(132px, 148px) minmax(140px, 178px) auto; gap: 16px; align-items: center; }
+.primeLotImportedBadge { color: var(--neon-green); border-color: rgba(57,255,156,.42); background: rgba(57,255,156,.09); font-weight: 900; box-shadow: 0 0 14px rgba(57,255,156,.06); display: inline-flex; align-items: center; justify-content: center; text-align: center; line-height: 1.12; }
+.cardSourceLine { display: flex; align-items: center; margin-top: 6px; }
 .listedCardRow { grid-template-columns: auto 92px minmax(250px, 1fr) minmax(120px, 150px) minmax(130px, 160px) minmax(230px, auto); gap: 14px; padding: 16px; }
 .noSelectCardRow { grid-template-columns: 92px minmax(320px, 1fr) auto minmax(180px, 260px) auto; }
 .compactRow { grid-template-columns: 1fr auto; }
@@ -308,11 +310,11 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .gradingLinkBadge:hover, .gradingLinkBadge:focus-visible { border-color: rgba(245,158,11,.9); box-shadow: 0 0 0 3px rgba(245,158,11,.15); }
 .rowMoney { display: grid; gap: 4px; justify-items: end; min-width: 120px; }
 .rowMoney span { font-weight: 900; font-size: 1.15rem; }
-.unlistedCostMoney { justify-items: end; gap: 8px; min-width: 150px; }
-.inlineAskingPrice { display: grid; justify-items: end; gap: 2px; }
+.unlistedCostMoney { justify-items: stretch; gap: 8px; min-width: 132px; }
+.inlineAskingPrice { display: grid; justify-items: center; gap: 2px; text-align: center; }
 .inlineAskingPrice span { font-size: 1.28rem; }
-.inlineCostField { display: grid; gap: 4px; justify-items: end; color: var(--muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-.inlineCostField input { width: 118px; min-height: 38px; padding: 8px 10px; border-radius: 12px; text-align: right; font-size: 1rem; font-weight: 900; color: var(--text); background: rgba(2,7,16,.72); border: 1px solid rgba(57,255,156,.26); }
+.inlineCostField { display: grid; gap: 4px; justify-items: center; color: var(--muted); font-size: .72rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; text-align: center; }
+.inlineCostField input { width: 112px; min-height: 38px; padding: 8px 10px; border-radius: 12px; text-align: center; font-size: 1rem; font-weight: 900; color: var(--text); background: rgba(2,7,16,.72); border: 1px solid rgba(57,255,156,.26); }
 .inlineCostField input:focus { border-color: rgba(57,255,156,.68); box-shadow: 0 0 0 3px rgba(57,255,156,.12); }
 .askingRowMoney { min-width: 0; justify-items: start; text-align: left; }
 .askingRowMoney span { color: var(--neon-green); font-size: 1.28rem; text-shadow: 0 0 18px rgba(57,255,156,.18); }
@@ -426,6 +428,9 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .listingEditButton { width: 100%; justify-content: center; }
 .listedCardRow .inventoryControls { min-width: 0; }
 .listedCardRow .listingEditButton { width: 100%; min-height: 42px; padding: 9px 12px; border-radius: 12px; }
+.primeLotImportedRow:not(.listedCardRow):not(.soldCardRow) .inventoryControls { min-width: 0; justify-self: stretch; }
+.primeLotImportedRow:not(.listedCardRow):not(.soldCardRow) .listingEditButton { width: 100%; min-height: 42px; padding: 9px 12px; border-radius: 12px; }
+.primeLotImportedRow:not(.listedCardRow):not(.soldCardRow) .rowActions { flex-wrap: nowrap; min-width: 276px; }
 .listedCardRow .rowActions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; min-width: 230px; }
 .listedCardRow .rowActions button { min-height: 42px; padding: 9px 10px; }
 .listingLinkRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
@@ -742,6 +747,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
     padding: 12px;
     border-radius: 16px;
   }
+  .primeLotImportedRow:not(.listedCardRow):not(.soldCardRow) { grid-template-columns: 28px 58px minmax(0, 1fr); gap: 10px; }
   .listedCardRow { grid-template-columns: 28px 58px minmax(0, 1fr); }
   .noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }
   .soldCardRow.noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }

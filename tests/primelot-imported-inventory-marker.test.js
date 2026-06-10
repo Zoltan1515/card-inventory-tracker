@@ -20,6 +20,8 @@ assert(page.includes('isPrimeLotImportedCard(card) ? "primeLotImportedRow" : ""'
 assert(page.includes('Imported from PrimeLot') && page.includes('primeLotImportedBadge'), 'PrimeLot-imported rows should show an Imported from PrimeLot badge.');
 assert(css.includes('.primeLotImportedRow') && css.includes('rgba(8,36,34,.92)'), 'PrimeLot-imported rows should have a visibly different data-box shade.');
 assert(css.includes('.primeLotImportedBadge') && css.includes('var(--neon-green)'), 'PrimeLot-imported badge should use branded styling.');
-assert(css.includes('justify-content: center') && css.includes('text-align: center') && css.includes('min-width: 168px'), 'PrimeLot-imported badge text should be centered in the pill.');
+assert(page.includes('className="cardSourceLine"') && css.includes('.cardSourceLine'), 'PrimeLot badge should live on its own source line to reduce title clutter.');
+assert(css.includes('.primeLotImportedRow:not(.listedCardRow):not(.soldCardRow)') && css.includes('minmax(240px, 1fr)') && css.includes('minmax(140px, 178px)'), 'PrimeLot imported not-listed rows should use a tighter, centered grid.');
+assert(css.includes('text-align: center') && css.includes('.inlineCostField input { width: 112px') && css.includes('text-align: center; font-size: 1rem'), 'Inline cost controls should be centered and compact.');
 
 console.log('PrimeLot imported inventory marker checks passed.');

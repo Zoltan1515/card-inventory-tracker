@@ -4009,7 +4009,6 @@ export default function Home() {
                 <div className="cardInfo">
                   <div className="rowTitle">
                     <strong>{card.name}</strong>
-                    {isPrimeLotImportedCard(card) && <span className="statusBadge primeLotImportedBadge">Imported from PrimeLot</span>}
                     {cardGradeLabel(card) && <span className="statusBadge listed">{cardGradeLabel(card)}</span>}
                     {activeGradingSubmissionForCard(card.id) && (
                       <button
@@ -4022,6 +4021,7 @@ export default function Home() {
                       </button>
                     )}
                   </div>
+                  {isPrimeLotImportedCard(card) && <div className="cardSourceLine"><span className="statusBadge primeLotImportedBadge">Imported from PrimeLot</span></div>}
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
