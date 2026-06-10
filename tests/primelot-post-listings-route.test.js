@@ -47,4 +47,13 @@ assert(
   'Seller membership detection should treat Seller-style plans with active/trialing status as publishable.'
 );
 
+assert(
+  route.includes('purchase_price: Number(card.purchasePrice || 0)')
+    && route.includes('purchase_cost: Number(card.purchasePrice || 0)')
+    && route.includes('original_purchase_price: Number(card.purchasePrice || 0)')
+    && route.includes('original_price: Number(card.purchasePrice || 0)')
+    && route.includes('cost_basis: Number(card.purchasePrice || 0)'),
+  'PrimeLot API should preserve WCT purchase cost across every cost column PrimeLot may expose, including original_price.'
+);
+
 console.log('PrimeLot post-listings shipping route checks passed.');

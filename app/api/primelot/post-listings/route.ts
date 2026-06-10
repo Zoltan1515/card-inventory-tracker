@@ -310,6 +310,7 @@ export async function POST(request: NextRequest) {
       purchase_price: Number(card.purchasePrice || 0),
       purchase_cost: Number(card.purchasePrice || 0),
       original_purchase_price: Number(card.purchasePrice || 0),
+      original_price: Number(card.purchasePrice || 0),
       cost_basis: Number(card.purchasePrice || 0),
     };
     return { card, listingType, row, formData: primeLotImportFormDataForCard(card, row) };

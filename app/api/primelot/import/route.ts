@@ -208,6 +208,24 @@ async function findDuplicateByPrimeLotListingLink(supabase: ReturnType<typeof cr
     .maybeSingle();
 }
 
+async function findUniqueWctOriginByExactNameAndAskPrice(supabase: ReturnType<typeof createServerSupabaseClient>, row: WctCardInsert) {
+  const name = String(row.name || "").trim();
+  const askingPrice = Number(row.asking_price || 0);
+  if (!name || askingPrice <= 0) return { data: null, error: null, ambiguous: false };
+  const { data, error } = await supabase
+    .from("cards")
+    .select("id,status,purchase_price,notes")
+    .eq("user_id", row.user_id)
+    .eq("name", name)
+    .eq("asking_price", askingPrice)
+    .gt("purchase_price", 0)
+    .limit(2);
+  if (error) return { data: null, error, ambiguous: false };
+  const matches = data || [];
+  if (matches.length === 1) return { data: matches[0] as DuplicateCardRow, error: null, ambiguous: false };
+  return { data: null, error: null, ambiguous: matches.length > 1 };
+}
+
 const numberValue = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -360,6 +378,22 @@ async function enrichListingsFromWctOrigin(
         `Recovered $${originPurchasePrice.toFixed(2)} from the original WCT card already linked to this PrimeLot listing.`,
         originPurchasePrice,
       ));
+      continue;
+    }
+
+    const exactOrigin = await findUniqueWctOriginByExactNameAndAskPrice(supabase, listing.row);
+    if (exactOrigin.error) throw exactOrigin.error;
+    const exactOriginPurchasePrice = numberValue(exactOrigin.data?.purchase_price);
+    if (exactOrigin.data?.id && exactOriginPurchasePrice > 0) {
+      enriched.push(withRecoveryNote(
+        listing,
+        `Recovered $${exactOriginPurchasePrice.toFixed(2)} from the only WCT card with the same name and PrimeLot asking price.`,
+        exactOriginPurchasePrice,
+      ));
+      continue;
+    }
+    if (exactOrigin.ambiguous) {
+      enriched.push(withRecoveryNote(listing, "Skipped exact name/asking-price WCT recovery because more than one matching WCT card has a purchase cost."));
       continue;
     }
 
