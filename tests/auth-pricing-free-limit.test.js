@@ -5,20 +5,8 @@ const root = path.join(__dirname, '..');
 const page = fs.readFileSync(path.join(root, 'app', 'page.tsx'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'app', 'globals.css'), 'utf8');
 
-const pageSnippets = [
-  'const FREE_INVENTORY_ADD_LIMIT = 5;',
+const requiredPageSnippets = [
   'const PRICING_PATH = "/pricing";',
-  'accountFreeInventoryAddStorageKey',
-  'localAccountFreeInventoryAdds',
-  'saveLocalAccountFreeInventoryAdds',
-  'freeInventoryAddsRemaining',
-  'freeInventoryLimitReached',
-  'Create an account first to use your 5 free inventory adds.',
-  '5 free adds after signup',
-  'Account trial',
-  'account free inventory adds left',
-  'tab === "add" && session',
-  'disabled={photoUploading || freeInventoryLimitReached}',
   'supabase.auth.resetPasswordForEmail',
   'PASSWORD_RECOVERY',
   'supabase.auth.updateUser({ password: newPassword })',
@@ -26,28 +14,46 @@ const pageSnippets = [
   'accountActionLabel',
   '<a className="secondary signOutButton" href={accountActionPath}>{accountActionLabel}</a>',
   '{ id: "pricing", tab: "add", label: "Pricing"',
+  'tab === "add" && session',
 ];
 
-for (const snippet of pageSnippets) {
+for (const snippet of requiredPageSnippets) {
   if (!page.includes(snippet)) throw new Error(`Missing page snippet: ${snippet}`);
 }
 
-const forbiddenSignedOutTrialSnippets = [
+const forbiddenFreeInventoryFeatureSnippets = [
+  'FREE_INVENTORY_ADD_STORAGE_KEY',
+  'FREE_INVENTORY_ADD_LIMIT',
+  'accountFreeInventoryAddStorageKey',
+  'localAccountFreeInventoryAdds',
+  'saveLocalAccountFreeInventoryAdds',
+  'freeInventoryAdds',
+  'freeInventoryAddsRemaining',
+  'freeInventoryLimitReached',
+  'freeInventoryCounter',
+  'guestTrialBanner',
+  'guestTrialActions',
   'Try 5 free inventory adds',
-  'Add up to 5 inventory items without signing up',
-  '!session && (\n        <section className="guestTrialBanner"',
-  'You can add 5 inventory items before signing up',
+  '5 free adds',
+  '5 account free',
+  'account free inventory adds',
+  'free inventory adds',
+  'Account trial',
+  'Upgrade for unlimited adds',
+  'Unlock unlimited inventory',
+  'Upgrade for unlimited full access',
+  'Your account includes 5 free inventory adds',
+  'Create an account first to use your 5 free inventory adds.',
+  'disabled={photoUploading || freeInventoryLimitReached}',
 ];
 
-for (const snippet of forbiddenSignedOutTrialSnippets) {
-  if (page.includes(snippet)) throw new Error(`Free inventory adds must not be advertised or usable before account creation: ${snippet}`);
+for (const snippet of forbiddenFreeInventoryFeatureSnippets) {
+  if (page.includes(snippet) || css.includes(snippet)) throw new Error(`Free inventory adds feature/copy should be removed: ${snippet}`);
 }
 
 const cssSnippets = [
-  '.guestTrialBanner',
-  '.freeInventoryCounter',
-  '.freeInventoryCounter.isLocked',
   '.topHeaderActions',
+  '.authForm',
 ];
 
 for (const snippet of cssSnippets) {
@@ -68,4 +74,4 @@ for (const file of templateFiles) {
   if (file.endsWith('.html') && !content.includes('wicked-card-tracker-logo.png')) throw new Error(`${file} missing logo`);
 }
 
-console.log('Auth/pricing/free-limit/email template checks passed.');
+console.log('Auth/pricing/free-inventory-removal/email template checks passed.');
