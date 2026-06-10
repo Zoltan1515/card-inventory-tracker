@@ -755,7 +755,27 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
     border-radius: 16px;
   }
   .primeLotImportedRow:not(.listedCardRow):not(.soldCardRow) { grid-template-columns: 28px 58px minmax(0, 1fr); gap: 10px; }
-  .listedCardRow { grid-template-columns: 28px 58px minmax(0, 1fr); }
+  .listedCardRow {
+    grid-template-columns: 24px 76px minmax(0, 1fr);
+    gap: 10px 12px;
+    align-items: start;
+    padding: 14px;
+  }
+  .listedCardRow .selectCardBox { grid-column: 1; grid-row: 1; align-self: start; padding-top: 28px; }
+  .listedCardRow .photoThumbButton, .listedCardRow > .cardThumb { grid-column: 2; grid-row: 1; width: 76px; height: 102px; border-radius: 12px; }
+  .listedCardRow .cardInfo { grid-column: 3; grid-row: 1; align-self: start; }
+  .listedCardRow .rowTitle { gap: 6px; }
+  .listedCardRow .rowTitle strong { display: block; width: 100%; font-size: 1.02rem; line-height: 1.18; }
+  .listedCardRow .cardDetailsLine { font-size: .86rem; margin-top: 4px; }
+  .listedMetaChips { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 8px; max-width: none; }
+  .listedMetaChips span { width: fit-content; max-width: 100%; font-size: .72rem; padding: 5px 8px; white-space: normal; overflow-wrap: anywhere; }
+  .listedCardRow .listingLinkRow { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
+  .listedCardRow .listingLinkRow a { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border: 1px solid rgba(103,232,249,.28); border-radius: 12px; background: rgba(8,16,34,.64); text-decoration: none; font-weight: 900; }
+  .listedCardRow .rowMoney { grid-column: 1 / -1; width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border: 1px solid rgba(57,255,156,.18); border-radius: 14px; background: rgba(57,255,156,.06); padding: 10px 12px; margin-top: 2px; }
+  .listedCardRow .askingRowMoney span { font-size: 1.35rem; }
+  .listedCardRow .askingRowMoney small { text-align: right; font-size: .78rem; }
+  .listedCardRow .inventoryControls { grid-column: 1 / -1; }
+  .listedCardRow .listingEditButton { min-height: 48px; font-size: 1rem; border-radius: 14px; }
   .noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }
   .soldCardRow.noSelectCardRow { grid-template-columns: 58px minmax(0, 1fr); }
   .selectCardBox { align-self: center; }
@@ -787,6 +807,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .listedMetaChips { gap: 5px; margin-top: 6px; }
   .listedMetaChips span { font-size: .68rem; padding: 4px 6px; white-space: normal; }
   .listedCardRow .rowActions { min-width: 0; }
+  .listedCardRow .listedMetaChips { display: grid; grid-template-columns: 1fr; gap: 6px; margin-top: 8px; max-width: none; }
+  .listedCardRow .listedMetaChips span { width: fit-content; max-width: 100%; font-size: .72rem; padding: 5px 8px; white-space: normal; overflow-wrap: anywhere; }
+  .listedCardRow .rowMoney { grid-column: 1 / -1; width: 100%; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; border: 1px solid rgba(57,255,156,.18); border-radius: 14px; background: rgba(57,255,156,.06); padding: 10px 12px; margin-top: 2px; }
+  .listedCardRow .askingRowMoney span { font-size: 1.35rem; }
+  .listedCardRow .askingRowMoney small { text-align: right; font-size: .78rem; }
   .filterActions { justify-content: stretch; }
   .filterActions .secondary { width: 100%; }
   .attentionItem, .attentionCardItem { grid-template-columns: 1fr; }
