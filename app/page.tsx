@@ -399,6 +399,14 @@ const primeLotListingForCard = (card: CardRecord) => activeListingsForCard(card)
   const listingUrl = listing.url.toLowerCase();
   return platform.includes("primelot") || listingUrl.includes("primelot.cards") || listingUrl.includes("primelot");
 }) || null;
+const isPrimeLotImportedCard = (card: CardRecord) => {
+  const sourcePlatform = (card.sourcePlatform || "").trim().toLowerCase();
+  const sourceUrl = (card.sourceUrl || "").trim().toLowerCase();
+  return sourcePlatform === "primelot"
+    || sourceUrl.includes("primelot.cards")
+    || /^source:\s*primelot$/im.test(card.notes || "")
+    || /primelot listing id:/i.test(card.notes || "");
+};
 const otherListingsAfterSale = (card: CardRecord) => activeListingsForCard(card).filter((listing) => listing.platform.trim().toLowerCase() !== (card.salePlatform || "").trim().toLowerCase());
 
 const firstUrlInText = (value: string) => value.match(/https?:\/\/\S+/i)?.[0]?.replace(/[),.;]+$/, "") || "";
@@ -3971,7 +3979,7 @@ export default function Home() {
 
           <div className="cardsList">
             {filteredCards.map((card) => (
-              <article className={`cardRow ${isSoldInventoryView ? "noSelectCardRow" : ""} ${card.status === "Sold" ? "soldCardRow" : ""} ${card.status === "Listed" ? "listedCardRow" : ""}`} key={card.id}>
+              <article className={`cardRow ${isPrimeLotImportedCard(card) ? "primeLotImportedRow" : ""} ${isSoldInventoryView ? "noSelectCardRow" : ""} ${card.status === "Sold" ? "soldCardRow" : ""} ${card.status === "Listed" ? "listedCardRow" : ""}`} key={card.id}>
                 {!isSoldInventoryView && (
                 <label className="selectCardBox" aria-label={`Select ${card.name} for grading`}>
                   <input type="checkbox" checked={selectedCardIds.includes(card.id)} disabled={card.status === "Sold" || activeGradingCardIds.has(card.id)} onChange={() => toggleSelectedCard(card.id)} />
@@ -3988,6 +3996,7 @@ export default function Home() {
                 <div className="cardInfo">
                   <div className="rowTitle">
                     <strong>{card.name}</strong>
+                    {isPrimeLotImportedCard(card) && <span className="statusBadge primeLotImportedBadge">Imported from PrimeLot</span>}
                     {cardGradeLabel(card) && <span className="statusBadge listed">{cardGradeLabel(card)}</span>}
                     {activeGradingSubmissionForCard(card.id) && (
                       <button

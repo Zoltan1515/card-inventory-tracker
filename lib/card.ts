@@ -34,6 +34,10 @@ export type CardRecord = {
   createdBy: string;
   updatedAt: string;
   updatedBy: string;
+  sourcePlatform?: string;
+  sourceId?: string;
+  sourceUrl?: string;
+  sourceListingType?: string;
 };
 
 export type CardRefund = {
@@ -128,6 +132,10 @@ export const emptyCard = (): CardRecord => {
     createdBy: "",
     updatedAt: now,
     updatedBy: "",
+    sourcePlatform: "",
+    sourceId: "",
+    sourceUrl: "",
+    sourceListingType: "",
   };
 };
 

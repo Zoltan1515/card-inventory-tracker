@@ -35,6 +35,10 @@ type CardRow = {
   created_by?: string | null;
   updated_at: string | null;
   updated_by?: string | null;
+  source_platform?: string | null;
+  source_id?: string | null;
+  source_url?: string | null;
+  source_listing_type?: string | null;
 };
 
 type ExpenseRow = {
@@ -182,6 +186,10 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   createdBy: text(row.created_by),
   updatedAt: row.updated_at ?? new Date().toISOString(),
   updatedBy: text(row.updated_by),
+  sourcePlatform: text(row.source_platform),
+  sourceId: text(row.source_id),
+  sourceUrl: text(row.source_url),
+  sourceListingType: text(row.source_listing_type),
 });
 
 export const cardToInsert = (card: CardRecord, userId: string, workspaceId?: string | null, includeListingPricing = true, includeAudit = true, includeQuantity = true, includeMarketplaceDetails = true, includeBackPhoto = true) => ({
