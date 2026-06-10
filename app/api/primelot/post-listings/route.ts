@@ -55,7 +55,7 @@ type SellerMembershipProbe = {
 
 const jsonError = (message: string, status = 400, code?: string) => NextResponse.json({ error: message, code }, { status });
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
-const sourceTrackingColumnError = (message = "") => /source_id|source_platform/i.test(message) && /schema cache|column|Could not find/i.test(message);
+const sourceTrackingColumnError = (message = "") => /source_id|source_platform|source_listing_id/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const shippingColumnError = (message = "") => /shipping_cost/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const purchaseCostColumnError = (message = "") => /purchase_price|purchase_cost|original_purchase_price|cost_basis/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const photoColumnError = (message = "") => /image_url_front|image_url_back/i.test(message) && /schema cache|column|Could not find/i.test(message);
@@ -278,7 +278,15 @@ export async function POST(request: NextRequest) {
     const formData = new FormData();
     formData.append("listingType", listingType);
     formData.append("cardType", cardTypeForCategory(card.category));
-    formData.append("file", new Blob([JSON.stringify({ listings: [row] })], { type: "application/json" }), `wicked-card-tracker-${card.id}.json`);
+    formData.append("sourcePlatform", "wickedcardtracker");
+    formData.append("wctCardId", card.id);
+    formData.append("purchasePrice", String(Number(card.purchasePrice || 0)));
+    formData.append("file", new Blob([JSON.stringify({
+      sourcePlatform: "wickedcardtracker",
+      wctCardId: card.id,
+      purchasePrice: Number(card.purchasePrice || 0),
+      listings: [row],
+    })], { type: "application/json" }), `wicked-card-tracker-${card.id}.json`);
     return formData;
   };
 
@@ -312,6 +320,9 @@ export async function POST(request: NextRequest) {
       original_purchase_price: Number(card.purchasePrice || 0),
       original_price: Number(card.purchasePrice || 0),
       cost_basis: Number(card.purchasePrice || 0),
+      source_platform: "wickedcardtracker",
+      source_id: card.id,
+      source_listing_id: card.id,
     };
     return { card, listingType, row, formData: primeLotImportFormDataForCard(card, row) };
   }).filter((item): item is PrimeLotImportRow => Boolean(item));
@@ -383,7 +394,7 @@ export async function POST(request: NextRequest) {
     if (insertResult.error && sourceTrackingColumnError(insertResult.error.message)) {
       insertedUsingSourceTracking = false;
       group = group.map((item) => {
-        const { source_id: _sourceId, source_platform: _sourcePlatform, ...row } = item.row;
+        const { source_id: _sourceId, source_platform: _sourcePlatform, source_listing_id: _sourceListingId, ...row } = item.row;
         return { ...item, row };
       });
       insertResult = await primeLotSupabase

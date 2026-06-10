@@ -56,4 +56,21 @@ assert(
   'PrimeLot API should preserve WCT purchase cost across every cost column PrimeLot may expose, including original_price.'
 );
 
+assert(
+  route.includes('formData.append("sourcePlatform", "wickedcardtracker");')
+    && route.includes('formData.append("wctCardId", card.id);')
+    && route.includes('formData.append("purchasePrice", String(Number(card.purchasePrice || 0)));')
+    && route.includes('sourcePlatform: "wickedcardtracker"')
+    && route.includes('wctCardId: card.id')
+    && route.includes('purchasePrice: Number(card.purchasePrice || 0)'),
+  'PrimeLot create payload should include round-trip metadata as sourcePlatform, wctCardId, and purchasePrice.'
+);
+
+assert(
+  route.includes('source_platform: "wickedcardtracker"')
+    && route.includes('source_id: card.id')
+    && route.includes('source_listing_id: card.id'),
+  'Direct PrimeLot fallback rows should store WCT card id in both source_id and source_listing_id for round-trip recovery.'
+);
+
 console.log('PrimeLot post-listings shipping route checks passed.');
