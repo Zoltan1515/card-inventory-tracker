@@ -3536,53 +3536,13 @@ export default function Home() {
 
       {tab === "add" && (
         <section className="panel" id="add-inventory-panel">
-          <div className="panelHeader">
+          <div className="panelHeader addInventoryHeader">
             <div>
               <p className="eyebrow">Add Inventory</p>
               <h2>Add a card</h2>
             </div>
+            <p className="muted addInventoryIntro">This section uploads your card to your <strong>Not Listed</strong> Inventory. All information here should be your cost for this card and the information you want to store.</p>
           </div>
-          <section className="importPanel" aria-label="Import cards from CSV">
-            <div className="importHeader">
-              <div>
-                <p className="eyebrow">Bulk import</p>
-                <h3>Import cards from PrimeLot or PSA CSV</h3>
-                <p className="muted">Upload a PrimeLot or PSA CSV, preview the rows, select the cards you want, then import them into your account inventory.</p>
-              </div>
-              <label className="secondary importFileButton">Choose CSV
-                <input accept=".csv,text/csv" type="file" onChange={handleCardImportFile} />
-              </label>
-            </div>
-            {importPreviews.length > 0 && (
-              <div className="importPreview">
-                <div className="importSummary">
-                  <strong>{importReadyCount} selected of {importPreviews.length}</strong>
-                  <span className="muted">{importWarningCount ? `${importWarningCount} rows need review` : "All rows look ready"}{importFileName ? ` • ${importFileName}` : ""}</span>
-                </div>
-                <div className="rowActions importActions">
-                  <button className="secondary" type="button" onClick={selectAllImportPreviews}>Select all</button>
-                  <button className="secondary" type="button" onClick={selectCleanImportPreviews}>Select clean rows</button>
-                  <button className="secondary" type="button" onClick={clearImportPreviews}>Clear import</button>
-                  <button className="primary" type="button" onClick={importSelectedCards} disabled={!importReadyCount || importingCards}>{importingCards ? "Importing…" : `Import ${importReadyCount} cards`}</button>
-                </div>
-                <div className="importPreviewList">
-                  {importPreviews.map((preview) => (
-                    <article className={preview.warnings.length ? "importPreviewRow needsReview" : "importPreviewRow"} key={preview.id}>
-                      <label className="selectCardBox" aria-label={`Select row ${preview.sourceRow} for import`}>
-                        <input type="checkbox" checked={preview.selected} onChange={() => toggleImportPreview(preview.id)} />
-                      </label>
-                      <div>
-                        <div className="rowTitle"><strong>{preview.card.name}</strong><span className={`statusBadge ${preview.card.status.replace(" ", "").toLowerCase()}`}>{preview.card.status}</span></div>
-                        <p>{[preview.card.year, preview.card.setName, preview.card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
-                        <p className="muted">Cost {money(cardPurchaseCost(preview.card))}{cardQuantity(preview.card) > 1 ? ` (${cardQuantity(preview.card)} × ${money(preview.card.purchasePrice)})` : ""} • Bought {formatDateLabel(preview.card.purchaseDate)}</p>
-                        {preview.warnings.length > 0 && <p className="warning">Review: {preview.warnings.join(" • ")}</p>}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </div>
-            )}
-          </section>
           <form className="formGrid simpleForm" id="add-inventory-form" onSubmit={saveCard}>
             {!session && (
               <div className={`freeInventoryCounter full ${freeInventoryLimitReached ? "isLocked" : ""}`}>
@@ -3598,8 +3558,8 @@ export default function Home() {
             <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => setActiveCard({ ...activeCard, cardNumber: v })} />
             <Field label="Item quantity" type="number" value={String(activeCard.quantity)} onChange={(v) => setActiveCard({ ...activeCard, quantity: sanitizeQuantityInput(v) })} />
             <p className="muted full quantityPhotoNote">One front/back photo set applies to every copy in this row. If copies have different condition/photos, add or split them as separate rows.</p>
-            <Field label="Purchase price per item" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
-            <Field label="Purchase date" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
+            <Field label="Your cost per item" type="number" value={String(activeCard.purchasePrice)} onChange={(v) => setActiveCard({ ...activeCard, purchasePrice: Number(v || 0) })} />
+            <Field label="Date you purchased" type="date" value={activeCard.purchaseDate} onChange={(v) => setActiveCard({ ...activeCard, purchaseDate: v })} />
             <Field label="Grading company if already graded" value={activeCardGradingCompany} onChange={setActiveCardGradingCompany} placeholder="PSA, BGS, SGC, CGC..." />
             <Field label="Grade if already graded" value={activeCardGrade} onChange={(v) => { const parsed = gradeParts(v); setActiveCardGrade(parsed.grade); if (parsed.company && !activeCardGradingCompany) setActiveCardGradingCompany(parsed.company); }} placeholder="10, 9.5, 8..." />
             <Select label="Status" value={activeCard.status} options={statuses} onChange={(v) => setActiveCard(prepareCardForStatus(activeCard, v as CardStatus))} />
@@ -4349,8 +4309,8 @@ export default function Home() {
               <Field label="Card #" value={editingCard.cardNumber} onChange={(v) => setEditingCard({ ...editingCard, cardNumber: v })} />
               <Field label="Item quantity" type="number" value={String(editingCard.quantity)} onChange={(v) => setEditingCard({ ...editingCard, quantity: sanitizeQuantityInput(v) })} />
               <p className="muted full quantityPhotoNote">One front/back photo set applies to every copy in this row. Split the row if each copy needs its own photos.</p>
-              <Field label="Purchase price per item" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
-              <Field label="Purchase date" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
+              <Field label="Your cost per item" type="number" value={String(editingCard.purchasePrice)} onChange={(v) => setEditingCard({ ...editingCard, purchasePrice: Number(v || 0) })} />
+              <Field label="Date you purchased" type="date" value={editingCard.purchaseDate} onChange={(v) => setEditingCard({ ...editingCard, purchaseDate: v })} />
               <Field label="Grading company if already graded" value={editingCard.gradingCompany} onChange={(v) => setEditingCard({ ...editingCard, gradingCompany: v, notes: notesWithGrade(editingCard.notes, editingCard.grade, v) })} placeholder="PSA, BGS, SGC, CGC..." />
               <Field label="Grade if already graded" value={editingCard.grade} onChange={(v) => { const parsed = gradeParts(v); setEditingCard({ ...editingCard, grade: parsed.grade, gradingCompany: parsed.company || editingCard.gradingCompany, notes: notesWithGrade(editingCard.notes, parsed.grade, parsed.company || editingCard.gradingCompany) }); }} placeholder="10, 9.5, 8..." />
               <Select label="Status" value={editingCard.status} options={statuses} onChange={(v) => setEditingCard(prepareCardForStatus(editingCard, v as CardStatus))} />

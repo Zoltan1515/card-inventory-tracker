@@ -117,6 +117,9 @@ button.stat { color: var(--text); text-align: left; }
 .panelHeader > div { min-width: 0; }
 .addListingModal .panelHeader { align-items: flex-start; }
 .addListingModal .panelHeader .secondary { flex: 0 0 auto; }
+.addInventoryHeader { align-items: flex-start; }
+.addInventoryIntro { max-width: 620px; margin: 0; line-height: 1.45; }
+.addInventoryIntro strong { color: var(--text); }
 .formGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .simpleForm { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .expenseForm { grid-template-columns: 1.1fr 1fr 1fr 1.2fr 2fr auto; align-items: end; }
@@ -652,7 +655,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .pricingBenefit { grid-template-columns: 30px 1fr; padding: 10px; }
   .pricingBenefit span { width: 30px; height: 30px; }
   .pricingFeatureCard { min-height: auto; }
-  .hero, .panelHeader, .inventoryHeader { flex-direction: column; align-items: stretch; }
+  .hero, .panelHeader:not(.addInventoryHeader), .inventoryHeader { flex-direction: column; align-items: stretch; }
+  .addInventoryHeader { flex-direction: column; align-items: stretch; gap: 12px; }
+  .addInventoryIntro { max-width: none; }
   .mobileTopHeader { grid-template-columns: 44px 1fr auto; gap: 8px; }
   .mobileTopHeader .brandLogo img { width: 164px; max-width: 44vw; }
   .iconCircle { width: 44px; height: 44px; }
