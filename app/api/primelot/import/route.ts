@@ -50,6 +50,7 @@ const primeLotTablesByListingType: Record<string, string> = {
   sealed_product: "sealed_products",
   lot: "lots",
 };
+const allPrimeLotSourceTables = Object.values(primeLotTablesByListingType);
 
 const optionalInsertColumns = new Set([
   "workspace_id",
@@ -158,6 +159,28 @@ const primeLotListingUrlFromRow = (row: WctCardInsert) => {
   if (sourceUrl) return sourceUrl;
   const match = String(row.notes || "").match(/PrimeLot Listing URL:\s*(https?:\/\/\S+)/i);
   return match?.[1]?.trim() || "";
+};
+
+const primeLotListingIdCandidates = (listing: NormalizedPrimeLotListing) => {
+  const candidates = new Set<string>();
+  const add = (value: unknown) => {
+    const raw = textValue(value);
+    if (!raw) return;
+    candidates.add(raw);
+    try {
+      const url = new URL(raw);
+      const lastPathPart = url.pathname.split("/").filter(Boolean).pop();
+      if (lastPathPart) candidates.add(lastPathPart);
+    } catch {
+      const lastPathPart = raw.split(/[/?#]/).filter(Boolean).pop();
+      if (lastPathPart && lastPathPart !== raw) candidates.add(lastPathPart);
+    }
+  };
+  add(listing.primeLotListingId);
+  add(listing.sourceUrl);
+  add(listing.row.source_url);
+  add(primeLotListingUrlFromRow(listing.row));
+  return [...candidates];
 };
 
 const primeLotListingLinkFilters = (row: WctCardInsert) => {
@@ -343,30 +366,44 @@ async function enrichListingsFromPrimeLotSource(
       continue;
     }
 
-    const table = primeLotTablesByListingType[listing.listingType];
-    if (!table || !listing.primeLotListingId) {
+    const primaryTable = primeLotTablesByListingType[listing.listingType];
+    const idCandidates = primeLotListingIdCandidates(listing);
+    if (!primaryTable || !idCandidates.length) {
       enriched.push(withRecoveryNote(listing, `Skipped because listing type ${listing.listingType || "unknown"} or PrimeLot ID was missing.`));
       continue;
     }
 
-    const { data, error } = await primeLotSupabase
-      .from(table)
-      .select("*")
-      .eq("id", listing.primeLotListingId)
-      .maybeSingle();
+    let data: Record<string, unknown> | null = null;
+    let foundTable = primaryTable;
+    let lookupErrorMessage = "";
+    for (const table of [primaryTable, ...allPrimeLotSourceTables.filter((candidate) => candidate !== primaryTable)]) {
+      const result = await primeLotSupabase
+        .from(table)
+        .select("*")
+        .in("id", idCandidates)
+        .limit(1)
+        .maybeSingle();
 
-    if (error) {
-      enriched.push(withRecoveryNote(listing, `PrimeLot ${table} lookup failed: ${error.message}`));
-      continue;
+      if (result.error) {
+        lookupErrorMessage = `${table}: ${result.error.message}`;
+        continue;
+      }
+      if (result.data) {
+        data = result.data as Record<string, unknown>;
+        foundTable = table;
+        break;
+      }
     }
+
     if (!data) {
-      enriched.push(withRecoveryNote(listing, `PrimeLot ${table} source row was not found for ${listing.primeLotListingId}.`));
+      const details = lookupErrorMessage ? ` Last lookup error: ${lookupErrorMessage}.` : "";
+      enriched.push(withRecoveryNote(listing, `PrimeLot source row was not found in ${[primaryTable, ...allPrimeLotSourceTables.filter((candidate) => candidate !== primaryTable)].join(", ")} for ${idCandidates.join(", ")}.${details}`));
       continue;
     }
 
     const wctOrigin = await findWctOriginByPrimeLotSourceRow(supabase, listing, data);
     if (wctOrigin.error) {
-      enriched.push(withRecoveryNote(listing, `PrimeLot ${table} source row was found, but WCT source-card lookup failed: ${wctOrigin.error.message}`));
+      enriched.push(withRecoveryNote(listing, `PrimeLot ${foundTable} source row was found, but WCT source-card lookup failed: ${wctOrigin.error.message}`));
       continue;
     }
     const sourceCardPurchasePrice = numberValue(wctOrigin.data?.purchase_price);
@@ -382,11 +419,11 @@ async function enrichListingsFromPrimeLotSource(
     const recoveredPurchasePrice = primeLotPurchasePriceFromAny(data);
     if (recoveredPurchasePrice <= 0) {
       const availableCostKeys = Object.keys(data).filter((key) => /cost|purchase|paid|price/i.test(key)).sort().join(", ") || "none";
-      enriched.push(withRecoveryNote(listing, `PrimeLot ${table} row found, but no purchase cost was present. Cost-like fields: ${availableCostKeys}.`));
+      enriched.push(withRecoveryNote(listing, `PrimeLot ${foundTable} row found, but no purchase cost was present. Cost-like fields: ${availableCostKeys}.`));
       continue;
     }
 
-    enriched.push(withRecoveryNote(listing, `Recovered $${recoveredPurchasePrice.toFixed(2)} from PrimeLot ${table} source row.`, recoveredPurchasePrice));
+    enriched.push(withRecoveryNote(listing, `Recovered $${recoveredPurchasePrice.toFixed(2)} from PrimeLot ${foundTable} source row.`, recoveredPurchasePrice));
   }
   return enriched;
 }
