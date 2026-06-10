@@ -161,19 +161,20 @@ const primeLotListingUrlFromRow = (row: WctCardInsert) => {
   return match?.[1]?.trim() || "";
 };
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const primeLotListingIdCandidates = (listing: NormalizedPrimeLotListing) => {
   const candidates = new Set<string>();
   const add = (value: unknown) => {
     const raw = textValue(value);
     if (!raw) return;
-    candidates.add(raw);
+    if (uuidPattern.test(raw)) candidates.add(raw);
     try {
       const url = new URL(raw);
       const lastPathPart = url.pathname.split("/").filter(Boolean).pop();
-      if (lastPathPart) candidates.add(lastPathPart);
+      if (lastPathPart && uuidPattern.test(lastPathPart)) candidates.add(lastPathPart);
     } catch {
       const lastPathPart = raw.split(/[/?#]/).filter(Boolean).pop();
-      if (lastPathPart && lastPathPart !== raw) candidates.add(lastPathPart);
+      if (lastPathPart && uuidPattern.test(lastPathPart)) candidates.add(lastPathPart);
     }
   };
   add(listing.primeLotListingId);
