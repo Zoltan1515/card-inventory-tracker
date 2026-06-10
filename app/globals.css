@@ -96,8 +96,14 @@ h3 { margin-bottom: 14px; }
 .clearBadge { background: rgba(34,197,94,.12); color: var(--good); border: 1px solid rgba(34,197,94,.28); }
 .attentionItemList { display: grid; gap: 10px; }
 .attentionItem { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; border: 1px solid rgba(38,54,85,.78); border-radius: 14px; padding: 12px; background: rgba(11,18,34,.65); color: var(--text); text-align: left; }
+.attentionCardItem { grid-template-columns: 74px minmax(0, 1fr) auto; align-items: center; }
+.attentionCardThumb { width: 74px; height: 102px; border-radius: 12px; object-fit: cover; border: 1px solid rgba(103,232,249,.2); background: #0b1222; display: grid; place-items: center; color: var(--muted); font-size: .72rem; font-weight: 900; text-align: center; }
+.attentionItemBody { min-width: 0; }
+.attentionItemActions { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.attentionItemActions button { min-height: 40px; padding: 9px 12px; white-space: nowrap; }
+.attentionCardChips { margin-top: 8px; }
 .attentionItem p { color: var(--muted); margin: 5px 0 0; }
-.attentionItem span { color: var(--primary); font-weight: 800; text-align: right; }
+.attentionItem > span { color: var(--primary); font-weight: 800; text-align: right; }
 .profitGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .expenseBreakdown { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .stat { border-radius: 18px; padding: 16px; }
@@ -782,7 +788,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .listedCardRow .rowActions { min-width: 0; }
   .filterActions { justify-content: stretch; }
   .filterActions .secondary { width: 100%; }
-  .attentionItem { grid-template-columns: 1fr; }
+  .attentionItem, .attentionCardItem { grid-template-columns: 1fr; }
+  .attentionCardThumb { width: 100%; max-width: 140px; height: 180px; }
+  .attentionItemActions { justify-content: stretch; }
+  .attentionItemActions button { flex: 1 1 140px; }
   .listingReviewDetail { padding: 12px; border-radius: 18px; }
   .listingReviewDetailHeader { flex-direction: column; align-items: stretch; gap: 10px; }
   .listingReviewList { gap: 10px; }
@@ -797,7 +806,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .listingReviewRow .listingLinkRow { gap: 8px; margin-top: 10px; }
   .listingReviewRow .rowActions { grid-template-columns: 1fr; }
   .listingReviewRow .rowActions button { width: 100%; }
-  .attentionItem span { text-align: left; }
+  .attentionItem > span { text-align: left; }
   .filters, .customDateRange { flex-direction: column; display: flex; }
   .addExpenseHeader { flex-direction: column; }
   .addExpenseCard { padding: 14px; border-radius: 18px; }

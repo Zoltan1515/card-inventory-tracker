@@ -30,6 +30,7 @@ type AttentionItem = {
   title: string;
   detail: string;
   action?: string;
+  card?: CardRecord;
 };
 type AttentionGroup = {
   key: string;
@@ -1191,6 +1192,7 @@ export default function Home() {
         title: card.name || "Unnamed card",
         detail: `${card.status} • ${money(cardPurchaseCost(card))} purchase cost${cardQuantity(card) > 1 ? ` • Qty ${cardQuantity(card)}` : ""}`,
         action: "Edit card and add a front photo",
+        card,
       }));
 
     const unlistedCards = cards
@@ -1201,7 +1203,8 @@ export default function Home() {
         kind: "card" as const,
         title: card.name || "Unnamed card",
         detail: [card.category, card.purchaseDate ? `Bought ${card.purchaseDate}` : "No purchase date", money(cardPurchaseCost(card)), cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • "),
-        action: "Edit card or mark as listed",
+        action: "List Card",
+        card,
       }));
 
     return [
@@ -3722,7 +3725,7 @@ export default function Home() {
           ) : (
             <div className="attentionGroups">
               {attentionGroups.map((group) => (
-                <AttentionGroupSection group={group} key={group.key} onOpenItem={openAttentionItem} />
+                <AttentionGroupSection group={group} key={group.key} onOpenItem={openAttentionItem} onListCard={beginListingEdit} />
               ))}
             </div>
           )}
@@ -4785,7 +4788,7 @@ function Logo() {
   );
 }
 
-function AttentionGroupSection({ group, onOpenItem }: { group: AttentionGroup; onOpenItem: (item: AttentionItem) => void }) {
+function AttentionGroupSection({ group, onOpenItem, onListCard }: { group: AttentionGroup; onOpenItem: (item: AttentionItem) => void; onListCard: (card: CardRecord) => void }) {
   if (!group.count) {
     return (
       <section className="attentionGroup isClear" id={`attention-${group.key}`}>
@@ -4810,15 +4813,42 @@ function AttentionGroupSection({ group, onOpenItem }: { group: AttentionGroup; o
         <span className="attentionCount">{group.count}</span>
       </div>
       <div className="attentionItemList">
-        {group.items.map((item) => (
-          <button className="attentionItem" key={item.id} onClick={() => onOpenItem(item)} type="button">
-            <div>
-              <strong>{item.title}</strong>
-              <p>{item.detail}</p>
-            </div>
-            {item.action && <span>{item.action}</span>}
-          </button>
-        ))}
+        {group.items.map((item) => {
+          const card = item.card;
+          const photoUrl = card?.frontPhotoUrl || card?.backPhotoUrl || "";
+          const isUnlistedCard = group.key === "unlisted" && Boolean(card);
+          return (
+            <article className={card ? "attentionItem attentionCardItem" : "attentionItem"} key={item.id}>
+              {card && (
+                photoUrl ? (
+                  <img className="attentionCardThumb" src={photoUrl} alt={`${card.name || "Card"} photo`} />
+                ) : (
+                  <div className="attentionCardThumb placeholderThumb">No photo</div>
+                )
+              )}
+              <div className="attentionItemBody">
+                <strong>{item.title}</strong>
+                <p>{item.detail}</p>
+                {card && (
+                  <div className="cardDetailChips attentionCardChips" aria-label={`Card details for ${card.name || "card"}`}>
+                    {card.year && <span>{card.year}</span>}
+                    {card.setName && <span>{card.setName}</span>}
+                    {card.cardNumber && <span>#{card.cardNumber}</span>}
+                    {cardQuantity(card) > 1 && <span>Qty {cardQuantity(card)}</span>}
+                  </div>
+                )}
+              </div>
+              <div className="attentionItemActions">
+                {isUnlistedCard ? (
+                  <button className="primary" type="button" onClick={() => { if (card) onListCard(card); }}>List Card</button>
+                ) : (
+                  <button className="secondary" type="button" onClick={() => onOpenItem(item)}>{item.action || "Open"}</button>
+                )}
+                {isUnlistedCard && <button className="secondary" type="button" onClick={() => onOpenItem(item)}>Edit card</button>}
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
