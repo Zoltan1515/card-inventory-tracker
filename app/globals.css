@@ -29,6 +29,8 @@ a { color: #7dd3fc; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .6; }
+button, .buttonLink, .navButton, .primary, .secondary, .danger { min-width: 0; }
+.primary, .secondary, .danger, .navButton, .buttonLink, .filterToggleButton, .exportInventoryButton { white-space: nowrap; }
 .shell { width: min(1240px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 92px; }
 input[type="date"] { color-scheme: dark; }
 input[type="date"]::-webkit-calendar-picker-indicator { opacity: .65; filter: invert(1) hue-rotate(145deg) saturate(1.5); }
@@ -303,7 +305,8 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .askingRowMoney small { color: rgba(226,232,240,.82); font-size: .72rem; line-height: 1.25; }
 .rowMoney small, .muted { color: var(--muted); }
 .auditTrail { font-size: .78rem; line-height: 1.35; }
-.rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.rowActions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.rowActions button { flex: 0 0 auto; white-space: nowrap; }
 .soldCardRow .rowActions { display: grid; grid-template-columns: 1fr; gap: 8px; min-width: 0; justify-items: stretch; }
 .soldCardRow .rowActions button { width: 100%; min-height: 42px; }
 .profitSections { display: grid; gap: 18px; }
@@ -314,7 +317,11 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .businessExports h3 { margin-bottom: 8px; }
 .exportActions { display: flex; flex-wrap: wrap; gap: 10px; }
 .inventoryControls { display: grid; gap: 8px; min-width: 180px; }
-.bulkGradingBar { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.55); padding: 14px; display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
+.bulkGradingBar { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.55); padding: 14px; display: grid; grid-template-columns: minmax(220px, 1fr) auto; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
+.bulkGradingBar > div:first-child { min-width: 0; }
+.bulkGradingBar .rowActions { display: grid; grid-template-columns: repeat(4, max-content); justify-content: end; align-items: center; flex-wrap: nowrap; }
+.bulkGradingBar .rowActions button { min-height: 50px; }
+.bulkGradingBar .rowActions button:focus, .bulkGradingBar .rowActions button:active, .bulkGradingBar .rowActions button:focus-visible { transform: none; }
 .bulkGradingBar .eyebrow { margin-bottom: 4px; }
 .primeLotStatusCard { border: 1px solid rgba(56,189,248,.28); border-radius: 18px; background: linear-gradient(135deg, rgba(56,189,248,.1), rgba(15,23,42,.58)); padding: 14px; display: grid; gap: 12px; margin-bottom: 18px; }
 .primeLotStatusTopRow { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
@@ -610,7 +617,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .cardRow, .noSelectCardRow, .expenseRow, .gradingOrderSummary { grid-template-columns: 1fr; }
   .soldCardRow.noSelectCardRow { grid-template-columns: 1fr; }
   .soldSummary { grid-template-columns: 1fr; max-width: none; }
-  .bulkGradingBar { align-items: stretch; flex-direction: column; }
+  .bulkGradingBar { grid-template-columns: 1fr; align-items: stretch; }
+  .bulkGradingBar .rowActions { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; }
+  .bulkGradingBar .rowActions button { width: 100%; }
   .primeLotBenefitGrid, .segmentedButtons, .primeLotReviewFields, .primeLotReviewFields.compact, .primeLotReviewSummary { grid-template-columns: 1fr; }
   .pricingHero, .pricingGridSection { grid-template-columns: 1fr; }
   .pricingFeatureGrid { grid-template-columns: 1fr; }
@@ -694,6 +703,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .inventoryFilterPanel { grid-template-columns: 1fr; }
   .inventoryFilterToggleRow, .inventoryToolbarActions { align-items: stretch; flex-direction: column; }
   .filterToggleButton, .exportInventoryButton { width: 100%; }
+  .bulkGradingBar .rowActions { grid-template-columns: 1fr; }
   .filterStatus { text-align: center; }
   .soldSummary { grid-template-columns: 1fr; }
   .saleMathGrid { grid-template-columns: 1fr; }
