@@ -73,4 +73,10 @@ assert(
   'Direct PrimeLot fallback rows should store WCT card id in both source_id and source_listing_id for round-trip recovery.'
 );
 
+assert(
+  route.includes('cleanListingNotes(card.notes).trim() ? `Notes: ${cleanListingNotes(card.notes)}` : "",')
+    && route.includes('const cleanListingNotes = (notes = "") => notes.split("\\n").filter((line) => !line.startsWith(listingNotesPrefix)).join("\\n").trim();'),
+  'PrimeLot descriptions should strip internal WCT_LISTINGS_JSON metadata from listing notes.'
+);
+
 console.log('PrimeLot post-listings shipping route checks passed.');

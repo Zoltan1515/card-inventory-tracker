@@ -146,6 +146,8 @@ const gradeParts = (value?: string) => {
   return match ? { company: match[1].toUpperCase(), grade: match[2].trim() } : { company: "", grade: clean };
 };
 const noteValue = (notes: string | undefined, label: string) => (notes || "").split("\n").find((line) => line.toLowerCase().startsWith(`${label.toLowerCase()}:`))?.replace(new RegExp(`^${label}:\\s*`, "i"), "").trim() || "";
+const listingNotesPrefix = "WCT_LISTINGS_JSON:";
+const cleanListingNotes = (notes = "") => notes.split("\n").filter((line) => !line.startsWith(listingNotesPrefix)).join("\n").trim();
 const gradingDetailsForCard = (card: CardPayload) => {
   const parsed = gradeParts(card.grade || noteValue(card.notes, "Grade"));
   const company = (card.gradingCompany || noteValue(card.notes, "Grader") || parsed.company).trim();
@@ -165,7 +167,7 @@ const descriptionForCard = (card: CardPayload) => [
   card.purchaseDate ? `Purchase Date: ${card.purchaseDate}` : "",
   Number.isFinite(card.purchasePrice) ? `Purchase Price: ${card.purchasePrice}` : "",
   Number.isFinite(card.purchasePrice) ? `WCT Purchase Price: ${card.purchasePrice}` : "",
-  card.notes?.trim() ? `Notes: ${card.notes.trim()}` : "",
+  cleanListingNotes(card.notes).trim() ? `Notes: ${cleanListingNotes(card.notes)}` : "",
 ].filter(Boolean).join("\n");
 
 type PrimeLotImportRow = { card: CardPayload; listingType: PrimeLotListingType; row: Record<string, unknown>; formData: FormData | null };

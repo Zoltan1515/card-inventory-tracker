@@ -4458,7 +4458,7 @@ export default function Home() {
                   )}
                 </div>
               )}
-              <label className="full textareaLabel">Notes<textarea value={editingCard.notes} onChange={(e) => setEditingCard({ ...editingCard, notes: e.target.value })} /></label>
+              <label className="full textareaLabel">Notes<textarea value={cleanListingNotes(editingCard.notes)} onChange={(e) => setEditingCard({ ...editingCard, notes: notesWithListings(e.target.value, activeListingsForCard(editingCard)) })} /></label>
               <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Save changes"}</button>
             </div>
           </form>
