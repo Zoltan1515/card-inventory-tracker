@@ -180,8 +180,6 @@ const purchasePriceAliases = [
   "purchase_price",
   "originalPurchasePrice",
   "original_purchase_price",
-  "originalPrice",
-  "original_price",
   "pricePaid",
   "price_paid",
   "paidPrice",
@@ -223,8 +221,8 @@ const purchasePriceFromText = (value: unknown) => {
   const body = text(value);
   if (!body) return 0;
   const patterns = [
-    /(?:wct\s*purchase\s*price|purchase\s*price|purchase\s*cost|original\s*price|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price|unit\s*cost|cost\s*each|total\s*cost)\s*[:=\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
-    /\$?\s*([\d,]+(?:\.\d+)?)\s*(?:wct\s*purchase\s*price|purchase\s*price|purchase\s*cost|original\s*price|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price|unit\s*cost|cost\s*each|total\s*cost)/i,
+    /(?:wct\s*purchase\s*price|purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price|unit\s*cost|cost\s*each|total\s*cost)\s*[:=\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+    /\$?\s*([\d,]+(?:\.\d+)?)\s*(?:wct\s*purchase\s*price|purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price|unit\s*cost|cost\s*each|total\s*cost)/i,
   ];
   for (const pattern of patterns) {
     const match = body.match(pattern);

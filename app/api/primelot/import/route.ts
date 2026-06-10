@@ -153,6 +153,37 @@ async function findDuplicateByNotes(supabase: ReturnType<typeof createServerSupa
     .maybeSingle();
 }
 
+const primeLotListingUrlFromRow = (row: WctCardInsert) => {
+  const sourceUrl = typeof row.source_url === "string" ? row.source_url.trim() : "";
+  if (sourceUrl) return sourceUrl;
+  const match = String(row.notes || "").match(/PrimeLot Listing URL:\s*(https?:\/\/\S+)/i);
+  return match?.[1]?.trim() || "";
+};
+
+const primeLotListingLinkFilters = (row: WctCardInsert) => {
+  const sourceId = String(row.source_id || "").trim();
+  const sourceUrl = primeLotListingUrlFromRow(row);
+  return [
+    sourceId ? `listing_url.ilike.%${sourceId}%` : "",
+    sourceId ? `notes.ilike.%${sourceId}%` : "",
+    sourceUrl ? `listing_url.ilike.%${sourceUrl}%` : "",
+    sourceUrl ? `notes.ilike.%${sourceUrl}%` : "",
+  ].filter(Boolean).join(",");
+};
+
+async function findDuplicateByPrimeLotListingLink(supabase: ReturnType<typeof createServerSupabaseClient>, row: WctCardInsert) {
+  const filters = primeLotListingLinkFilters(row);
+  if (!filters) return { data: null, error: null };
+  return supabase
+    .from("cards")
+    .select("id,status,purchase_price,notes")
+    .eq("user_id", row.user_id)
+    .or(filters)
+    .order("purchase_price", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+}
+
 const numberValue = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -232,6 +263,34 @@ const withRecoveryNote = (listing: NormalizedPrimeLotListing, message: string, p
 PrimeLot Cost Recovery: ${message}`,
   },
 });
+
+async function enrichListingsFromWctOrigin(
+  supabase: ReturnType<typeof createServerSupabaseClient>,
+  listings: NormalizedPrimeLotListing[],
+) {
+  const enriched: NormalizedPrimeLotListing[] = [];
+  for (const listing of listings) {
+    if (numberValue(listing.row.purchase_price) > 0) {
+      enriched.push(listing);
+      continue;
+    }
+
+    const origin = await findDuplicateByPrimeLotListingLink(supabase, listing.row);
+    if (origin.error) throw origin.error;
+    const originPurchasePrice = numberValue(origin.data?.purchase_price);
+    if (origin.data?.id && originPurchasePrice > 0) {
+      enriched.push(withRecoveryNote(
+        listing,
+        `Recovered $${originPurchasePrice.toFixed(2)} from the original WCT card already linked to this PrimeLot listing.`,
+        originPurchasePrice,
+      ));
+      continue;
+    }
+
+    enriched.push(listing);
+  }
+  return enriched;
+}
 
 async function enrichListingsFromPrimeLotSource(listings: NormalizedPrimeLotListing[]) {
   const primeLotSupabaseUrl = process.env.PRIMELOT_SUPABASE_URL;
@@ -318,6 +377,22 @@ async function importListing(supabase: ReturnType<typeof createServerSupabaseCli
     }
   }
 
+  const linkedDuplicate = await findDuplicateByPrimeLotListingLink(supabase, listing.row);
+  if (linkedDuplicate.error) throw linkedDuplicate.error;
+  if (linkedDuplicate.data?.id) {
+    const refreshedCost = await refreshDuplicateMissingCost(supabase, linkedDuplicate.data as DuplicateCardRow, listing);
+    return {
+      primeLotListingId: listing.primeLotListingId,
+      wctCardId: linkedDuplicate.data.id,
+      status: "Not Listed",
+      action: "skipped_duplicate",
+      warnings: [
+        "Existing WCT card already has this PrimeLot listing link; skipped duplicate import.",
+        ...(refreshedCost ? [`Existing WCT card was already imported; filled missing purchase price with $${refreshedCost.toFixed(2)}.`] : []),
+      ],
+    };
+  }
+
   const inserted = await insertCard(supabase, listing);
   if (inserted.error) {
     throw new StructuredImportError(422, "WCT_CARD_INSERT_FAILED", "Wicked Card Tracker could not save this PrimeLot listing as a card.", {
@@ -370,7 +445,8 @@ export async function POST(request: NextRequest) {
     const resolved = await resolveConnection(supabase, payload);
     if (resolved.error) return resolved.error;
     const connection = resolved.connection!;
-    const listings = await enrichListingsFromPrimeLotSource(primeLotListingsToWctRows(payload, connection.user_id, connection.workspace_id));
+    const mappedListings = primeLotListingsToWctRows(payload, connection.user_id, connection.workspace_id);
+    const listings = await enrichListingsFromPrimeLotSource(await enrichListingsFromWctOrigin(supabase, mappedListings));
     const items: ImportItemResult[] = [];
 
     for (const listing of listings) {
