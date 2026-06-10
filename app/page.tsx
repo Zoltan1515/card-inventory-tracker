@@ -1281,6 +1281,11 @@ export default function Home() {
   const sellingPurchaseCost = sellingCard ? cardPurchaseCost(sellingCard) : 0;
   const sellingTotalCost = sellingPurchaseCost + saleExpenseTotal;
   const sellingNetAfterExpenses = sellingCollectedTotal - sellingTotalCost;
+  const activeInventoryDisplayPrice = (card: CardRecord) => card.status === "Listed" ? card.askingPrice : (Number(card.askingPrice || 0) > 0 ? card.askingPrice : card.purchasePrice);
+  const activeInventoryPriceLabel = (card: CardRecord) => {
+    if (card.status === "Listed" || Number(card.askingPrice || 0) > 0) return `asking${cardQuantity(card) > 1 ? ` each • Qty ${cardQuantity(card)}` : ""} • cost ${money(card.purchasePrice)}`;
+    return cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each";
+  };
   const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
     const now = new Date().toISOString();
     const expenseDate = card.purchaseDate || todayIso();
@@ -4056,8 +4061,8 @@ export default function Home() {
                 </div>
                 {card.status !== "Sold" && (
                   <div className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney"}>
-                    <span>{money(card.status === "Listed" ? card.askingPrice : card.purchasePrice)}</span>
-                    <small>{card.status === "Listed" ? `asking${cardQuantity(card) > 1 ? ` each • Qty ${cardQuantity(card)}` : ""} • cost ${money(card.purchasePrice)}` : cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each"}</small>
+                    <span>{money(activeInventoryDisplayPrice(card))}</span>
+                    <small>{activeInventoryPriceLabel(card)}</small>
                   </div>
                 )}
                 {!isSoldInventoryView && (
