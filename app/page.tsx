@@ -292,20 +292,23 @@ const clearLegacyLocalAccountCache = () => {
     // If localStorage is unavailable, keep the in-memory signed-out state empty.
   }
 };
-const localFreeInventoryAdds = () => {
+const accountFreeInventoryAddStorageKey = (userId: string) => `${FREE_INVENTORY_ADD_STORAGE_KEY}.${userId}`;
+const localFreeInventoryAdds = (storageKey = FREE_INVENTORY_ADD_STORAGE_KEY) => {
   try {
-    return Math.max(0, Math.floor(Number(window.localStorage.getItem(FREE_INVENTORY_ADD_STORAGE_KEY)) || 0));
+    return Math.max(0, Math.floor(Number(window.localStorage.getItem(storageKey)) || 0));
   } catch {
     return 0;
   }
 };
-const saveLocalFreeInventoryAdds = (count: number) => {
+const localAccountFreeInventoryAdds = (userId: string) => localFreeInventoryAdds(accountFreeInventoryAddStorageKey(userId));
+const saveLocalFreeInventoryAdds = (count: number, storageKey = FREE_INVENTORY_ADD_STORAGE_KEY) => {
   try {
-    window.localStorage.setItem(FREE_INVENTORY_ADD_STORAGE_KEY, String(Math.max(0, count)));
+    window.localStorage.setItem(storageKey, String(Math.max(0, count)));
   } catch {
     // Keep the free counter in memory if localStorage is unavailable.
   }
 };
+const saveLocalAccountFreeInventoryAdds = (userId: string, count: number) => saveLocalFreeInventoryAdds(count, accountFreeInventoryAddStorageKey(userId));
 const filterLabel = (mode: DateFilterMode, start: string, end: string) => {
   if (mode === "all") return "All time";
   if (mode === "month") return "This month";
@@ -809,8 +812,8 @@ export default function Home() {
   // Stripe subscription status is not connected yet. Keep this false until the Stripe customer/subscription record is wired to the logged-in account.
   const hasActiveSubscription = false;
   const freeInventoryAddsRemaining = Math.max(0, FREE_INVENTORY_ADD_LIMIT - freeInventoryAdds);
-  const freeInventoryLimitReached = !isSignedIn && freeInventoryAddsRemaining <= 0;
-  const subscriptionStatusLabel = hasActiveSubscription ? "Subscribed" : isSignedIn ? "Not subscribed" : `Not subscribed (${freeInventoryAddsRemaining} listing${freeInventoryAddsRemaining === 1 ? "" : "s"} left)`;
+  const freeInventoryLimitReached = isSignedIn && !hasActiveSubscription && freeInventoryAddsRemaining <= 0;
+  const subscriptionStatusLabel = hasActiveSubscription ? "Subscribed" : isSignedIn ? `Account trial (${freeInventoryAddsRemaining} inventory add${freeInventoryAddsRemaining === 1 ? "" : "s"} left)` : "Create an account to start";
   const accountActionPath = hasActiveSubscription ? BILLING_PATH : PRICING_PATH;
   const accountActionLabel = hasActiveSubscription ? "Billing" : "Pricing";
   const currentUsername = session?.user.email || "Guest trial";
@@ -912,7 +915,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    setFreeInventoryAdds(localFreeInventoryAdds());
+    setFreeInventoryAdds(0);
     if (!usingSupabase || !supabase) {
       setWorkspaceId(null);
       const storedCards = localCards();
@@ -930,9 +933,11 @@ export default function Home() {
       .then(({ data }) => {
         setSession(data.session);
         if (data.session?.user.id) {
+          setFreeInventoryAdds(localAccountFreeInventoryAdds(data.session.user.id));
           void loadSupabaseData(data.session.user.id);
           void loadPrimeLotConnection(data.session.access_token);
         } else {
+          setFreeInventoryAdds(0);
           clearLegacyLocalAccountCache();
           setCards(localGuestCards());
           setExpenses(localGuestExpenses());
@@ -952,10 +957,12 @@ export default function Home() {
       if (event === "PASSWORD_RECOVERY") setPasswordRecoveryMode(true);
       setSession(nextSession);
       if (nextSession?.user.id) {
+        setFreeInventoryAdds(localAccountFreeInventoryAdds(nextSession.user.id));
         setDataLoaded(false);
         void loadSupabaseData(nextSession.user.id);
         void loadPrimeLotConnection(nextSession.access_token);
       } else {
+        setFreeInventoryAdds(0);
         setWorkspaceId(null);
         setPrimeLotConnection({ connected: false, status: "none", sellerEmail: "", storeSlug: "", storeUrl: "", requestedIntent: "" });
         clearLegacyLocalAccountCache();
@@ -1433,9 +1440,9 @@ export default function Home() {
     {
       id: "add",
       tab: "add",
-      label: freeInventoryLimitReached ? "Sign up for unlimited full access" : "Add Inventory",
-      subtitle: session ? "Log a new card" : freeInventoryLimitReached ? "Unlock unlimited inventory" : `${freeInventoryAddsRemaining} free add${freeInventoryAddsRemaining === 1 ? "" : "s"} left`,
-      apply: freeInventoryLimitReached ? () => { window.location.href = PRICING_PATH; } : showAddInventoryForm,
+      label: !session ? "Create account" : freeInventoryLimitReached ? "Upgrade for unlimited adds" : "Add Inventory",
+      subtitle: !session ? "5 free adds after signup" : freeInventoryLimitReached ? "Unlock unlimited inventory" : `${freeInventoryAddsRemaining} account free add${freeInventoryAddsRemaining === 1 ? "" : "s"} left`,
+      apply: !session ? () => scrollToSection("account-login") : freeInventoryLimitReached ? () => { window.location.href = PRICING_PATH; } : showAddInventoryForm,
     },
     { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
     { id: "glance", tab: "glance", label: "Business Numbers", subtitle: money(totals.cash), apply: () => showDashboardTab("glance", "at-a-glance-panel") },
@@ -1695,9 +1702,13 @@ export default function Home() {
 
   const saveCard = async (event: FormEvent) => {
     event.preventDefault();
-    if (freeInventoryLimitReached) {
-      setError("You used your 5 free inventory adds. Sign up for unlimited full access to keep adding cards.");
+    if (!session?.user.id) {
+      setError("Create an account first to use your 5 free inventory adds.");
       window.setTimeout(() => document.getElementById("account-login")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+      return;
+    }
+    if (freeInventoryLimitReached) {
+      setError("You used your 5 account free inventory adds. Upgrade for unlimited full access to keep adding cards.");
       return;
     }
     if (!activeCard.name.trim()) return;
@@ -1788,10 +1799,10 @@ export default function Home() {
     const savedExpenseRows = await insertExpenseRecords(inventoryExpenseRows);
     if (savedExpenseRows === null) return;
 
-    if (!session) {
+    if (session?.user.id && !hasActiveSubscription) {
       const nextFreeAddCount = Math.min(FREE_INVENTORY_ADD_LIMIT, freeInventoryAdds + 1);
       setFreeInventoryAdds(nextFreeAddCount);
-      saveLocalFreeInventoryAdds(nextFreeAddCount);
+      saveLocalAccountFreeInventoryAdds(session.user.id, nextFreeAddCount);
     }
     setNotice((current) => current || `Inventory added${savedExpenseRows.length ? ` with ${money(savedExpenseRows.reduce((sum, expense) => sum + expense.amount, 0))} in expenses` : ""}.`);
     setShowAddInventoryCheck(false);
@@ -3194,20 +3205,6 @@ export default function Home() {
         </div>
       </header>
 
-      {!session && (
-        <section className="guestTrialBanner" aria-label="Free trial inventory counter">
-          <div>
-            <p className="eyebrow">Free trial</p>
-            <h2>{freeInventoryLimitReached ? "You used your 5 free inventory adds." : `Try 5 free inventory adds — ${freeInventoryAddsRemaining} left`}</h2>
-            <p className="muted">Add up to 5 inventory items without signing up. Create an account for unlimited full access, saved account storage, and the full business dashboard.</p>
-          </div>
-          <div className="guestTrialActions">
-            <a className="primary" href="#account-login">Sign up for unlimited full access</a>
-            <a className="secondary" href={PRICING_PATH}>View pricing</a>
-          </div>
-        </section>
-      )}
-
       {passwordRecoveryMode && (
         <section className="panel passwordResetPanel" aria-label="Set new password">
           <div className="panelHeader">
@@ -3340,7 +3337,7 @@ export default function Home() {
       {showAddInventoryCheck && <div className="addInventoryCheck" aria-live="polite" aria-label="Inventory added">✓</div>}
       {error && <p className="errorBox">{error}</p>}
       {loading && <p className="notice">Loading…</p>}
-      {!session && <AuthPanel defaultMode={freeInventoryLimitReached ? "signup" : "signin"} />}
+      {!session && <AuthPanel defaultMode="signin" />}
 
       {session && showInventoryUtilityPanels && (
         <section className="primeLotStatusCard" aria-label="PrimeLot connection status">
@@ -3600,7 +3597,7 @@ export default function Home() {
         </section>
       )}
 
-      {tab === "add" && (
+      {tab === "add" && session && (
         <section className="panel" id="add-inventory-panel">
           <div className="panelHeader addInventoryHeader">
             <div>
@@ -3651,10 +3648,10 @@ export default function Home() {
             )}
           </section>
           <form className="formGrid simpleForm" id="add-inventory-form" onSubmit={saveCard}>
-            {!session && (
+            {session && !hasActiveSubscription && (
               <div className={`freeInventoryCounter full ${freeInventoryLimitReached ? "isLocked" : ""}`}>
-                <strong>{freeInventoryLimitReached ? "Free inventory adds used" : `${freeInventoryAddsRemaining} of ${FREE_INVENTORY_ADD_LIMIT} free inventory adds left`}</strong>
-                <p>{freeInventoryLimitReached ? "Sign up for unlimited full access to keep adding cards." : "You can add 5 inventory items before signing up. Your trial entries stay saved locally on this device."}</p>
+                <strong>{freeInventoryLimitReached ? "Account free inventory adds used" : `${freeInventoryAddsRemaining} of ${FREE_INVENTORY_ADD_LIMIT} account free inventory adds left`}</strong>
+                <p>{freeInventoryLimitReached ? "Upgrade for unlimited full access to keep adding cards." : "Your account includes 5 free inventory adds. Upgrade when you are ready for unlimited full access."}</p>
                 <a className="secondary" href={PRICING_PATH}>{freeInventoryLimitReached ? "View pricing" : "See full access pricing"}</a>
               </div>
             )}
@@ -3731,7 +3728,7 @@ export default function Home() {
               <p className="muted">Extra costs total: <strong>{money(inventoryExpenseTotal)}</strong></p>
               <p className="muted cashImpactNote">When you save, Cash on Hand will go down by <strong>{money(cardPurchaseCost(activeCard) + inventoryExpenseTotal)}</strong>. This includes the card price plus any extra costs above. You do not need to add this purchase anywhere else.</p>
             </div>
-            <button className="primary full" type="submit" disabled={photoUploading || freeInventoryLimitReached}>{photoUploading ? "Uploading photo…" : freeInventoryLimitReached ? "Sign up for unlimited full access" : "Add to inventory"}</button>
+            <button className="primary full" type="submit" disabled={photoUploading || freeInventoryLimitReached}>{photoUploading ? "Uploading photo…" : freeInventoryLimitReached ? "Upgrade for unlimited full access" : "Add to inventory"}</button>
           </form>
         </section>
       )}

@@ -8,10 +8,16 @@ const css = fs.readFileSync(path.join(root, 'app', 'globals.css'), 'utf8');
 const pageSnippets = [
   'const FREE_INVENTORY_ADD_LIMIT = 5;',
   'const PRICING_PATH = "/pricing";',
-  'Try 5 free inventory adds',
+  'accountFreeInventoryAddStorageKey',
+  'localAccountFreeInventoryAdds',
+  'saveLocalAccountFreeInventoryAdds',
   'freeInventoryAddsRemaining',
   'freeInventoryLimitReached',
-  'Sign up for unlimited full access',
+  'Create an account first to use your 5 free inventory adds.',
+  '5 free adds after signup',
+  'Account trial',
+  'account free inventory adds left',
+  'tab === "add" && session',
   'disabled={photoUploading || freeInventoryLimitReached}',
   'supabase.auth.resetPasswordForEmail',
   'PASSWORD_RECOVERY',
@@ -24,6 +30,17 @@ const pageSnippets = [
 
 for (const snippet of pageSnippets) {
   if (!page.includes(snippet)) throw new Error(`Missing page snippet: ${snippet}`);
+}
+
+const forbiddenSignedOutTrialSnippets = [
+  'Try 5 free inventory adds',
+  'Add up to 5 inventory items without signing up',
+  '!session && (\n        <section className="guestTrialBanner"',
+  'You can add 5 inventory items before signing up',
+];
+
+for (const snippet of forbiddenSignedOutTrialSnippets) {
+  if (page.includes(snippet)) throw new Error(`Free inventory adds must not be advertised or usable before account creation: ${snippet}`);
 }
 
 const cssSnippets = [
