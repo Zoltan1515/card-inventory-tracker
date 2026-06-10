@@ -4292,7 +4292,7 @@ export default function Home() {
 
       {listingCard && (
         <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Add listing details">
-          <form className="modal panel" onSubmit={saveListing}>
+          <form className="modal panel addListingModal" onSubmit={saveListing}>
             <div className="panelHeader">
               <div>
                 <p className="eyebrow">Listing details</p>
