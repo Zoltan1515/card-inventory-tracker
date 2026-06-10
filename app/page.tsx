@@ -103,6 +103,7 @@ const BILLING_PATH = "/billing";
 const PRIMELOT_SELLER_MEMBERSHIP_URL = "https://primelot.cards/pricing";
 const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard/seller?tab=listings";
 const PRIMELOT_DRAFTS_URL = "https://primelot.cards/dashboard/seller?tab=listings&status=draft";
+const PRIMELOT_CONNECT_INTENT_PATTERN = /(primelot|prime-lot|wct-connect|connect-wicked)/i;
 const statuses: CardStatus[] = ["Not Listed", "Listed", "Sold"];
 const primeLotListingTypeOptions: Array<{ value: PrimeLotListingType; label: string }> = [
   { value: "single_card", label: "Single Card" },
@@ -135,6 +136,10 @@ const formatDateTimeLabel = (value: string) => {
   return date.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 };
 const actorLabel = (value: string, fallback = "Unknown user") => value || fallback;
+const hasPrimeLotConnectIntent = () => {
+  if (typeof window === "undefined") return false;
+  return PRIMELOT_CONNECT_INTENT_PATTERN.test(`${window.location.pathname} ${window.location.search} ${window.location.hash}`);
+};
 const PHOTO_MAX_SIDE = 1800;
 
 const canvasToBlob = (canvas: HTMLCanvasElement, type = "image/jpeg", quality = 0.9) =>
@@ -749,6 +754,7 @@ export default function Home() {
   const [primeLotEmail, setPrimeLotEmail] = useState("");
   const [primeLotStoreSlug, setPrimeLotStoreSlug] = useState("");
   const [savingPrimeLotConnection, setSavingPrimeLotConnection] = useState(false);
+  const [handledPrimeLotConnectIntent, setHandledPrimeLotConnectIntent] = useState(false);
   const [tab, setTab] = useState<Tab>("add");
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CardStatus | "All">("Not Listed");
@@ -944,6 +950,16 @@ export default function Home() {
 
     return () => listener.subscription.unsubscribe();
   }, [usingSupabase]);
+
+  useEffect(() => {
+    if (!session || !dataLoaded || handledPrimeLotConnectIntent || !hasPrimeLotConnectIntent()) return;
+    setHandledPrimeLotConnectIntent(true);
+    setTab("add");
+    setPrimeLotIntent("connect");
+    setPrimeLotEmail((current) => current || session.user.email || "");
+    setPrimeLotModalOpen(true);
+    window.setTimeout(() => document.querySelector(".primeLotStatusCard")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }, [dataLoaded, handledPrimeLotConnectIntent, session]);
 
   useEffect(() => {
     if (!loading && dataLoaded) {
@@ -4886,22 +4902,38 @@ function AuthPanel({ defaultMode = "signin" }: { defaultMode?: "signin" | "signu
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const authFormRef = useRef<HTMLFormElement>(null);
+
+  const formValue = (name: "email" | "password", fallback: string) => {
+    const field = authFormRef.current?.elements.namedItem(name);
+    const value = field instanceof HTMLInputElement ? field.value : fallback;
+    return name === "email" ? value.trim() : value;
+  };
 
   useEffect(() => {
     setMode(defaultMode);
   }, [defaultMode]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const requestedEmail = params.get("email") || params.get("wctEmail") || params.get("sellerEmail") || "";
+    if (requestedEmail) setEmail(requestedEmail.trim());
+  }, []);
+
   const resetPassword = async () => {
     if (!supabase) return;
+    const submittedEmail = formValue("email", email);
     setSubmitting(true);
     setError("");
     setMessage("");
-    if (!email.trim()) {
+    if (!submittedEmail) {
       setSubmitting(false);
       setError("Enter your email first, then click reset password.");
       return;
     }
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/` });
+    setEmail(submittedEmail);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(submittedEmail, { redirectTo: `${window.location.origin}/` });
     setSubmitting(false);
     if (resetError) {
       setError(resetError.message);
@@ -4913,12 +4945,21 @@ function AuthPanel({ defaultMode = "signin" }: { defaultMode?: "signin" | "signu
   const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!supabase) return;
+    const submittedEmail = formValue("email", email);
+    const submittedPassword = formValue("password", password);
+    setEmail(submittedEmail);
+    setPassword(submittedPassword);
     setSubmitting(true);
     setError("");
     setMessage("");
+    if (!submittedEmail || !submittedPassword) {
+      setSubmitting(false);
+      setError("Enter your email and password, then click sign in.");
+      return;
+    }
     const result = mode === "signup"
-      ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/` } })
-      : await supabase.auth.signInWithPassword({ email, password });
+      ? await supabase.auth.signUp({ email: submittedEmail, password: submittedPassword, options: { emailRedirectTo: `${window.location.origin}/` } })
+      : await supabase.auth.signInWithPassword({ email: submittedEmail, password: submittedPassword });
     setSubmitting(false);
     if (result.error) {
       setError(result.error.message);
@@ -4938,9 +4979,9 @@ function AuthPanel({ defaultMode = "signin" }: { defaultMode?: "signin" | "signu
           {mode === "signup" ? "I already have an account" : "Create new account"}
         </button>
       </div>
-      <form className="authForm" onSubmit={submit}>
-        <Field label="Email" type="email" value={email} onChange={setEmail} required />
-        <Field label="Password" type="password" value={password} onChange={setPassword} required />
+      <form ref={authFormRef} className="authForm" onSubmit={submit}>
+        <Field label="Email" name="email" autoComplete="email" type="email" value={email} onChange={setEmail} required />
+        <Field label="Password" name="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} type="password" value={password} onChange={setPassword} required />
         <button className="primary" disabled={submitting} type="submit">{submitting ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}</button>
         {mode === "signin" && <button className="secondary" disabled={submitting} type="button" onClick={resetPassword}>Reset password</button>}
         <a className="secondary" href={PRICING_PATH}>View pricing</a>
@@ -5069,10 +5110,10 @@ function ProfitStatusSection({
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder, required }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean }) {
+function Field({ label, value, onChange, type = "text", placeholder, required, name, autoComplete }: { label: string; value: string; onChange: (value: string) => void; type?: string; placeholder?: string; required?: boolean; name?: string; autoComplete?: string }) {
   if (type === "date") return <DateField label={label} value={value} onChange={onChange} required={required} />;
   if (type === "number") return <NumberField label={label} value={value} onChange={onChange} placeholder={placeholder} required={required} />;
-  return <label>{label}<input required={required} type={type} value={value} placeholder={placeholder} onFocus={(e) => e.currentTarget.select()} onChange={(e) => onChange(e.target.value)} /></label>;
+  return <label>{label}<input name={name} autoComplete={autoComplete} required={required} type={type} value={value} placeholder={placeholder} onFocus={(e) => e.currentTarget.select()} onChange={(e) => onChange(e.target.value)} /></label>;
 }
 
 function NumberField({ label, value, onChange, placeholder, required }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; required?: boolean }) {
