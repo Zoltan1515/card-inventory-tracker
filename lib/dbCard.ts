@@ -92,6 +92,15 @@ type GradingSubmissionCardRow = {
 const num = (value: number | string | null | undefined) => Number(value ?? 0) || 0;
 const text = (value: string | null | undefined) => value ?? "";
 const dateOrNull = (value: string) => value || null;
+const friendlyCardCategory = (value: string | null | undefined) => {
+  const category = text(value).trim();
+  const normalized = category.toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "one_piece" || normalized === "onepiece") return "One Piece";
+  if (normalized === "pokemon" || normalized === "pokémon") return "Pokemon";
+  if (normalized === "mtg" || normalized === "magic_the_gathering") return "MTG";
+  if (normalized === "sealed_product") return "Sealed Product";
+  return category;
+};
 const listingPricingFields = (card: CardRecord, includeMarketplaceDetails = true) => ({
   asking_price: card.askingPrice,
   lowest_acceptable_price: card.lowestAcceptablePrice,
@@ -133,7 +142,7 @@ export const rowToCard = (row: CardRow): CardRecord => ({
   id: row.id,
   workspaceId: row.workspace_id ?? undefined,
   name: row.name,
-  category: text(row.category),
+  category: friendlyCardCategory(row.category),
   year: text(row.year),
   setName: text(row.set_name),
   cardNumber: text(row.card_number),

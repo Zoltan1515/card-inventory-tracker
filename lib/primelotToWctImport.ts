@@ -97,6 +97,13 @@ const text = (value: unknown) => typeof value === "string" ? value.trim() : "";
 const numeric = (value: unknown) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
 const integer = (value: unknown, fallback = 1) => Math.max(1, Math.floor(Number(value) || fallback));
 const dateTextOrNull = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(text(value)) ? text(value) : null;
+const valueFromAliases = (listing: PrimeLotImportListing, aliases: string[]) => {
+  const source = listing as Record<string, unknown>;
+  for (const alias of aliases) {
+    if (source[alias] !== undefined && source[alias] !== null && source[alias] !== "") return source[alias];
+  }
+  return undefined;
+};
 
 export const normalizePrimeLotEmail = (value: unknown) => text(value).toLowerCase();
 export const normalizePrimeLotSellerUserId = (value: unknown) => text(value);
@@ -112,12 +119,36 @@ const validHttpUrl = (value: unknown) => {
   }
 };
 
+const friendlyCategory = (value: unknown) => {
+  const category = text(value);
+  const normalized = category.toLowerCase().replace(/[\s-]+/g, "_");
+  if (normalized === "one_piece" || normalized === "onepiece") return "One Piece";
+  if (normalized === "pokemon" || normalized === "pokémon") return "Pokemon";
+  if (normalized === "mtg" || normalized === "magic_the_gathering") return "MTG";
+  if (normalized === "sealed_product") return "Sealed Product";
+  return category;
+};
+
 const categoryForListing = (listing: PrimeLotImportListing, listingType: PrimeLotListingType) => {
-  const category = text(listing.category);
+  const category = friendlyCategory(listing.category);
   if (listingType === "sealed_product") return category || "Sealed Product";
   if (listingType === "lot") return category || "Lot";
-  return category || text(listing.cardType) || "Sports";
+  return category || friendlyCategory(listing.cardType) || "Sports";
 };
+
+const purchasePriceForListing = (listing: PrimeLotImportListing) => numeric(valueFromAliases(listing, [
+  "purchasePrice",
+  "purchase_price",
+  "pricePaid",
+  "price_paid",
+  "costBasis",
+  "cost_basis",
+  "buyPrice",
+  "buy_price",
+  "cardCost",
+  "card_cost",
+  "cost",
+]));
 
 const metadataLines = (listing: PrimeLotImportListing, listingType: PrimeLotListingType, importedAt: string) => {
   const sourceUrl = validHttpUrl(listing.listingUrl);
@@ -214,7 +245,7 @@ export function primeLotListingsToWctRows(
       front_photo_url: validHttpUrl(listing.images?.frontUrl),
       back_photo_url: validHttpUrl(listing.images?.backUrl),
       purchase_date: dateTextOrNull(listing.purchaseDate),
-      purchase_price: numeric(listing.purchasePrice),
+      purchase_price: purchasePriceForListing(listing),
       sale_date: null,
       sale_platform: "",
       sold_price: 0,
