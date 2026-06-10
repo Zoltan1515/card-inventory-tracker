@@ -22,8 +22,9 @@ assert(dbCard.includes('cashAdjustmentToInsert'), 'Cash adjustment DB insert map
 assert(dbCard.includes('cashAdjustmentToUpdate'), 'Cash adjustment DB update mapper should exist.');
 
 assert(page.includes('type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit" | "glance"'), 'At a Glance should be a dashboard tab.');
-assert(page.includes('label: "At a Glance"'), 'Quick Actions should include At a Glance.');
+assert(page.includes('label: "Business Numbers"'), 'Quick Actions should include Business Numbers.');
 assert(page.includes('id="at-a-glance-panel"'), 'At a Glance panel should render.');
+assert(page.includes('<p className="eyebrow">Business Numbers</p>'), 'At a Glance panel should be titled Business Numbers.');
 assert(page.includes('Cash on hand'), 'At a Glance should show cash on hand.');
 assert(page.includes('Total Inventory Value'), 'At a Glance should show total inventory value.');
 assert(page.includes('Total Sold'), 'At a Glance should show total sold.');

@@ -1396,7 +1396,7 @@ export default function Home() {
       apply: freeInventoryLimitReached ? () => { window.location.href = PRICING_PATH; } : showAddInventoryForm,
     },
     { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
-    { id: "glance", tab: "glance", label: "At a Glance", subtitle: money(totals.cash), apply: () => showDashboardTab("glance", "at-a-glance-panel") },
+    { id: "glance", tab: "glance", label: "Business Numbers", subtitle: money(totals.cash), apply: () => showDashboardTab("glance", "at-a-glance-panel") },
     { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
     { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal, apply: () => showDashboardTab("listingReview", "listing-review-panel") },
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
@@ -3501,7 +3501,7 @@ export default function Home() {
         <section className="panel atAGlancePanel printableReport" id="at-a-glance-panel">
           <div className="panelHeader inventoryHeader">
             <div>
-              <p className="eyebrow">At a Glance</p>
+              <p className="eyebrow">Business Numbers</p>
               <h2>Clean business snapshot</h2>
               <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Cash starts with your cash entries, then adds sold revenue and subtracts inventory purchases and expenses.</p>
             </div>
