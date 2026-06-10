@@ -27,8 +27,8 @@ assert(mapper.includes('listing_url: ""'), "Mapper keeps WCT listingUrl blank.")
 assert(mapper.includes('PrimeLot Listing Type'), "Mapper preserves PrimeLot listing type in notes.");
 assert(mapper.includes('single_card') && mapper.includes('sealed_product') && mapper.includes('lot'), "Mapper supports all PrimeLot listing types.");
 assert(mapper.includes('images.frontUrl') && mapper.includes('images.backUrl'), "Mapper accepts front/back image URLs.");
-assert(mapper.includes('friendlyCategory') && mapper.includes('One Piece'), "Mapper converts PrimeLot machine category names like one_piece into customer-friendly labels.");
-assert(mapper.includes('purchasePriceForListing') && mapper.includes('purchase_price') && mapper.includes('pricePaid') && mapper.includes('costBasis') && mapper.includes('cost'), "Mapper accepts PrimeLot purchase-price aliases instead of only purchasePrice.");
+assert(mapper.includes('friendlyCategory') && mapper.includes('titleCaseCategory') && mapper.includes('One Piece') && mapper.includes('Pokemon'), "Mapper converts PrimeLot machine category names like one_piece, pokemon, and sports into customer-friendly labels.");
+assert(mapper.includes('purchasePriceAliases') && mapper.includes('purchasePriceFromText') && mapper.includes('originalPurchasePrice') && mapper.includes('pricePaid') && mapper.includes('costBasis') && mapper.includes('acquisitionCost'), "Mapper accepts PrimeLot purchase-price aliases and parses WCT-exported purchase price text.");
 
 assert(serverSupabase.includes('SUPABASE_SERVICE_ROLE_KEY'), "Server Supabase client uses service role env var.");
 assert(migration.includes('source_platform') && migration.includes('source_id'), "Migration adds source tracking columns.");

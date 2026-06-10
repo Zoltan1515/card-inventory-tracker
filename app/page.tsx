@@ -409,14 +409,24 @@ const listingPlatformLabel = (card: Pick<CardRecord, "listedPlatform" | "listing
   if (!platform || platform === href) return href ? "Listed online" : "Listed";
   return platform.replace(href, "").trim().replace(/^[-•|]+|[-•|]+$/g, "").trim() || "Listed online";
 };
+const titleCaseCategoryLabel = (value: string) => value
+  .replace(/[_-]+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim()
+  .split(" ")
+  .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1).toLowerCase()}` : "")
+  .join(" ");
+
 const friendlyCardCategory = (value: string | undefined) => {
   const category = (value || "").trim();
   const normalized = category.toLowerCase().replace(/[\s-]+/g, "_");
+  if (!category) return "";
   if (normalized === "one_piece" || normalized === "onepiece") return "One Piece";
   if (normalized === "pokemon" || normalized === "pokémon") return "Pokemon";
   if (normalized === "mtg" || normalized === "magic_the_gathering") return "MTG";
+  if (normalized === "tcg") return "TCG";
   if (normalized === "sealed_product") return "Sealed Product";
-  return category;
+  return titleCaseCategoryLabel(category);
 };
 const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   ...emptyCard(),

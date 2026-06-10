@@ -94,15 +94,35 @@ export type NormalizedPrimeLotListing = {
 
 const allowedListingTypes = new Set(["single_card", "sealed_product", "lot"]);
 const text = (value: unknown) => typeof value === "string" ? value.trim() : "";
-const numeric = (value: unknown) => Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+const numberFromMoney = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, value);
+  if (typeof value === "string") {
+    const cleaned = value.replace(/,/g, "").match(/\$?\s*(\d+(?:\.\d+)?)/)?.[1];
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+  }
+  return Number.isFinite(Number(value)) ? Math.max(0, Number(value)) : 0;
+};
+const numeric = numberFromMoney;
 const integer = (value: unknown, fallback = 1) => Math.max(1, Math.floor(Number(value) || fallback));
 const dateTextOrNull = (value: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(text(value)) ? text(value) : null;
+const aliasKey = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, "");
 const valueFromAliases = (listing: PrimeLotImportListing, aliases: string[]) => {
-  const source = listing as Record<string, unknown>;
-  for (const alias of aliases) {
-    if (source[alias] !== undefined && source[alias] !== null && source[alias] !== "") return source[alias];
-  }
-  return undefined;
+  const normalizedAliases = new Set(aliases.map(aliasKey));
+  const seen = new Set<unknown>();
+  const scan = (source: unknown, depth = 0): unknown => {
+    if (!source || typeof source !== "object" || seen.has(source) || depth > 3) return undefined;
+    seen.add(source);
+    for (const [key, value] of Object.entries(source as Record<string, unknown>)) {
+      if (normalizedAliases.has(aliasKey(key)) && value !== undefined && value !== null && value !== "") return value;
+    }
+    for (const value of Object.values(source as Record<string, unknown>)) {
+      const found = scan(value, depth + 1);
+      if (found !== undefined && found !== null && found !== "") return found;
+    }
+    return undefined;
+  };
+  return scan(listing);
 };
 
 export const normalizePrimeLotEmail = (value: unknown) => text(value).toLowerCase();
@@ -119,14 +139,24 @@ const validHttpUrl = (value: unknown) => {
   }
 };
 
+const titleCaseCategory = (value: string) => value
+  .replace(/[_-]+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim()
+  .split(" ")
+  .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1).toLowerCase()}` : "")
+  .join(" ");
+
 const friendlyCategory = (value: unknown) => {
   const category = text(value);
   const normalized = category.toLowerCase().replace(/[\s-]+/g, "_");
+  if (!category) return "";
   if (normalized === "one_piece" || normalized === "onepiece") return "One Piece";
   if (normalized === "pokemon" || normalized === "pokémon") return "Pokemon";
   if (normalized === "mtg" || normalized === "magic_the_gathering") return "MTG";
+  if (normalized === "tcg") return "TCG";
   if (normalized === "sealed_product") return "Sealed Product";
-  return category;
+  return titleCaseCategory(category);
 };
 
 const categoryForListing = (listing: PrimeLotImportListing, listingType: PrimeLotListingType) => {
@@ -136,19 +166,51 @@ const categoryForListing = (listing: PrimeLotImportListing, listingType: PrimeLo
   return category || friendlyCategory(listing.cardType) || "Sports";
 };
 
-const purchasePriceForListing = (listing: PrimeLotImportListing) => numeric(valueFromAliases(listing, [
+const purchasePriceAliases = [
   "purchasePrice",
   "purchase_price",
+  "originalPurchasePrice",
+  "original_purchase_price",
   "pricePaid",
   "price_paid",
+  "paidPrice",
+  "paid_price",
+  "amountPaid",
+  "amount_paid",
   "costBasis",
   "cost_basis",
+  "inventoryCost",
+  "inventory_cost",
   "buyPrice",
   "buy_price",
   "cardCost",
   "card_cost",
+  "originalCost",
+  "original_cost",
+  "acquisitionCost",
+  "acquisition_cost",
   "cost",
-]));
+];
+
+const purchasePriceFromText = (value: unknown) => {
+  const body = text(value);
+  if (!body) return 0;
+  const patterns = [
+    /(?:purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price)\s*[:=\-]?\s*\$?\s*([\d,]+(?:\.\d+)?)/i,
+    /\$?\s*([\d,]+(?:\.\d+)?)\s*(?:purchase\s*price|purchase\s*cost|price\s*paid|paid\s*price|amount\s*paid|cost\s*basis|inventory\s*cost|card\s*cost|original\s*cost|acquisition\s*cost|buy\s*price)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = body.match(pattern);
+    if (match?.[1]) return numberFromMoney(match[1]);
+  }
+  return 0;
+};
+
+const purchasePriceForListing = (listing: PrimeLotImportListing) => {
+  const direct = numeric(valueFromAliases(listing, purchasePriceAliases));
+  if (direct > 0) return direct;
+  return purchasePriceFromText(listing.notes) || purchasePriceFromText(listing.description);
+};
 
 const metadataLines = (listing: PrimeLotImportListing, listingType: PrimeLotListingType, importedAt: string) => {
   const sourceUrl = validHttpUrl(listing.listingUrl);

@@ -92,14 +92,24 @@ type GradingSubmissionCardRow = {
 const num = (value: number | string | null | undefined) => Number(value ?? 0) || 0;
 const text = (value: string | null | undefined) => value ?? "";
 const dateOrNull = (value: string) => value || null;
+const titleCaseCategory = (value: string) => value
+  .replace(/[_-]+/g, " ")
+  .replace(/\s+/g, " ")
+  .trim()
+  .split(" ")
+  .map((word) => word ? `${word[0].toUpperCase()}${word.slice(1).toLowerCase()}` : "")
+  .join(" ");
+
 const friendlyCardCategory = (value: string | null | undefined) => {
   const category = text(value).trim();
   const normalized = category.toLowerCase().replace(/[\s-]+/g, "_");
+  if (!category) return "";
   if (normalized === "one_piece" || normalized === "onepiece") return "One Piece";
   if (normalized === "pokemon" || normalized === "pokémon") return "Pokemon";
   if (normalized === "mtg" || normalized === "magic_the_gathering") return "MTG";
+  if (normalized === "tcg") return "TCG";
   if (normalized === "sealed_product") return "Sealed Product";
-  return category;
+  return titleCaseCategory(category);
 };
 const listingPricingFields = (card: CardRecord, includeMarketplaceDetails = true) => ({
   asking_price: card.askingPrice,
