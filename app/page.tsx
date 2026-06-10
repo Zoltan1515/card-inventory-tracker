@@ -1265,6 +1265,8 @@ export default function Home() {
   const sellingQuantity = sellingCard ? cardQuantity(sellingCard) : 1;
   const sellingUnitPrice = sellingCard ? sellingCard.soldPrice / sellingQuantity : 0;
   const sellingShippingUnitPrice = sellingCard ? (sellingCard.shippingCharge || 0) / sellingQuantity : 0;
+  const sellingSaleLabel = sellingQuantity > 1 ? `Card sale (${money(sellingUnitPrice)} per card)` : "Card sale";
+  const sellingShippingLabel = sellingQuantity > 1 ? `Buyer shipping collected (${money(sellingShippingUnitPrice)} per card)` : "Buyer shipping collected";
   const sellingCollectedTotal = sellingCard ? cardNetSoldPrice(sellingCard) : 0;
   const sellingPurchaseCost = sellingCard ? cardPurchaseCost(sellingCard) : 0;
   const sellingTotalCost = sellingPurchaseCost + saleExpenseTotal;
@@ -4616,8 +4618,8 @@ export default function Home() {
                 else setError("");
                 setSellingCard({ ...sellingCard, quantity: nextQuantity, soldPrice: sellingUnitPrice * nextQuantity, shippingCharge: sellingShippingUnitPrice * nextQuantity });
               }} required />
-              <Field label="Sold price per item" type="number" value={String(sellingUnitPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) * sellingQuantity })} required />
-              <Field label="Buyer shipping per item" type="number" value={String(sellingShippingUnitPrice)} onChange={(v) => setSellingCard({ ...sellingCard, shippingCharge: Number(v || 0) * sellingQuantity })} />
+              <Field label={sellingSaleLabel} type="number" value={String(sellingCard.soldPrice)} onChange={(v) => setSellingCard({ ...sellingCard, soldPrice: Number(v || 0) })} required />
+              <Field label={sellingShippingLabel} type="number" value={String(sellingCard.shippingCharge || 0)} onChange={(v) => setSellingCard({ ...sellingCard, shippingCharge: Number(v || 0) })} />
               <Field label="Sale date" type="date" value={sellingCard.saleDate} onChange={(v) => setSellingCard({ ...sellingCard, saleDate: v })} required />
               <Field label="Sold where?" value={sellingCard.salePlatform} onChange={(v) => setSellingCard({ ...sellingCard, salePlatform: v })} placeholder="eBay, Whatnot, private sale..." required />
               <div className="saleExpenseBox full" aria-label="Sale expenses">
@@ -4639,9 +4641,9 @@ export default function Home() {
                 <div className="saleMathGrid" aria-label="Sale profit math">
                   <section className="saleMathCard moneyIn">
                     <p className="eyebrow">Customer paid</p>
-                    <div><span>Cards</span><strong>{money(sellingCard.soldPrice)}</strong></div>
+                    <div><span>{sellingSaleLabel}</span><strong>{money(sellingCard.soldPrice)}</strong></div>
                     <small>{sellingQuantity} × {money(sellingUnitPrice)} per card</small>
-                    <div><span>Shipping collected</span><strong>{money(sellingCard.shippingCharge || 0)}</strong></div>
+                    <div><span>{sellingShippingLabel}</span><strong>{money(sellingCard.shippingCharge || 0)}</strong></div>
                     <small>{sellingQuantity} × {money(sellingShippingUnitPrice)} per card</small>
                     <div className="saleMathTotal"><span>Total in</span><strong>{money(sellingCollectedTotal)}</strong></div>
                   </section>

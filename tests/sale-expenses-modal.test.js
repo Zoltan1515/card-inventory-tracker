@@ -23,6 +23,10 @@ assert(page.includes('vendor: card.salePlatform || "Sale"'), 'Sale expenses shou
 assert(page.includes('const savedSaleExpenses = await insertExpenseRecords(saleExpenseRowsForCard'), 'Saving a sale should insert sale expense rows.');
 assert(page.includes('setSaleExpenseDraft(emptySaleExpenseDraft())'), 'Sale expense inputs should reset after opening/canceling/saving.');
 assert(page.includes('Optional HST, marketplace/payment fees, and shipping label cost.'), 'Sale modal should explain sale expenses and shipping label cost.');
+assert(page.includes('const sellingSaleLabel = sellingQuantity > 1 ? `Card sale (${money(sellingUnitPrice)} per card)` : "Card sale"'), 'Sale modal should label multi-quantity card sale totals with the per-card amount.');
+assert(page.includes('const sellingShippingLabel = sellingQuantity > 1 ? `Buyer shipping collected (${money(sellingShippingUnitPrice)} per card)` : "Buyer shipping collected"'), 'Sale modal should label multi-quantity shipping totals with the per-card amount.');
+assert(page.includes('value={String(sellingCard.soldPrice)}'), 'Sale modal card sale field should show the total sale amount, not just the per-item amount.');
+assert(page.includes('value={String(sellingCard.shippingCharge || 0)}'), 'Sale modal shipping field should show total buyer shipping collected, not just the per-item amount.');
 assert(page.includes('sellingNetAfterExpenses') && page.includes('Total profit'), 'Sale modal should show net sale profit after HST/fees/shipping label.');
 assert(page.includes('type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleUnitPrice: number; shippingCharge: number; shippingUnitPrice: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string; listingRemovalReminder: MultiPlatformListing[] }'), 'Saved sale should have a typed celebration summary including listing removal reminders.');
 assert(page.includes('const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);'), 'Sale save should track the celebration modal state.');
