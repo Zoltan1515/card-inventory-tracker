@@ -180,6 +180,8 @@ const purchasePriceAliases = [
   "purchase_price",
   "originalPurchasePrice",
   "original_purchase_price",
+  "originalPrice",
+  "original_price",
   "pricePaid",
   "price_paid",
   "paidPrice",
