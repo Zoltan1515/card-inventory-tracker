@@ -34,7 +34,7 @@ assert(css.includes('.quickActionGrid .featuredNavButton') && css.includes('bord
 assert(css.includes('.quickActionGrid .featuredNavButton strong') && css.includes('var(--neon-green)'), 'Featured Add Inventory label should use a brighter branded color.');
 assert(css.includes('@media (min-width: 960px)') && css.includes('.quickActionsPanel { position: fixed; left: max(16px, calc((100vw - 1240px) / 2)); top: 112px;'), 'Desktop Quick Actions should move into a fixed left-side menu bar.');
 assert(css.includes('.quickActionGrid.navBar { grid-template-columns: 1fr; gap: 8px; }'), 'Desktop Quick Actions sidebar should stack actions vertically.');
-assert(page.includes('const [mobileQuickActionsOpen, setMobileQuickActionsOpen] = useState(true);'), 'Mobile Quick Actions drawer should track open/collapsed state.');
+assert(page.includes('const [mobileQuickActionsOpen, setMobileQuickActionsOpen] = useState(false);'), 'Mobile Quick Actions drawer should be closed by default on refresh.');
 assert(page.includes('aria-label={mobileQuickActionsOpen ? "Close quick actions menu" : "Open quick actions menu"}') && page.includes('aria-controls="quick-actions"'), 'Top menu button should open and close the mobile Quick Actions drawer.');
 assert(page.includes('setMobileQuickActionsOpen(false);') && page.includes('onClick={() => runDashboardAction(action)}'), 'Choosing a Quick Action should collapse the mobile drawer.');
 assert(page.includes('className="quickActionsScrim"') && page.includes('aria-label="Close quick actions menu"'), 'Mobile Quick Actions drawer should include a tap-outside close target.');

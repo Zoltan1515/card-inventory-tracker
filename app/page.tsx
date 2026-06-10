@@ -711,7 +711,7 @@ export default function Home() {
   const [cashOnboardingDismissed, setCashOnboardingDismissed] = useState(false);
   const [dashboardCashEntryOpen, setDashboardCashEntryOpen] = useState(false);
   const [dashboardCashEntryAutoOpened, setDashboardCashEntryAutoOpened] = useState(false);
-  const [mobileQuickActionsOpen, setMobileQuickActionsOpen] = useState(true);
+  const [mobileQuickActionsOpen, setMobileQuickActionsOpen] = useState(false);
   const [sellingCard, setSellingCard] = useState<CardRecord | null>(null);
   const [saleCelebration, setSaleCelebration] = useState<SaleCelebration | null>(null);
   const [refundingCard, setRefundingCard] = useState<CardRecord | null>(null);
