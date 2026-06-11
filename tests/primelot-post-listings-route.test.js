@@ -99,9 +99,12 @@ assert(
 );
 
 assert(
-  route.includes('cleanListingNotes(card.notes).trim() ? `Notes: ${cleanListingNotes(card.notes)}` : "",')
-    && route.includes('const cleanListingNotes = (notes = "") => notes.split("\\n").filter((line) => !line.startsWith(listingNotesPrefix)).join("\\n").trim();'),
-  'PrimeLot descriptions should strip internal WCT_LISTINGS_JSON metadata from listing notes.'
+  route.includes('if (line.startsWith(listingNotesPrefix)) return false;')
+    && route.includes('privatePrimeLotDescriptionNoteLabels.has(label)')
+    && route.includes('"wct purchase price"')
+    && route.includes('"buyer shipping charge"')
+    && route.includes('"status"'),
+  'PrimeLot descriptions should strip internal WCT_LISTINGS_JSON metadata and private/accounting labels from listing notes.'
 );
 
 console.log('PrimeLot post-listings shipping route checks passed.');

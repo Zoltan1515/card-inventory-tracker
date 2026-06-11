@@ -246,7 +246,29 @@ const gradeParts = (value?: string) => {
 };
 const noteValue = (notes: string | undefined, label: string) => (notes || "").split("\n").find((line) => line.toLowerCase().startsWith(`${label.toLowerCase()}:`))?.replace(new RegExp(`^${label}:\\s*`, "i"), "").trim() || "";
 const listingNotesPrefix = "WCT_LISTINGS_JSON:";
-const cleanListingNotes = (notes = "") => notes.split("\n").filter((line) => !line.startsWith(listingNotesPrefix)).join("\n").trim();
+const privatePrimeLotDescriptionNoteLabels = new Set([
+  "wickedcardtracker status",
+  "previous listed platform",
+  "listed platform",
+  "minimum sale price",
+  "lowest acceptable price",
+  "buyer shipping charge",
+  "purchase date",
+  "purchase price",
+  "wct purchase price",
+  "cost basis",
+  "asking price",
+  "status",
+]);
+const cleanListingNotes = (notes = "") => notes
+  .split("\n")
+  .filter((line) => {
+    if (line.startsWith(listingNotesPrefix)) return false;
+    const label = line.split(":", 1)[0]?.trim().toLowerCase();
+    return !privatePrimeLotDescriptionNoteLabels.has(label);
+  })
+  .join("\n")
+  .trim();
 const gradingDetailsForCard = (card: CardPayload) => {
   const parsed = gradeParts(card.grade || noteValue(card.notes, "Grade"));
   const company = (card.gradingCompany || noteValue(card.notes, "Grader") || parsed.company).trim();
@@ -257,15 +279,8 @@ const descriptionForCard = (card: CardPayload) => [
   card.setName ? `Set: ${card.setName}` : "",
   card.cardNumber ? `Card Number: ${card.cardNumber}` : "",
   card.category ? `Category: ${card.category}` : "",
-  card.status ? `WickedCardTracker Status: ${card.status}` : "",
-  card.listedPlatform ? `Previous Listed Platform: ${card.listedPlatform}` : "",
-  card.lowestAcceptablePrice ? `Minimum Sale Price: ${card.lowestAcceptablePrice}` : "",
-  Number(card.shippingCharge || 0) >= 0 ? `Buyer Shipping Charge: ${Number(card.shippingCharge || 0).toFixed(2)}` : "",
   gradingDetailsForCard(card).company ? `Grading Company: ${gradingDetailsForCard(card).company}` : "",
   gradingDetailsForCard(card).grade ? `Grade: ${gradingDetailsForCard(card).grade}` : "",
-  card.purchaseDate ? `Purchase Date: ${card.purchaseDate}` : "",
-  Number.isFinite(card.purchasePrice) ? `Purchase Price: ${card.purchasePrice}` : "",
-  Number.isFinite(card.purchasePrice) ? `WCT Purchase Price: ${card.purchasePrice}` : "",
   cleanListingNotes(card.notes).trim() ? `Notes: ${cleanListingNotes(card.notes)}` : "",
 ].filter(Boolean).join("\n");
 
