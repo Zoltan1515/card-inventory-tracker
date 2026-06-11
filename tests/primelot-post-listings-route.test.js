@@ -59,6 +59,20 @@ assert(
 );
 
 assert(
+  route.includes('hasActiveSellerMembershipFromPrimeLot')
+    && route.includes('/api/wickedcardtracker/seller-status')
+    && route.includes('process.env.PRIMELOT_TO_WCT_IMPORT_SECRET')
+    && route.includes('"X-WCT-Webhook-Secret": sharedSecret')
+    && route.includes('source: "wickedcardtracker"')
+    && route.includes('primeLotSellerUserId')
+    && route.includes('primeLotSellerEmail')
+    && route.includes('data.canSell === true')
+    && route.includes('const primeLotServerSellerStatus = await hasActiveSellerMembershipFromPrimeLot')
+    && route.includes('const primeLotSellerMembershipActive = primeLotServerSellerStatus ?? await hasActiveSellerMembership'),
+  'PrimeLot seller membership gate should call the server-to-server seller-status endpoint before falling back to local Supabase probes or showing the membership modal.'
+);
+
+assert(
   route.includes('purchase_price: Number(card.purchasePrice || 0)')
     && route.includes('purchase_cost: Number(card.purchasePrice || 0)')
     && route.includes('original_purchase_price: Number(card.purchasePrice || 0)')

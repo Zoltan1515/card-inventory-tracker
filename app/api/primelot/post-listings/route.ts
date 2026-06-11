@@ -53,6 +53,14 @@ type SellerMembershipProbe = {
   endKeys: string[];
 };
 
+type PrimeLotSellerStatusResponse = {
+  ok?: boolean;
+  canSell?: boolean;
+  tier?: string;
+  subscriptionStatus?: string;
+  error?: string;
+};
+
 const jsonError = (message: string, status = 400, code?: string) => NextResponse.json({ error: message, code }, { status });
 const missingConnectionTable = (message = "") => /relation .*primelot_connections.* does not exist|schema cache.*primelot_connections|Could not find the table/i.test(message);
 const sourceTrackingColumnError = (message = "") => /source_id|source_platform|source_listing_id/i.test(message) && /schema cache|column|Could not find/i.test(message);
@@ -132,6 +140,31 @@ const defaultMembershipProbes: SellerMembershipProbe[] = [
   { table: "memberships", userColumn: "user_id", select: "*", statusKeys: ["status", "membership_status"], planKeys: ["plan", "plan_id", "price_id", "membership_plan"], endKeys: ["current_period_end", "expires_at", "ends_at"] },
   { table: "profiles", userColumn: "id", select: "*", statusKeys: ["membership_status", "subscription_status"], planKeys: ["membership_plan", "plan", "plan_id", "price_id", "subscription_plan"], endKeys: [] },
 ];
+const hasActiveSellerMembershipFromPrimeLot = async (primeLotSiteUrl: string, primeLotSellerUserId: string, primeLotSellerEmail?: string | null) => {
+  const sharedSecret = process.env.PRIMELOT_TO_WCT_IMPORT_SECRET || "";
+  if (!sharedSecret) return null;
+  try {
+    const response = await fetch(`${primeLotSiteUrl}/api/wickedcardtracker/seller-status`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-WCT-Webhook-Secret": sharedSecret,
+      },
+      body: JSON.stringify({
+        source: "wickedcardtracker",
+        primeLotSellerUserId,
+        primeLotSellerEmail: primeLotSellerEmail || "",
+      }),
+    });
+    if (!response.ok) return null;
+    const data = await response.json() as PrimeLotSellerStatusResponse;
+    if (data?.ok === true) return data.canSell === true;
+  } catch {
+    return null;
+  }
+  return null;
+};
+
 const hasActiveSellerMembership = async (primeLotSupabase: any, primeLotSellerUserId: string) => {
   const probes = [membershipProbeFromEnv(), ...defaultMembershipProbes].filter((probe): probe is SellerMembershipProbe => Boolean(probe));
   for (const probe of probes) {
@@ -269,7 +302,12 @@ export async function POST(request: NextRequest) {
   const primeLotSupabase = createClient(primeLotSupabaseUrl, primeLotServiceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const primeLotSellerMembershipActive = await hasActiveSellerMembership(primeLotSupabase, primeLotSellerUserId);
+  const primeLotServerSellerStatus = await hasActiveSellerMembershipFromPrimeLot(
+    primeLotSiteUrl,
+    primeLotSellerUserId,
+    primeLotConnection?.primelot_seller_email || "",
+  );
+  const primeLotSellerMembershipActive = primeLotServerSellerStatus ?? await hasActiveSellerMembership(primeLotSupabase, primeLotSellerUserId);
   if (!primeLotSellerMembershipActive) {
     return jsonError("Start a PrimeLot Seller membership to import and publish your listings.", 403, "PRIMELOT_SELLER_MEMBERSHIP_REQUIRED");
   }
