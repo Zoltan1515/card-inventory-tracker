@@ -91,18 +91,23 @@ const cardTypeForCategory = (category?: string) => {
 };
 
 const cleanGrade = (value?: string) => (value || "").trim().replace(/^grade:\s*/i, "");
-const sellerMembershipActiveStatuses = new Set(["active", "trialing"]);
-const sellerMembershipPlanTokens = ["seller", "buyer_seller", ...(process.env.PRIMELOT_SELLER_PLAN_TOKENS || "").split(",").map((token) => token.trim().toLowerCase()).filter(Boolean)];
+const sellerMembershipActiveStatuses = new Set(["active", "trialing", "paid", "current"]);
+const sellerMembershipPlanTokens = ["seller", "buyer_seller", "professional", "pro", ...(process.env.PRIMELOT_SELLER_PLAN_TOKENS || "").split(",").map((token) => token.trim().toLowerCase()).filter(Boolean)];
+const sellerMembershipTruthySellerKeys = ["is_seller", "seller", "seller_enabled", "seller_active", "can_sell", "can_list", "seller_membership_active"];
 const sellerMembershipStatusIsActive = (value: unknown) => sellerMembershipActiveStatuses.has(String(value || "").toLowerCase());
+const sellerMembershipValueIsTruthy = (value: unknown) => value === true || ["true", "yes", "1", "enabled", "active"].includes(String(value || "").toLowerCase());
 const sellerMembershipPlanIsSeller = (value: unknown) => sellerMembershipPlanTokens.some((token) => String(value || "").toLowerCase().includes(token));
 const sellerMembershipDateIsCurrent = (value: unknown) => {
   if (!value) return true;
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) || date.getTime() >= Date.now();
 };
+const probeImpliesSellerPlan = (probe: SellerMembershipProbe) => /seller/i.test(probe.table) || probe.planKeys.some((key) => /seller/i.test(key));
+const rowHasSellerFlag = (row: Record<string, unknown>) => sellerMembershipTruthySellerKeys.some((key) => sellerMembershipValueIsTruthy(row[key]));
 const rowShowsActiveSellerMembership = (row: Record<string, unknown>, probe: SellerMembershipProbe) => {
-  const statusActive = probe.statusKeys.some((key) => sellerMembershipStatusIsActive(row[key]));
-  const planIsSeller = !probe.planKeys.length || probe.planKeys.some((key) => sellerMembershipPlanIsSeller(row[key]));
+  const sellerFlagActive = rowHasSellerFlag(row);
+  const statusActive = sellerFlagActive || probe.statusKeys.some((key) => sellerMembershipStatusIsActive(row[key]));
+  const planIsSeller = sellerFlagActive || probeImpliesSellerPlan(probe) || !probe.planKeys.length || probe.planKeys.some((key) => sellerMembershipPlanIsSeller(row[key]));
   const dateIsCurrent = probe.endKeys.every((key) => sellerMembershipDateIsCurrent(row[key]));
   return statusActive && planIsSeller && dateIsCurrent;
 };

@@ -48,6 +48,17 @@ assert(
 );
 
 assert(
+  route.includes('sellerMembershipTruthySellerKeys')
+    && route.includes('is_seller')
+    && route.includes('seller_membership_active')
+    && route.includes('probeImpliesSellerPlan')
+    && route.includes('/seller/i.test(probe.table)')
+    && route.includes('"professional"')
+    && route.includes('"pro"'),
+  'Seller membership detection should accept PrimeLot seller-only tables, seller boolean flags, and pro/professional seller plans.'
+);
+
+assert(
   route.includes('purchase_price: Number(card.purchasePrice || 0)')
     && route.includes('purchase_cost: Number(card.purchasePrice || 0)')
     && route.includes('original_purchase_price: Number(card.purchasePrice || 0)')
