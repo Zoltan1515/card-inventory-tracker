@@ -3031,10 +3031,14 @@ export default function Home() {
         },
         body: JSON.stringify({ cards: cardsToPost }),
       });
-      const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string; code?: string } = await response.json();
+      const result: { createdListings?: Array<{ cardTrackerId: string; primeLotListingId: string; url: string; status: string }>; error?: string; code?: string; canSell?: boolean } = await response.json();
+      const isPrimeLotMembershipRequiredFailure = result.code === "NO_SELLER_MEMBERSHIP"
+        || result.code === "PRIMELOT_SELLER_MEMBERSHIP_REQUIRED"
+        || result.canSell === false
+        || (response.status === 403 && /seller|membership/i.test(`${result.code || ""} ${result.error || ""}`));
       if (!response.ok) {
         if (result.code === "PRIMELOT_NOT_CONNECTED") openPrimeLotModal();
-        if (result.code === "PRIMELOT_SELLER_MEMBERSHIP_REQUIRED" || response.status === 403) {
+        if (isPrimeLotMembershipRequiredFailure) {
           setPrimeLotMembershipRequiredOpen(true);
           setError("");
           return;
@@ -3445,7 +3449,7 @@ export default function Home() {
               <p className="eyebrow">PrimeLot import complete</p>
               <h2 id="primelot-post-success-title">Your cards imported successfully.</h2>
               {primeLotSuccessHasDrafts ? (
-                <p className="muted">PrimeLot returned these imported listings as drafts. Open your PrimeLot drafts when you’re ready to review or publish them.</p>
+                <p className="muted">Your listings imported successfully. They were saved as drafts in PrimeLot so you can review them before publishing.</p>
               ) : (
                 <p className="muted">Your listings are now live on the PrimeLot marketplace.</p>
               )}
@@ -3469,10 +3473,7 @@ export default function Home() {
             </div>
             <div className="rowActions">
               {primeLotSuccessHasDrafts ? (
-                <>
-                  <a className="primary buttonLink" href={PRIMELOT_SELLER_MEMBERSHIP_URL} target="_blank" rel="noreferrer">Start Seller Membership</a>
-                  <a className="secondary buttonLink" href={PRIMELOT_DRAFTS_URL} target="_blank" rel="noreferrer">View Drafts</a>
-                </>
+                <a className="primary buttonLink" href={PRIMELOT_DRAFTS_URL} target="_blank" rel="noreferrer">View Drafts</a>
               ) : (
                 <a className="primary buttonLink" href={primeLotSuccessViewListingsUrl} target="_blank" rel="noreferrer">View Listings</a>
               )}
