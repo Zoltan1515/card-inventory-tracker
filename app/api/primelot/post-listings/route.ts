@@ -66,7 +66,8 @@ const missingConnectionTable = (message = "") => /relation .*primelot_connection
 const sourceTrackingColumnError = (message = "") => /source_id|source_platform|source_listing_id/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const shippingColumnError = (message = "") => /shipping_cost/i.test(message) && /schema cache|column|Could not find/i.test(message);
 const purchaseCostColumnError = (message = "") => /purchase_price|purchase_cost|original_purchase_price|cost_basis/i.test(message) && /schema cache|column|Could not find/i.test(message);
-const photoColumnError = (message = "") => /image_url_front|image_url_back/i.test(message) && /schema cache|column|Could not find/i.test(message);
+const photoColumnError = (message = "") => /image_url_front|image_url_back|image_url_1|image_url_2|bulk_images/i.test(message) && /schema cache|column|Could not find/i.test(message);
+const missingSchemaColumn = (message = "") => message.match(/Could not find the '([^']+)' column/i)?.[1] || "";
 
 const normalizePrimeLotImageUrl = (value?: string) => {
   const trimmed = value?.trim() || "";
@@ -85,6 +86,66 @@ const primeLotListingTargets: Record<PrimeLotListingType, { table: string; path:
   sealed_product: { table: "sealed_products", path: "sealed-products" },
   lot: { table: "lots", path: "lots" },
 };
+
+const primeLotSharedColumns = [
+  "user_id",
+  "card_type",
+  "description",
+  "year",
+  "status",
+  "commission_rate",
+  "transaction_id",
+  "wishlist_id",
+  "is_wishlist_offer",
+  "quantity_sold",
+  "shipping_cost",
+  "purchase_price",
+  "purchase_cost",
+  "original_purchase_price",
+  "original_price",
+  "cost_basis",
+  "source_platform",
+  "source_id",
+  "source_listing_id",
+] as const;
+const singleCardPrimeLotColumns = [
+  ...primeLotSharedColumns,
+  "card_name",
+  "player",
+  "is_graded",
+  "condition",
+  "grading_company",
+  "grade",
+  "price",
+  "image_url_front",
+  "image_url_back",
+  "quantity",
+] as const;
+const sealedProductPrimeLotColumns = [
+  ...primeLotSharedColumns,
+  "product_name",
+  "price",
+  "image_url_1",
+  "image_url_2",
+  "quantity",
+] as const;
+const lotPrimeLotColumns = [
+  ...primeLotSharedColumns,
+  "title",
+  "total_price",
+  "card_count",
+  "bulk_images",
+] as const;
+const primeLotColumnAllowlists: Record<PrimeLotListingType, readonly string[]> = {
+  single_card: singleCardPrimeLotColumns,
+  sealed_product: sealedProductPrimeLotColumns,
+  lot: lotPrimeLotColumns,
+};
+const allowedPrimeLotRowForListingType = (listingType: PrimeLotListingType, row: Record<string, unknown>) => {
+  const allowedColumns = new Set(primeLotColumnAllowlists[listingType]);
+  return Object.fromEntries(Object.entries(row).filter(([key]) => allowedColumns.has(key)));
+};
+
 const listingTypeForCard = (card: CardPayload): PrimeLotListingType | null => {
   const value = String(card.listingType || "");
   if (!allowedListingTypes.has(value as PrimeLotListingType)) return null;
@@ -207,6 +268,63 @@ const descriptionForCard = (card: CardPayload) => [
   Number.isFinite(card.purchasePrice) ? `WCT Purchase Price: ${card.purchasePrice}` : "",
   cleanListingNotes(card.notes).trim() ? `Notes: ${cleanListingNotes(card.notes)}` : "",
 ].filter(Boolean).join("\n");
+
+const sharedPrimeLotRow = (card: CardPayload, primeLotSellerUserId: string, primeLotPostStatus: string) => ({
+  user_id: primeLotSellerUserId,
+  card_type: cardTypeForCategory(card.category),
+  description: descriptionForCard(card) || null,
+  year: card.year?.trim() || null,
+  status: primeLotPostStatus,
+  commission_rate: 0,
+  transaction_id: null,
+  wishlist_id: null,
+  is_wishlist_offer: false,
+  quantity_sold: 0,
+  purchase_price: Number(card.purchasePrice || 0),
+  purchase_cost: Number(card.purchasePrice || 0),
+  original_purchase_price: Number(card.purchasePrice || 0),
+  original_price: Number(card.purchasePrice || 0),
+  cost_basis: Number(card.purchasePrice || 0),
+  source_platform: "wickedcardtracker",
+  source_id: card.id,
+  source_listing_id: card.id,
+});
+const singleCardPrimeLotRow = (card: CardPayload, primeLotSellerUserId: string, primeLotPostStatus: string) => {
+  const grading = gradingDetailsForCard(card);
+  return {
+    ...sharedPrimeLotRow(card, primeLotSellerUserId, primeLotPostStatus),
+    card_name: card.name.trim(),
+    player: null,
+    is_graded: Boolean(grading.company || grading.grade),
+    condition: "near_mint",
+    grading_company: grading.company || null,
+    grade: grading.grade || null,
+    price: Number(card.askingPrice || 0),
+    image_url_front: normalizePrimeLotImageUrl(card.frontPhotoUrl),
+    image_url_back: normalizePrimeLotImageUrl(card.backPhotoUrl),
+    quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
+  };
+};
+const sealedProductPrimeLotRow = (card: CardPayload, primeLotSellerUserId: string, primeLotPostStatus: string) => ({
+  ...sharedPrimeLotRow(card, primeLotSellerUserId, primeLotPostStatus),
+  product_name: card.name.trim(),
+  price: Number(card.askingPrice || 0),
+  image_url_1: normalizePrimeLotImageUrl(card.frontPhotoUrl),
+  image_url_2: normalizePrimeLotImageUrl(card.backPhotoUrl),
+  quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
+});
+const lotPrimeLotRow = (card: CardPayload, primeLotSellerUserId: string, primeLotPostStatus: string) => ({
+  ...sharedPrimeLotRow(card, primeLotSellerUserId, primeLotPostStatus),
+  title: card.name.trim(),
+  total_price: Number(card.askingPrice || 0),
+  card_count: Math.max(1, Math.floor(Number(card.quantity) || 1)),
+  bulk_images: [normalizePrimeLotImageUrl(card.frontPhotoUrl), normalizePrimeLotImageUrl(card.backPhotoUrl)].filter(Boolean),
+});
+const primeLotRowForCard = (card: CardPayload, listingType: PrimeLotListingType, primeLotSellerUserId: string, primeLotPostStatus: string) => {
+  if (listingType === "single_card") return singleCardPrimeLotRow(card, primeLotSellerUserId, primeLotPostStatus);
+  if (listingType === "sealed_product") return sealedProductPrimeLotRow(card, primeLotSellerUserId, primeLotPostStatus);
+  return lotPrimeLotRow(card, primeLotSellerUserId, primeLotPostStatus);
+};
 
 type PrimeLotImportRow = { card: CardPayload; listingType: PrimeLotListingType; row: Record<string, unknown>; formData: FormData | null };
 
@@ -336,55 +454,26 @@ export async function POST(request: NextRequest) {
   };
 
   const baseRows = cards.map((card): PrimeLotImportRow | null => {
-    const grading = gradingDetailsForCard(card);
     const listingType = listingTypeForCard(card);
     if (!listingType) return null;
-    const row = {
-      user_id: primeLotSellerUserId,
-      card_type: cardTypeForCategory(card.category),
-      card_name: card.name.trim(),
-      description: descriptionForCard(card) || null,
-      year: card.year?.trim() || null,
-      player: null,
-      is_graded: Boolean(grading.company || grading.grade),
-      condition: "near_mint",
-      grading_company: grading.company || null,
-      grade: grading.grade || null,
-      price: Number(card.askingPrice || 0),
-      image_url_front: normalizePrimeLotImageUrl(card.frontPhotoUrl),
-      image_url_back: normalizePrimeLotImageUrl(card.backPhotoUrl),
-      status: primeLotPostStatus,
-      commission_rate: 0,
-      transaction_id: null,
-      wishlist_id: null,
-      is_wishlist_offer: false,
-      quantity: Math.max(1, Math.floor(Number(card.quantity) || 1)),
-      quantity_sold: 0,
-      purchase_price: Number(card.purchasePrice || 0),
-      purchase_cost: Number(card.purchasePrice || 0),
-      original_purchase_price: Number(card.purchasePrice || 0),
-      original_price: Number(card.purchasePrice || 0),
-      cost_basis: Number(card.purchasePrice || 0),
-      source_platform: "wickedcardtracker",
-      source_id: card.id,
-      source_listing_id: card.id,
-    };
+    const row = allowedPrimeLotRowForListingType(listingType, primeLotRowForCard(card, listingType, primeLotSellerUserId, primeLotPostStatus));
     return { card, listingType, row, formData: primeLotImportFormDataForCard(card, row) };
   }).filter((item): item is PrimeLotImportRow => Boolean(item));
   const rowsWithShipping: PrimeLotImportRow[] = baseRows.map((item) => ({
     ...item,
-    row: {
+    row: allowedPrimeLotRowForListingType(item.listingType, {
       ...item.row,
       shipping_cost: Number(item.card.shippingCharge || 0),
-    },
+    }),
   }));
   const rowsWithSourceTracking: PrimeLotImportRow[] = rowsWithShipping.map((item) => ({
     ...item,
-    row: {
+    row: allowedPrimeLotRowForListingType(item.listingType, {
       ...item.row,
       source_platform: "wickedcardtracker",
       source_id: item.card.id,
-    },
+      source_listing_id: item.card.id,
+    }),
   }));
 
   const createdListings: CreatedListing[] = [];
@@ -400,9 +489,11 @@ export async function POST(request: NextRequest) {
       .select("id, source_id, status");
 
     if (insertResult.error && photoColumnError(insertResult.error.message)) {
-      if (hasRequestedPhotos) return jsonError("PrimeLot could not save the front/back photos because its image_url_front/image_url_back fields are missing. The listings were not posted without your photos.", 502, "PRIMELOT_PHOTOS_NOT_CONFIGURED");
+      if (hasRequestedPhotos) return jsonError("PrimeLot could not save the listing photos because its table-specific image field is missing. The listings were not posted without your photos.", 502, "PRIMELOT_PHOTOS_NOT_CONFIGURED");
+      const missingPhotoColumn = missingSchemaColumn(insertResult.error.message);
       group = group.map((item) => {
-        const { image_url_front: _frontPhoto, image_url_back: _backPhoto, ...row } = item.row;
+        const row = { ...item.row };
+        for (const key of missingPhotoColumn ? [missingPhotoColumn] : ["image_url_front", "image_url_back", "image_url_1", "image_url_2", "bulk_images"]) delete row[key];
         return { ...item, row };
       });
       insertResult = await primeLotSupabase
@@ -424,7 +515,7 @@ export async function POST(request: NextRequest) {
     }
 
     while (insertResult.error && purchaseCostColumnError(insertResult.error.message)) {
-      const missingColumn = insertResult.error.message.match(/Could not find the '([^']+)' column/i)?.[1] || "";
+      const missingColumn = missingSchemaColumn(insertResult.error.message);
       if (!missingColumn || !group.some((item) => missingColumn in item.row)) break;
       group = group.map((item) => {
         const { [missingColumn]: _missingPurchaseColumn, ...row } = item.row;
