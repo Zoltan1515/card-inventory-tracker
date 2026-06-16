@@ -35,6 +35,7 @@ assert(page.includes('showSaleCelebration(soldCard, savedSaleExpenses)'), 'Full 
 assert(page.includes('showSaleCelebration(insertedSold, savedSaleExpenses, availableQty - saleQty)'), 'Partial quantity sale save should open the celebration modal with remaining quantity.');
 assert(page.includes('aria-label="Sale congratulations"'), 'Sale celebration modal should be accessible as a dialog.');
 assert(page.includes('Congrats — you made a sale!'), 'Sale celebration modal should congratulate the user.');
+assert(page.includes('If you have this listed on other platforms, don’t forget to remove them!'), 'Sale celebration modal should remind users to remove cross-listed marketplace listings.');
 assert(page.includes('aria-label="Sale price expenses and total profit"'), 'Sale celebration modal should have an easy-to-read sale breakdown list.');
 assert(page.includes('Card sale (${money(saleCelebration.saleUnitPrice)} per card)'), 'Celebration should list card sale with per-card amount clearly.');
 assert(page.includes('<small>Expenses</small><strong>{money(saleCelebration.saleExpenseTotal)}</strong>'), 'Celebration should list sale expenses clearly.');
@@ -44,6 +45,7 @@ assert(page.includes('View expenses'), 'Sale celebration modal should link to ex
 assert(css.includes('.saleExpenseBox'), 'Sale expense fields should have dedicated modal styling.');
 assert(css.includes('.saleCelebrationModal'), 'Sale celebration modal should have dedicated themed styling.');
 assert(css.includes('.saleCelebrationList'), 'Sale celebration breakdown should use easy-to-read list styling.');
+assert(css.includes('.saleCrossListingNotice') && css.includes('color: #fff'), 'Cross-listing reminder should use dedicated white notice styling.');
 assert(css.includes('.saleCelebrationProfit'), 'Total profit should be visually emphasized in the celebration modal.');
 assert(css.includes('radial-gradient(circle at 50% 20%'), 'Sale celebration backdrop should have neon themed glow.');
 assert(css.includes('.saleCelebrationCard, .saleCelebrationActions { grid-template-columns: 1fr; }'), 'Sale celebration modal should collapse cleanly on mobile.');

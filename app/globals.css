@@ -391,6 +391,7 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .saleCelebrationCard { position: relative; z-index: 1; width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .saleCelebrationCard span { border: 1px solid rgba(103,232,249,.22); border-radius: 16px; background: rgba(4,9,20,.62); padding: 12px; display: grid; gap: 5px; color: var(--muted); font-size: .76rem; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
 .saleCelebrationCard strong { color: var(--text); font-size: 1.1rem; text-transform: none; letter-spacing: 0; }
+.saleCrossListingNotice { position: relative; z-index: 1; margin: -2px 0 2px; color: #fff; font-size: .98rem; font-weight: 800; line-height: 1.45; text-shadow: 0 0 18px rgba(255,255,255,.18); }
 .saleCelebrationList { grid-template-columns: 1fr; text-align: left; }
 .saleCelebrationList span { grid-template-columns: 1fr auto; align-items: center; }
 .saleCelebrationList small { color: var(--muted); font-size: .78rem; font-weight: 1000; text-transform: uppercase; letter-spacing: .08em; }

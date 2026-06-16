@@ -4636,6 +4636,7 @@ export default function Home() {
             <p className="eyebrow">Sale saved</p>
             <h2>Congrats — you made a sale!</h2>
             <p className="muted">{saleCelebration.cardName} is now marked Sold. Here’s the sale breakdown.</p>
+            <p className="saleCrossListingNotice">If you have this listed on other platforms, don’t forget to remove them!</p>
             <div className="saleCelebrationCard saleCelebrationList" aria-label="Sale price expenses and total profit">
               <span><small>{`Card sale (${money(saleCelebration.saleUnitPrice)} per card)`}</small><strong>{money(saleCelebration.saleTotal)}</strong></span>
               <span><small>{`Buyer shipping (${money(saleCelebration.shippingUnitPrice)} per card)`}</small><strong>{money(saleCelebration.shippingCharge)}</strong></span>
