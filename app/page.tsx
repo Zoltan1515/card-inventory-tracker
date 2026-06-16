@@ -117,6 +117,7 @@ const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const primeLotDraftStatuses = new Set(["draft", "pending", "inactive", "archived", "deleted", "removed"]);
 const isPrimeLotPublicListing = (status = "") => !primeLotDraftStatuses.has(status.toLowerCase());
+const primeLotListingStatusLabel = (status = "") => isPrimeLotPublicListing(status) ? "PrimeLot" : "PrimeLot Draft";
 const currentMonthStart = () => `${todayIso().slice(0, 7)}-01`;
 const currentYearStart = () => `${todayIso().slice(0, 4)}-01-01`;
 const dateInRange = (date: string, start: string, end: string) => {
@@ -3059,21 +3060,19 @@ export default function Home() {
         else draftListingCount += 1;
         const primeLotListing: MultiPlatformListing = {
           id: listing.primeLotListingId || crypto.randomUUID(),
-          platform: "PrimeLot",
+          platform: primeLotListingStatusLabel(listing.status),
           url: listing.url,
           askingPrice: Number(card.askingPrice || 0) || 0,
           lowestAcceptablePrice: Number(card.lowestAcceptablePrice || 0) || 0,
           shippingCharge: Number(card.shippingCharge || 0) || 0,
           listedDate: todayIso(),
         };
-        const nextListings = isPublicListing
-          ? [...activeListingsForCard(card).filter((item) => item.platform.toLowerCase() !== "primelot"), primeLotListing]
-          : activeListingsForCard(card);
+        const nextListings = [...activeListingsForCard(card).filter((item) => !item.platform.toLowerCase().includes("primelot")), primeLotListing];
         const updatedCard: CardRecord = {
           ...cardWithListings(card, nextListings),
-          status: isPublicListing ? "Listed" : card.status,
-          listedAt: isPublicListing ? new Date().toISOString() : card.listedAt,
-          listedBy: isPublicListing ? currentUsername : card.listedBy,
+          status: "Listed",
+          listedAt: new Date().toISOString(),
+          listedBy: currentUsername,
           updatedAt: new Date().toISOString(),
           updatedBy: currentUsername,
         };
@@ -3099,9 +3098,9 @@ export default function Home() {
       });
       clearSelectedCards();
       if (draftListingCount && !publicListingCount) {
-        setNotice(`Created ${updatedCount} PrimeLot draft${updatedCount === 1 ? "" : "s"}. Card Tracker will keep them Not Listed until they are published on PrimeLot.`);
+        setNotice(`Created ${updatedCount} PrimeLot draft${updatedCount === 1 ? "" : "s"} and moved ${updatedCount === 1 ? "it" : "them"} to Listed in WCT with a PrimeLot Draft link.`);
       } else if (draftListingCount) {
-        setNotice(`Posted ${publicListingCount} card${publicListingCount === 1 ? "" : "s"} on PrimeLot and created ${draftListingCount} draft${draftListingCount === 1 ? "" : "s"}. Drafts stay Not Listed in Card Tracker until published.`);
+        setNotice(`Posted ${publicListingCount} card${publicListingCount === 1 ? "" : "s"} on PrimeLot, created ${draftListingCount} draft${draftListingCount === 1 ? "" : "s"}, and moved the exported cards to Listed in WCT.`);
       } else {
         setNotice(`Posted ${updatedCount} card${updatedCount === 1 ? "" : "s"} on PrimeLot.`);
       }
