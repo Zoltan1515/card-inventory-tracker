@@ -1446,25 +1446,37 @@ export default function Home() {
   }, null);
   const topSoldPeriodLabel = topSoldMode === "month" && topSoldMonth ? formatDateLabel(`${topSoldMonth}-01`).replace(/ 1,/, "") : "All time";
   const roiTrendPoints = useMemo(() => {
-    const buckets = new Map<string, { cost: number; profit: number; soldCount: number }>();
+    const buckets = new Map<string, { cost: number; expenses: number; profit: number; soldCount: number }>();
     cards
       .filter((card) => card.status === "Sold" && card.saleDate && (isAllTime || dateInRange(card.saleDate, dateRange.start, dateRange.end)))
       .forEach((card) => {
         const key = roiBucketKey(card.saleDate, dateFilterMode, dateRange.start, dateRange.end);
-        const current = buckets.get(key) || { cost: 0, profit: 0, soldCount: 0 };
+        const current = buckets.get(key) || { cost: 0, expenses: 0, profit: 0, soldCount: 0 };
         current.cost += cardPurchaseCost(card);
-        current.profit += cardProfit(card) - saleExpenseTotalForCard(card);
+        current.profit += cardNetSoldPrice(card) - cardPurchaseCost(card);
         current.soldCount += cardQuantity(card);
         buckets.set(key, current);
       });
-    return Array.from(buckets.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([key, bucket]) => ({
-      key,
-      label: roiBucketLabel(key),
-      roi: bucket.cost > 0 ? (bucket.profit / bucket.cost) * 100 : 0,
-      profit: bucket.profit,
-      cost: bucket.cost,
-      soldCount: bucket.soldCount,
-    }));
+    expenses
+      .filter((expense) => expense.expenseDate && (isAllTime || dateInRange(expense.expenseDate, dateRange.start, dateRange.end)))
+      .forEach((expense) => {
+        const key = roiBucketKey(expense.expenseDate, dateFilterMode, dateRange.start, dateRange.end);
+        const current = buckets.get(key) || { cost: 0, expenses: 0, profit: 0, soldCount: 0 };
+        current.expenses += expense.amount;
+        current.profit -= expense.amount;
+        buckets.set(key, current);
+      });
+    return Array.from(buckets.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([key, bucket]) => {
+      const costBasis = bucket.cost + bucket.expenses;
+      return {
+        key,
+        label: roiBucketLabel(key),
+        roi: costBasis > 0 ? (bucket.profit / costBasis) * 100 : 0,
+        profit: bucket.profit,
+        cost: costBasis,
+        soldCount: bucket.soldCount,
+      };
+    });
   }, [cards, dateFilterMode, dateRange.end, dateRange.start, expenses, isAllTime]);
   const roiTrendValues = roiTrendPoints.map((point) => point.roi);
   const roiTrendMin = roiTrendValues.length ? Math.min(...roiTrendValues) : 0;
@@ -1485,7 +1497,7 @@ export default function Home() {
     },
     { id: "inventory", tab: "inventory", label: "Inventory", subtitle: `${activeInventoryQuantity} cards`, apply: showActiveInventory },
     { id: "glance", tab: "glance", label: "Business Numbers", subtitle: money(totals.cash), apply: () => showDashboardTab("glance", "at-a-glance-panel") },
-    { id: "roi", tab: "roi", label: "ROI%", subtitle: percent(totals.soldRoi), apply: () => showDashboardTab("roi", "roi-panel") },
+    { id: "roi", tab: "roi", label: "ROI%", subtitle: percent(totals.roi), apply: () => showDashboardTab("roi", "roi-panel") },
     { id: "attention", tab: "attention", label: "Needs Attention", subtitle: "Fix next actions", badge: totalAttentionItems, apply: () => showDashboardTab("attention", "attention-panel") },
     { id: "listingReview", tab: "listingReview", label: "Listing Review", subtitle: "Listed-card age", badge: listedReviewTotal, apply: () => showDashboardTab("listingReview", "listing-review-panel") },
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
@@ -3268,8 +3280,8 @@ export default function Home() {
             <span className={`subscriptionStatusPill ${hasActiveSubscription ? "isSubscribed" : "isNotSubscribed"}`}>{subscriptionStatusLabel}</span>
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />
-              <Stat label="Profit from sold cards" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
-              <Stat label="ROI%" value={percent(totals.soldRoi)} tone={totals.soldRoi >= 0 ? "positive" : "negative"} />
+              <Stat label="Net profit after costs/fees" value={money(totals.periodNetProfit)} tone={totals.periodNetProfit >= 0 ? "positive" : "negative"} />
+              <Stat label="ROI after expenses" value={percent(totals.roi)} tone={totals.roi >= 0 ? "positive" : "negative"} />
               <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
@@ -3309,7 +3321,7 @@ export default function Home() {
       {session && (
         <section className="secondaryStatStrip" aria-label="Business stat strip">
           <button type="button" onClick={() => setTab("profit")}><small>Inventory Value</small><strong>{money(totals.totalInventoryValue)}</strong></button>
-          <button type="button" onClick={() => setTab("roi")}><small>ROI%</small><strong>{percent(totals.soldRoi)}</strong></button>
+          <button type="button" onClick={() => setTab("roi")}><small>ROI after expenses</small><strong className={totals.roi >= 0 ? "positive" : "negative"}>{percent(totals.roi)}</strong></button>
           <button type="button" onClick={() => setTab("expenses")}><small>Expenses</small><strong>{money(totals.expensesTotal)}</strong></button>
           <button type="button" onClick={() => setTab("listingReview")}><small>Listed Value</small><strong>{money(listedValue)}</strong></button>
           <button type="button" onClick={() => setTab("attention")}><small>Needs Attention</small><strong>{totalAttentionItems}</strong></button>
@@ -3600,7 +3612,6 @@ export default function Home() {
             <Stat label="Current inventory cost" value={money(totals.currentInventoryCost)} />
             <Stat label="Current inventory value" value={money(totals.currentInventoryValue)} />
             <Stat label="Total sold collected" value={money(totals.revenue)} />
-            <Stat label="ROI%" value={percent(totals.soldRoi)} tone={totals.soldRoi >= 0 ? "positive" : "negative"} />
             <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
             <Stat label="Expenses & fees" value={money(totals.expensesTotal)} />
           </section>
@@ -3624,7 +3635,6 @@ export default function Home() {
                 <li><span>Total collected</span><strong>{money(totals.revenue)}</strong></li>
                 <li><span>Sold inventory cost</span><strong>{money(totals.soldInventoryCost)}</strong></li>
                 <li><span>Sale fees tied to sold cards</span><strong>{money(totals.saleExpensesForSoldCardsTotal)}</strong></li>
-                <li><span>Sold-card ROI</span><strong className={totals.soldRoi >= 0 ? "positive" : "negative"}>{percent(totals.soldRoi)}</strong></li>
               </ul>
             </div>
             <div>
@@ -3680,7 +3690,7 @@ export default function Home() {
             <div>
               <p className="eyebrow">ROI%</p>
               <h2>Return on sold inventory</h2>
-              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. ROI% is profit after card cost and sale expenses divided by sold inventory cost.</p>
+              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. ROI% is net profit after all expenses divided by sold inventory cost plus expenses.</p>
             </div>
           </div>
           <DateFilterControls
@@ -3693,10 +3703,10 @@ export default function Home() {
             onEndDateChange={setCustomEndDate}
           />
           <section className="statsGrid roiSummaryGrid" aria-label="ROI% summary">
-            <Stat label="ROI%" value={percent(totals.soldRoi)} tone={totals.soldRoi >= 0 ? "positive" : "negative"} />
-            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
-            <Stat label="Profit after sale expenses" value={money(totals.soldCardProfit)} tone={totals.soldCardProfit >= 0 ? "positive" : "negative"} />
-            <Stat label="Sale expenses" value={money(totals.saleExpensesForSoldCardsTotal)} />
+            <Stat label="ROI after expenses" value={percent(totals.roi)} tone={totals.roi >= 0 ? "positive" : "negative"} />
+            <Stat label="ROI cost basis" value={money(totals.roiCostBasis)} />
+            <Stat label="Net profit after costs/fees" value={money(totals.periodNetProfit)} tone={totals.periodNetProfit >= 0 ? "positive" : "negative"} />
+            <Stat label="Expenses & fees" value={money(totals.expensesTotal)} />
           </section>
           <section className="roiChartCard" aria-label="ROI% trend chart">
             <div className="roiChartHeader">
@@ -3705,7 +3715,7 @@ export default function Home() {
                 <h3>{roiTrendPoints.length ? `${roiTrendPoints.length} period${roiTrendPoints.length === 1 ? "" : "s"}` : "No sold cards in this range"}</h3>
                 <p className="muted">Use All time, This month, This year, or Custom above to change the chart range.</p>
               </div>
-              <strong className={totals.soldRoi >= 0 ? "positive" : "negative"}>{percent(totals.soldRoi)}</strong>
+              <strong className={totals.roi >= 0 ? "positive" : "negative"}>{percent(totals.roi)}</strong>
             </div>
             {roiTrendPoints.length ? (
               <>
@@ -4232,7 +4242,7 @@ export default function Home() {
                           <span>Total profit</span>
                           <strong>{money(totalProfitForCard(card))}</strong>
                         </div>
-                        <div className="soldRoiBadge">
+                        <div className={`soldRoiBadge ${cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}`}>
                           <small>ROI%</small>
                           <strong className={cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}>{percent(cardRoiAfterSaleExpenses(card))}</strong>
                         </div>

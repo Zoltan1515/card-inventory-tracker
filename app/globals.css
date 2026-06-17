@@ -358,7 +358,9 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .roiTrendList strong { font-size: 1.1rem; }
 .roiTrendList small { color: var(--muted); line-height: 1.35; }
 .soldRoiBadge { border-color: rgba(57,255,156,.38) !important; background: rgba(57,255,156,.08) !important; }
+.soldRoiBadge.negative { border-color: rgba(248,113,113,.46) !important; background: rgba(248,113,113,.09) !important; }
 .soldRoiBadge strong { color: var(--good); }
+.soldRoiBadge strong.negative { color: var(--bad); }
 .exportActions { display: flex; flex-wrap: wrap; gap: 10px; }
 .inventoryControls { display: grid; gap: 8px; min-width: 180px; }
 .bulkGradingBar { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.55); padding: 14px; display: grid; grid-template-columns: minmax(220px, 1fr) auto; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 18px; }
@@ -525,10 +527,10 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .subscriptionStatusPill.isSubscribed { border-color: rgba(57,255,156,.34); background: rgba(57,255,156,.1); color: var(--neon-green); }
 .subscriptionStatusPill.isNotSubscribed { border-color: rgba(245,158,11,.34); background: rgba(245,158,11,.09); color: #fde68a; }
 .heroStatsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.compactHeroStats { grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; }
-.collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 11px; border-radius: 14px; display: grid; grid-template-rows: minmax(2.35em, auto) auto; align-content: start; }
-.collectorHeroCard .stat span { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; line-height: 1.15; margin-bottom: 8px; }
-.collectorHeroCard .stat strong { color: var(--neon-green); font-size: 1rem; line-height: 1.1; }
+.compactHeroStats { grid-template-columns: repeat(5, minmax(0, 1fr)); max-width: 820px; }
+.collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 10px 9px; border-radius: 14px; display: grid; grid-template-rows: minmax(2.35em, auto) auto; align-content: start; }
+.collectorHeroCard .stat span { font-size: .62rem; text-transform: uppercase; letter-spacing: .055em; line-height: 1.12; margin-bottom: 7px; }
+.collectorHeroCard .stat strong { color: var(--neon-green); font-size: .94rem; line-height: 1.1; }
 .slabShowpiece { justify-self: end; align-self: center; width: min(210px, 100%); border: 1px solid rgba(103,232,249,.55); border-radius: 18px; padding: 10px; background: linear-gradient(145deg, rgba(226,232,240,.18), rgba(15,23,42,.2)); box-shadow: 0 0 28px rgba(103,232,249,.22), inset 0 0 24px rgba(255,255,255,.06); transform: perspective(700px) rotateY(-8deg); }
 .slabControls { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 7px; }
 .slabControls button, .slabControls input { min-height: 28px; border-radius: 8px; padding: 4px 6px; font-size: .58rem; font-weight: 900; }
