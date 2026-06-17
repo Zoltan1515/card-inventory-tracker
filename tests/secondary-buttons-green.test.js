@@ -11,7 +11,8 @@ function assert(condition, message) {
 
 assert(
   css.includes('.primary, .secondary { background: linear-gradient(135deg, var(--neon-green), #67e8f9);') &&
-    css.includes('border: 1px solid rgba(57,255,156,.72)') &&
+    css.includes('.primary, .secondary { background: linear-gradient(135deg, var(--neon-green), var(--primary));') &&
+    css.includes('color: #031018') &&
     css.includes('box-shadow: 0 0 20px rgba(57,255,156,.2)'),
   'Primary and secondary buttons should use the existing green gradient style instead of cyan/dark bordered styles.'
 );
@@ -20,6 +21,11 @@ assert(
   css.includes('.primary:hover, .secondary:hover { background: linear-gradient(135deg, #6dffb6, #7dd3fc);') &&
     css.includes('border-color: var(--neon-green)'),
   'Primary and secondary button hover states should stay green themed.'
+);
+
+assert(
+  !css.includes('.secondary { background: rgba(8,16,34,.72);'),
+  'Secondary buttons must not be overridden back to a dark background with dark text.'
 );
 
 assert(
