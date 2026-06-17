@@ -77,6 +77,11 @@ h3 { margin-bottom: 14px; }
 .glanceBreakdown { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 18px 0; }
 .glanceBreakdown > div, .cashEntryPanel, .cashEntryList { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.55); padding: 16px; }
 .glanceBreakdown h3 { margin: 4px 0 8px; font-size: 1.4rem; }
+.detailedReportBreakdown h3 { font-size: 1.7rem; }
+.reportBreakdownList { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+.reportBreakdownList li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border-top: 1px solid rgba(103,232,249,.12); padding-top: 8px; }
+.reportBreakdownList span { color: var(--muted); font-size: .82rem; font-weight: 800; }
+.reportBreakdownList strong { color: var(--text); font-size: .92rem; text-align: right; }
 .cashEntryPanel { display: grid; gap: 14px; margin-top: 18px; }
 .cashEntryList { display: grid; gap: 12px; margin-top: 18px; }
 .listingReviewStats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -853,5 +858,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .printableReport { display: block !important; border: 0; box-shadow: none; background: #fff; color: #111827; padding: 0; }
   .printableReport .muted, .printableReport .eyebrow { color: #374151; }
   .printableReport .stat, .printableReport .glanceBreakdown > div { border: 1px solid #d1d5db; background: #fff; color: #111827; box-shadow: none; }
+  .printableReport .reportBreakdownList li { border-top: 1px solid #e5e7eb; }
+  .printableReport .reportBreakdownList span, .printableReport .reportBreakdownList strong { color: #111827; }
   .printableReport .dateFilterBar { border: 1px solid #d1d5db; background: #fff; color: #111827; }
 }

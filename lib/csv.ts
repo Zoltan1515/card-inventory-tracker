@@ -6,7 +6,12 @@ export type ProfitSummaryCsvInput = {
   revenue: number;
   totalInventoryCost: number;
   totalInventoryValue: number;
+  currentInventoryCost: number;
+  currentInventoryValue: number;
   expensesTotal: number;
+  saleExpensesForSoldCardsTotal: number;
+  roi: number;
+  soldRoi: number;
   soldCardProfit: number;
   cash: number;
   profit: number;
@@ -233,15 +238,19 @@ export const profitSummaryToCsv = (summary: ProfitSummaryCsvInput) => csvRows([
   ["Metric", "Value"],
   ["Reporting Period", summary.periodLabel],
   ["Sold Revenue", summary.revenue],
-  ["Total Inventory Purchase Cost", summary.totalInventoryCost],
-  ["Total Expenses", summary.expensesTotal],
+  ["All Inventory Bought In Period", summary.totalInventoryValue],
+  ["Current Inventory Cost", summary.currentInventoryCost],
+  ["Current Inventory Value", summary.currentInventoryValue],
+  ["Sold Inventory Cost", summary.soldInventoryCost],
+  ["Total Expenses And Fees", summary.expensesTotal],
+  ["Sale Fees Tied To Sold Cards", summary.saleExpensesForSoldCardsTotal],
+  ["Net Profit After Costs And Fees", summary.profit],
+  ["ROI After Costs And Fees", `${summary.roi.toFixed(1)}%`],
   ["Profit From Sold Cards", summary.soldCardProfit],
+  ["Sold-Card ROI", `${summary.soldRoi.toFixed(1)}%`],
   ["Cash On Hand", summary.cash],
-  ["Total Profit", summary.profit],
-  ["Total Inventory Value", summary.totalInventoryValue],
   ["Unlisted Inventory Cost", summary.unlistedInventoryCost],
   ["Listed Inventory Cost", summary.listedInventoryCost],
-  ["Sold Inventory Cost", summary.soldInventoryCost],
   ["Sold Cards Revenue", summary.soldCardsRevenue],
   ["Sold Cards Count", summary.soldCardsCount],
   ["Listed Cards Count", summary.listedCardsCount],

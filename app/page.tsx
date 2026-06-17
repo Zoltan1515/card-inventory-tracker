@@ -1159,10 +1159,12 @@ export default function Home() {
     const soldInventoryCost = soldCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const unlistedInventoryCost = notListedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
     const listedInventoryCost = listedCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+    const currentInventoryCost = unlistedInventoryCost + listedInventoryCost;
     const unlistedInventoryValue = unlistedInventoryCost;
     const listedInventoryValue = listedCards.reduce((sum, card) => sum + ((card.askingPrice || card.purchasePrice) * cardQuantity(card)), 0);
-    const totalInventoryValue = unlistedInventoryValue + listedInventoryCost;
-    const totalInventoryCost = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+    const currentInventoryValue = unlistedInventoryValue + listedInventoryValue;
+    const totalInventoryValue = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);
+    const totalInventoryCost = totalInventoryValue;
     const expenseBreakdown = expenseCategories.map((category) => {
       const categoryExpenses = filteredExpenses.filter((expense) => expense.category === category);
       return {
@@ -1175,9 +1177,14 @@ export default function Home() {
     const cashAdjustmentsTotal = filteredCashAdjustments.reduce((sum, entry) => sum + (entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount), 0);
     const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const saleExpensesForSoldCardsTotal = saleExpensesTotalForCards(expenses, soldCards);
+    const periodNetProfit = revenue - soldInventoryCost - expensesTotal;
+    const roiCostBasis = soldInventoryCost + expensesTotal;
+    const roi = roiCostBasis > 0 ? (periodNetProfit / roiCostBasis) * 100 : 0;
     const soldCardProfit = revenue - soldInventoryCost - saleExpensesForSoldCardsTotal;
+    const soldRoiCostBasis = soldInventoryCost + saleExpensesForSoldCardsTotal;
+    const soldRoi = soldRoiCostBasis > 0 ? (soldCardProfit / soldRoiCostBasis) * 100 : 0;
     const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;
-    const profit = soldCardProfit;
+    const profit = periodNetProfit;
     return {
       revenue,
       soldInventoryCost,
@@ -1185,13 +1192,21 @@ export default function Home() {
       cash,
       unlistedInventoryCost,
       listedInventoryCost,
+      currentInventoryCost,
       unlistedInventoryValue,
       listedInventoryValue,
+      currentInventoryValue,
       totalInventoryValue,
       totalInventoryCost,
       inventoryCostCards,
       expensesTotal,
       expenseBreakdown,
+      saleExpensesForSoldCardsTotal,
+      periodNetProfit,
+      roi,
+      roiCostBasis,
+      soldRoi,
+      soldRoiCostBasis,
       profit,
       notListedCards,
       listedCards,
@@ -3120,7 +3135,12 @@ export default function Home() {
     revenue: totals.revenue,
     totalInventoryCost: totals.soldInventoryCost,
     totalInventoryValue: totals.totalInventoryValue,
+    currentInventoryCost: totals.currentInventoryCost,
+    currentInventoryValue: totals.currentInventoryValue,
     expensesTotal: totals.expensesTotal,
+    saleExpensesForSoldCardsTotal: totals.saleExpensesForSoldCardsTotal,
+    roi: totals.roi,
+    soldRoi: totals.soldRoi,
     soldCardProfit: totals.soldCardProfit,
     cash: totals.cash,
     profit: totals.profit,
@@ -3506,7 +3526,7 @@ export default function Home() {
             <div>
               <p className="eyebrow">Business Numbers</p>
               <h2>Clean business snapshot</h2>
-              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Cash starts with your cash entries, then adds sold revenue and subtracts inventory purchases and expenses.</p>
+              <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Report includes inventory bought in the period (even if already sold), current inventory, sold totals, expenses/fees, net profit, and ROI after costs and fees.</p>
             </div>
             <button className="secondary noPrint" type="button" onClick={() => window.print()}>Print report</button>
           </div>
@@ -3519,10 +3539,49 @@ export default function Home() {
             onStartDateChange={setCustomStartDate}
             onEndDateChange={setCustomEndDate}
           />
-          <section className="glanceHeroGrid" aria-label="At a glance totals">
+          <section className="glanceHeroGrid detailedReportGrid" aria-label="Detailed business report totals">
             <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
-            <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
-            <Stat label="Total Sold" value={money(totals.revenue)} />
+            <Stat label="Net profit after costs/fees" value={money(totals.periodNetProfit)} tone={totals.periodNetProfit >= 0 ? "positive" : "negative"} />
+            <Stat label="ROI after costs/fees" value={percent(totals.roi)} tone={totals.roi >= 0 ? "positive" : "negative"} />
+            <Stat label="Total inventory bought" value={money(totals.totalInventoryValue)} />
+            <Stat label="Current inventory cost" value={money(totals.currentInventoryCost)} />
+            <Stat label="Current inventory value" value={money(totals.currentInventoryValue)} />
+            <Stat label="Total sold collected" value={money(totals.revenue)} />
+            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />
+            <Stat label="Expenses & fees" value={money(totals.expensesTotal)} />
+          </section>
+          <section className="glanceBreakdown detailedReportBreakdown" aria-label="Detailed report breakdown">
+            <div>
+              <p className="eyebrow">Inventory</p>
+              <h3>{money(totals.totalInventoryValue)}</h3>
+              <ul className="reportBreakdownList">
+                <li><span>All inventory bought in period</span><strong>{money(totals.totalInventoryValue)}</strong></li>
+                <li><span>Current inventory cost</span><strong>{money(totals.currentInventoryCost)}</strong></li>
+                <li><span>Not listed</span><strong>{totals.notListedCount} cards • {money(totals.unlistedInventoryCost)}</strong></li>
+                <li><span>Listed</span><strong>{totals.listedCount} cards • {money(totals.listedInventoryCost)}</strong></li>
+                <li><span>Current listed asking value</span><strong>{money(totals.listedInventoryValue)}</strong></li>
+              </ul>
+            </div>
+            <div>
+              <p className="eyebrow">Sold</p>
+              <h3>{money(totals.revenue)}</h3>
+              <ul className="reportBreakdownList">
+                <li><span>Sold cards</span><strong>{totals.soldCount}</strong></li>
+                <li><span>Total collected</span><strong>{money(totals.revenue)}</strong></li>
+                <li><span>Sold inventory cost</span><strong>{money(totals.soldInventoryCost)}</strong></li>
+                <li><span>Sale fees tied to sold cards</span><strong>{money(totals.saleExpensesForSoldCardsTotal)}</strong></li>
+                <li><span>Sold-card ROI</span><strong className={totals.soldRoi >= 0 ? "positive" : "negative"}>{percent(totals.soldRoi)}</strong></li>
+              </ul>
+            </div>
+            <div>
+              <p className="eyebrow">Expenses & fees</p>
+              <h3>{money(totals.expensesTotal)}</h3>
+              <ul className="reportBreakdownList">
+                {totals.expenseBreakdown.map((row) => (
+                  <li key={row.category}><span>{row.category}</span><strong>{money(row.total)}</strong></li>
+                ))}
+              </ul>
+            </div>
           </section>
           <section className="cashEntryPanel noPrint" aria-label="Add cash on hand">
             <div>

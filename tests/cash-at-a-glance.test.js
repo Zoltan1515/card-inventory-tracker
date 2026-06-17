@@ -26,10 +26,12 @@ assert(page.includes('label: "Business Numbers"'), 'Quick Actions should include
 assert(page.includes('id="at-a-glance-panel"'), 'At a Glance panel should render.');
 assert(page.includes('<p className="eyebrow">Business Numbers</p>'), 'At a Glance panel should be titled Business Numbers.');
 assert(page.includes('Cash on hand'), 'At a Glance should show cash on hand.');
-assert(page.includes('Total Inventory Value'), 'At a Glance should show total inventory value.');
-assert(page.includes('Total Sold'), 'At a Glance should show total sold.');
+assert(page.includes('Total inventory bought'), 'At a Glance should show all inventory bought in the selected period, even when already sold.');
+assert(page.includes('Total sold collected'), 'At a Glance should show total sold collected.');
+assert(page.includes('Expenses & fees'), 'At a Glance should show expenses and fees.');
+assert(page.includes('ROI after costs/fees'), 'At a Glance should show ROI after costs and fees.');
 assert(!page.includes('Cash math'), 'At a Glance should not show the extra cash math bubble under the main stats.');
-assert(!page.includes('aria-label="Report breakdown"'), 'At a Glance should not render the extra three-bubble report breakdown.');
+assert(page.includes('aria-label="Detailed report breakdown"'), 'At a Glance should render a detailed inventory, sold, and expense breakdown.');
 assert(page.includes('onClick={() => window.print()}'), 'At a Glance should include print action.');
 assert(page.includes('saveCashAdjustment'), 'Cash entry save handler should exist.');
 assert(page.includes('id="dashboard-cash-entry"'), 'Dashboard should expose a front-page cash entry form, not hide it only in At a Glance.');
@@ -49,12 +51,16 @@ assert(css.includes('.dashboardCashEntryBody'), 'Dashboard cash entry body shoul
 assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
 assert(page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'), 'Cash on hand should use all-time cash entries plus sales minus purchases and expenses so new expenses update cash immediately.');
 assert(page.includes('const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);'), 'Filtered expense totals should sum actual expense rows directly.');
-assert(page.includes('const totalInventoryValue = unlistedInventoryValue + listedInventoryCost;'), 'Total inventory value should include unlisted and listed inventory cost basis.');
+assert(page.includes('const totalInventoryValue = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);'), 'Total inventory value should include every card bought in the selected period, including cards already sold.');
+assert(page.includes('const currentInventoryCost = unlistedInventoryCost + listedInventoryCost;'), 'Report should show current inventory cost separately from all inventory bought.');
+assert(page.includes('const periodNetProfit = revenue - soldInventoryCost - expensesTotal;'), 'Report net profit should subtract sold inventory cost plus all selected-period expenses/fees.');
+assert(page.includes('const roi = roiCostBasis > 0 ? (periodNetProfit / roiCostBasis) * 100 : 0;'), 'Report ROI should be calculated after costs and fees.');
 assert(page.includes('DateFilterControls'), 'At a Glance should reuse date filters.');
 
 assert(css.includes('@media print'), 'Print stylesheet should exist.');
 assert(css.includes('.printableReport'), 'Print stylesheet should target printable report.');
 assert(css.includes('.glanceHeroGrid'), 'At a Glance layout styles should exist.');
+assert(css.includes('.reportBreakdownList'), 'Detailed report breakdown rows should have dedicated styles.');
 assert(css.includes('padding-bottom: calc(32px + env(safe-area-inset-bottom))'), 'Mobile content should not reserve oversized space for the removed bottom nav.');
 assert(css.includes('bottom: max(12px, env(safe-area-inset-bottom))'), 'Mobile quick-action drawer should respect iPhone safe-area inset.');
 assert(css.includes('.secondaryStatStrip::-webkit-scrollbar { display: none; }'), 'Mobile stat strip should not show an ugly horizontal scrollbar.');
