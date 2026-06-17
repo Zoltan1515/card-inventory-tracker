@@ -9,7 +9,7 @@ import { parsePsaOrderCsv, psaCsvLooksLikeOrderExport } from "@/lib/psaImport";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
 type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit" | "glance" | "roi" | "primeLotMarketplace";
-type DashboardAction = { id: string; tab: Tab; label: string; subtitle?: string; badge?: number; apply?: () => void };
+type DashboardAction = { id: string; tab: Tab; label: string; subtitle?: string; badge?: number; apply?: () => void; className?: string };
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
 type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
@@ -1519,7 +1519,7 @@ export default function Home() {
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards sold`, apply: showSoldInventory },
-    { id: "primeLotMarketplace", tab: "primeLotMarketplace", label: "PrimeLot Marketplace", subtitle: "No seller fees", apply: () => showDashboardTab("primeLotMarketplace", "primelot-marketplace-panel") },
+    { id: "primeLotMarketplace", tab: "primeLotMarketplace", label: "PrimeLot Marketplace", subtitle: "No seller fees", className: "primeLotNavButton", apply: () => showDashboardTab("primeLotMarketplace", "primelot-marketplace-panel") },
     { id: "pricing", tab: "add", label: "Pricing", subtitle: "Plans & free month", apply: () => { window.location.href = PRICING_PATH; } },
   ];
   const showInventoryUtilityPanels = tab === "add" || (tab === "inventory" && statusFilter !== "Sold");
@@ -3495,7 +3495,7 @@ export default function Home() {
         </div>
         <nav className="navBar quickActionGrid" aria-label="Main navigation">
           {dashboardActions.map((action) => (
-            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} featured={action.id === "add"} key={action.id} onClick={() => runDashboardAction(action)} subtitle={action.subtitle}>
+            <NavButton active={action.id === "soldInventory" ? tab === "inventory" && statusFilter === "Sold" : tab === action.tab && !(action.id === "inventory" && statusFilter === "Sold")} badge={action.badge} className={action.className} featured={action.id === "add"} key={action.id} onClick={() => runDashboardAction(action)} subtitle={action.subtitle}>
               {action.label}
             </NavButton>
           ))}
@@ -5486,10 +5486,10 @@ function AuthPanel({ defaultMode = "signin" }: { defaultMode?: "signin" | "signu
   );
 }
 
-function NavButton({ active, onClick, children, subtitle, badge, featured = false }: { active: boolean; onClick: () => void; children: React.ReactNode; subtitle?: string; badge?: number; featured?: boolean }) {
-  const className = ["navButton", active ? "active" : "", featured ? "featuredNavButton" : ""].filter(Boolean).join(" ");
+function NavButton({ active, onClick, children, subtitle, badge, featured = false, className = "" }: { active: boolean; onClick: () => void; children: React.ReactNode; subtitle?: string; badge?: number; featured?: boolean; className?: string }) {
+  const buttonClassName = ["navButton", active ? "active" : "", featured ? "featuredNavButton" : "", className].filter(Boolean).join(" ");
   return (
-    <button className={className} type="button" onClick={onClick}>
+    <button className={buttonClassName} type="button" onClick={onClick}>
       <span className="navText"><strong>{children}</strong>{subtitle && <small>{subtitle}</small>}</span>
       {!!badge && <span className="navBadge">{badge}</span>}
     </button>
