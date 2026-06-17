@@ -33,6 +33,10 @@ assert(publicIcon.width === 512 && publicIcon.height === 512, 'Public app icon s
 assert(appIcon.width === 512 && appIcon.height === 512, 'Next.js favicon/app icon should be a 512x512 PNG.');
 assert(css.includes('drop-shadow(0 18px 34px rgba(239,68,68,.24))'), 'Main logo glow should be red instead of gold.');
 assert(css.includes('drop-shadow(0 0 16px rgba(239,68,68,.38)) drop-shadow(0 0 22px rgba(127,29,29,.28))'), 'Mobile logo glow should be red instead of gold.');
+assert(css.includes('.mobileTopHeader { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto;'), 'Top header should let the logo column shrink instead of overlapping account buttons.');
+assert(css.includes('.mobileTopHeader .brandLogo { min-width: 0; justify-self: start; overflow: hidden; }'), 'Top header logo wrapper should be constrained inside its grid column.');
+assert(css.includes('.mobileTopHeader .brandLogo img { width: min(192px, 100%); max-width: 100%;'), 'Top header logo image should shrink to available space instead of spilling into sign-out buttons.');
+assert(css.includes('.mobileTopHeader .brandLogo img { width: min(164px, 100%); max-width: 100%; }'), 'Small mobile logo image should also be constrained to the available column.');
 assert(!css.includes('rgba(234,179,8') && !css.includes('rgba(120,53,15'), 'Old gold/brown logo glow colors should not remain.');
 
 console.log('Logo asset checks passed.');
