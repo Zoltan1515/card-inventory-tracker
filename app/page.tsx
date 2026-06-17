@@ -1476,7 +1476,7 @@ export default function Home() {
         cost: costBasis,
         soldCount: bucket.soldCount,
       };
-    });
+    }).filter((point) => point.soldCount > 0);
   }, [cards, dateFilterMode, dateRange.end, dateRange.start, expenses, isAllTime]);
   const roiTrendValues = roiTrendPoints.map((point) => point.roi);
   const roiTrendMin = roiTrendValues.length ? Math.min(...roiTrendValues) : 0;
@@ -3713,16 +3713,24 @@ export default function Home() {
               <div>
                 <p className="eyebrow">ROI% trend</p>
                 <h3>{roiTrendPoints.length ? `${roiTrendPoints.length} period${roiTrendPoints.length === 1 ? "" : "s"}` : "No sold cards in this range"}</h3>
-                <p className="muted">Use All time, This month, This year, or Custom above to change the chart range.</p>
+                <p className="muted">Shows only periods with sold cards. Expenses in a no-sale period are kept in the ROI total above, but not drawn as a fake “0 sold” chart point.</p>
               </div>
               <strong className={totals.roi >= 0 ? "positive" : "negative"}>{percent(totals.roi)}</strong>
             </div>
             {roiTrendPoints.length ? (
               <>
+                <div className="roiChartLegend" aria-label="ROI chart legend">
+                  <span><i className="roiLineKey" />Line = ROI after expenses</span>
+                  <span><i className="roiDotKey" />Dots = periods with sold cards</span>
+                  <span>Cards below = period ROI, sold count, profit</span>
+                </div>
                 <svg className="roiChartSvg" viewBox="0 0 100 100" role="img" aria-label={`ROI% line chart for ${selectedDateLabel}`} preserveAspectRatio="none">
                   <line x1="0" x2="100" y1="90" y2="90" />
                   <line x1="0" x2="100" y1="55" y2="55" />
                   <line x1="0" x2="100" y1="20" y2="20" />
+                  <text x="2" y="14">High {percent(roiTrendMax)}</text>
+                  <text x="2" y="55">Mid</text>
+                  <text x="2" y="92">Low {percent(roiTrendMin)}</text>
                   <path d={roiTrendPath} />
                   {roiTrendPoints.map((point, index) => {
                     const cx = roiTrendPoints.length === 1 ? 50 : (index / (roiTrendPoints.length - 1)) * 100;
