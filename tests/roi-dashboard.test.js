@@ -31,6 +31,8 @@ assert(page.includes('<small>ROI%</small>') && page.includes('percent(cardRoiAft
 assert(page.includes('cardRoiAfterSaleExpenses'), 'Sold listing ROI% should account for sale expenses tied to the card.');
 assert(page.includes('soldRoiBadge ${cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}'), 'Sold listing ROI% badge should get a negative class when ROI is below zero.');
 assert(css.includes('.compactHeroStats { grid-template-columns: repeat(5'), 'Account hero stat boxes should fit on one desktop line.');
+assert(css.includes('.secondaryStatStrip { display: grid; grid-template-columns: repeat(5'), 'Secondary stat strip should fit all five boxes on one desktop line.');
+assert(css.includes('.secondaryStatStrip small') && css.includes('font-size: .61rem'), 'Secondary stat strip labels should be compact enough for one-line layout.');
 assert(css.includes('.roiChartCard'), 'ROI% chart card styles should exist.');
 assert(css.includes('.roiChartSvg'), 'ROI% chart SVG styles should exist.');
 assert(css.includes('.soldRoiBadge'), 'Sold card ROI% badge styles should exist.');
