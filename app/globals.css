@@ -581,6 +581,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .secondary:hover, .navButton:hover { border-color: rgba(57,255,156,.62); box-shadow: 0 0 20px rgba(57,255,156,.12); }
 .navButton.active { border-color: rgba(57,255,156,.72); background: linear-gradient(145deg, rgba(57,255,156,.15), rgba(103,232,249,.08)); box-shadow: 0 0 24px rgba(57,255,156,.16), inset 0 1px 0 rgba(255,255,255,.08); color: var(--text); }
 .bottomMobileNav { display: none; }
+.menuToggleButton { display: none; }
 .quickActionsScrim { display: none; }
 
 .pricingShell { width: min(1160px, calc(100% - 32px)); margin: 0 auto; padding: 24px 0 72px; }
@@ -721,7 +722,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; scrollbar-width: none; }
   .secondaryStatStrip::-webkit-scrollbar { display: none; }
   .secondaryStatStrip button { min-width: 116px; padding: 12px 10px; }
-  .menuToggleButton { position: sticky; top: 10px; z-index: 18; }
+  .menuToggleButton { display: grid; position: sticky; top: 10px; z-index: 18; }
   .quickActionsScrim { display: block; position: fixed; inset: 0; z-index: 12; border: 0; padding: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); }
   .modalBackdrop { padding: 12px; align-items: start; }
   .modal { width: min(100%, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
