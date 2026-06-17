@@ -33,10 +33,10 @@ assert(publicIcon.width === 512 && publicIcon.height === 512, 'Public app icon s
 assert(appIcon.width === 512 && appIcon.height === 512, 'Next.js favicon/app icon should be a 512x512 PNG.');
 assert(css.includes('drop-shadow(0 18px 34px rgba(239,68,68,.24))'), 'Main logo glow should be red instead of gold.');
 assert(css.includes('drop-shadow(0 0 16px rgba(239,68,68,.38)) drop-shadow(0 0 22px rgba(127,29,29,.28))'), 'Mobile logo glow should be red instead of gold.');
-assert(css.includes('.mobileTopHeader { position: relative; display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 12px; min-height: 190px;'), 'Top header should reserve enough vertical room so the centered logo is not covered by the dashboard card.');
-assert(css.includes('.mobileTopHeader .brandLogo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);'), 'Top header logo wrapper should be centered inside the reserved header space.');
-assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(176px, 22vw, 240px); max-width: 40vw;'), 'Top header logo image should stay large without colliding with controls.');
-assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(156px, 42vw, 200px); max-width: 42vw; }'), 'Small mobile logo image should remain readable while fitting in the reserved header space.');
+assert(css.includes('.mobileTopHeader { display: grid; grid-template-columns: 46px 1fr auto; grid-template-areas: "logo logo logo" "menu spacer actions";'), 'Top header should put the logo in normal document flow above the controls so it cannot be cut off.');
+assert(css.includes('.mobileTopHeader .brandLogo { grid-area: logo; min-width: 0; justify-self: center; overflow: visible; margin: 0 auto; }'), 'Top header logo wrapper should be centered in its own full-width row.');
+assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(176px, 22vw, 240px); max-width: min(240px, 46vw);'), 'Top header logo image should stay large without colliding with controls.');
+assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(156px, 42vw, 200px); max-width: min(200px, 48vw); }'), 'Small mobile logo image should remain readable in the normal-flow header.');
 assert(!css.includes('rgba(234,179,8') && !css.includes('rgba(120,53,15'), 'Old gold/brown logo glow colors should not remain.');
 
 console.log('Logo asset checks passed.');

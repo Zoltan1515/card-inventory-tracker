@@ -540,12 +540,12 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .confirmActions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .confirmActions button { min-height: 44px; }
 
-.mobileTopHeader { position: relative; display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 12px; min-height: 190px; margin-bottom: 18px; }
-.mobileTopHeader .brandLogo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); min-width: 0; justify-self: center; overflow: visible; pointer-events: none; z-index: 0; }
-.mobileTopHeader .brandLogo img { width: clamp(176px, 22vw, 240px); max-width: 40vw; filter: drop-shadow(0 0 16px rgba(239,68,68,.38)) drop-shadow(0 0 22px rgba(127,29,29,.28)); }
+.mobileTopHeader { display: grid; grid-template-columns: 46px 1fr auto; grid-template-areas: "logo logo logo" "menu spacer actions"; align-items: center; column-gap: 12px; row-gap: 10px; margin-bottom: 18px; }
+.mobileTopHeader .brandLogo { grid-area: logo; min-width: 0; justify-self: center; overflow: visible; margin: 0 auto; }
+.mobileTopHeader .brandLogo img { width: clamp(176px, 22vw, 240px); max-width: min(240px, 46vw); filter: drop-shadow(0 0 16px rgba(239,68,68,.38)) drop-shadow(0 0 22px rgba(127,29,29,.28)); }
 .iconCircle { width: 46px; height: 46px; border-radius: 999px; border: 1px solid rgba(103,232,249,.28); background: rgba(8,16,34,.74); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(103,232,249,.08); font-size: 1.1rem; }
-.menuToggleButton, .topHeaderActions { position: relative; z-index: 1; }
-.topHeaderActions { display: flex; align-items: center; gap: 8px; }
+.menuToggleButton { grid-area: menu; }
+.topHeaderActions { grid-area: actions; display: flex; align-items: center; gap: 8px; }
 .signOutButton { position: static; border-radius: 999px; white-space: nowrap; min-width: 82px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
 .collectorHeroCard, .secondaryStatStrip, .quickActionsPanel, .dashboardCashEntryPanel, .cashOnboardingCard { border: 1px solid rgba(103,232,249,.28); background: linear-gradient(145deg, rgba(8,16,34,.86), rgba(2,7,16,.92)); border-radius: 26px; box-shadow: 0 0 0 1px rgba(57,255,156,.08), 0 18px 56px rgba(0,0,0,.42), 0 0 34px rgba(103,232,249,.08); }
 .authForm a { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
@@ -727,8 +727,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .hero, .panelHeader:not(.addInventoryHeader), .inventoryHeader { flex-direction: column; align-items: stretch; }
   .addInventoryHeader { flex-direction: column; align-items: stretch; gap: 12px; }
   .addInventoryIntro { max-width: none; }
-  .mobileTopHeader { grid-template-columns: 44px 1fr auto; gap: 8px; min-height: 160px; }
-  .mobileTopHeader .brandLogo img { width: clamp(156px, 42vw, 200px); max-width: 42vw; }
+  .mobileTopHeader { grid-template-columns: 44px 1fr auto; column-gap: 8px; row-gap: 8px; }
+  .mobileTopHeader .brandLogo img { width: clamp(156px, 42vw, 200px); max-width: min(200px, 48vw); }
   .iconCircle { width: 44px; height: 44px; }
   .topHeaderActions .iconCircle { display: none; }
   .signOutButton { padding: 9px 11px; font-size: .78rem; min-width: 78px; }
