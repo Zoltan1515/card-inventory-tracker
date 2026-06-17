@@ -8,7 +8,7 @@ import { cardToInsert, cardToUpdate, cashAdjustmentToInsert, cashAdjustmentToUpd
 import { parsePsaOrderCsv, psaCsvLooksLikeOrderExport } from "@/lib/psaImport";
 import { isSupabaseConfigured, supabase } from "@/lib/supabase";
 
-type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit" | "glance" | "roi";
+type Tab = "add" | "attention" | "listingReview" | "grading" | "inventory" | "expenses" | "profit" | "glance" | "roi" | "primeLotMarketplace";
 type DashboardAction = { id: string; tab: Tab; label: string; subtitle?: string; badge?: number; apply?: () => void };
 type DateFilterMode = "all" | "month" | "year" | "custom";
 type PhotoFilter = "All" | "Has photo" | "Missing photo";
@@ -104,6 +104,8 @@ const GUEST_GRADING_STORAGE_KEY = "card-inventory-tracker.guest-grading-submissi
 const PRICING_PATH = "/pricing";
 const BILLING_PATH = "/billing";
 const PRIMELOT_SELLER_MEMBERSHIP_URL = "https://primelot.cards/pricing";
+const PRIMELOT_MARKETPLACE_URL = "https://primelot.cards/marketplace";
+const PRIMELOT_SIGNUP_URL = "https://primelot.cards/pricing";
 const PRIMELOT_DASHBOARD_URL = "https://primelot.cards/dashboard/seller?tab=listings";
 const PRIMELOT_DRAFTS_URL = "https://primelot.cards/dashboard/seller?tab=listings&status=draft";
 const PRIMELOT_CONNECT_INTENT_PATTERN = /(primelot|prime-lot|wct-connect|connect-wicked)/i;
@@ -1517,6 +1519,7 @@ export default function Home() {
     { id: "grading", tab: "grading", label: "Grading", subtitle: "Open submissions", badge: openGradingCardCount, apply: () => showDashboardTab("grading", "grading-panel") },
     { id: "expenses", tab: "expenses", label: "Expenses", subtitle: money(totals.expensesTotal), apply: () => showDashboardTab("expenses", "expenses-panel") },
     { id: "soldInventory", tab: "inventory", label: "Sold Inventory", subtitle: `${soldInventoryQuantity} cards sold`, apply: showSoldInventory },
+    { id: "primeLotMarketplace", tab: "primeLotMarketplace", label: "PrimeLot Marketplace", subtitle: "No seller fees", apply: () => showDashboardTab("primeLotMarketplace", "primelot-marketplace-panel") },
     { id: "pricing", tab: "add", label: "Pricing", subtitle: "Plans & free month", apply: () => { window.location.href = PRICING_PATH; } },
   ];
   const showInventoryUtilityPanels = tab === "add" || (tab === "inventory" && statusFilter !== "Sold");
@@ -3697,6 +3700,132 @@ export default function Home() {
             </div>
           </section>
         </div>
+      )}
+
+      {tab === "primeLotMarketplace" && (
+        <section className="primeLotLandingPanel" id="primelot-marketplace-panel" aria-label="PrimeLot Marketplace landing page">
+          <div className="primeLotLandingHero">
+            <div className="primeLotHeroCopy">
+              <p className="eyebrow">The transparent card marketplace</p>
+              <h1>Buy & sell cards without marketplace fees.</h1>
+              <p className="subhead">PrimeLot helps collectors browse, buy, sell, make offers, and message directly — with transparent pricing on every card, lot, sealed product, and wishlist match.</p>
+              <div className="primeLotHeroActions">
+                <a className="primary buttonLink" href={PRIMELOT_SIGNUP_URL} target="_blank" rel="noreferrer">Start 3 Months Free</a>
+                <a className="secondary buttonLink" href={PRIMELOT_MARKETPLACE_URL} target="_blank" rel="noreferrer">Browse Marketplace</a>
+              </div>
+              <div className="primeLotTrustRow" aria-label="PrimeLot benefits">
+                <span>0% PrimeLot transaction fees</span>
+                <span>Pay sellers directly</span>
+                <span>Singles, lots & sealed</span>
+                <span>Wishlist matching</span>
+              </div>
+            </div>
+            <div className="primeLotHeroMockup" aria-label="PrimeLot marketplace preview">
+              <div className="primeLotMockupTop"><strong>PrimeLot Cards</strong><span>Featured Listings</span></div>
+              <div className="primeLotMockupGrid">
+                <article><div className="mockCardArt orange">23</div><strong>Luka Dončić</strong><span>$125.00</span></article>
+                <article><div className="mockCardArt gold">★</div><strong>Charizard</strong><span>$2,999.00</span></article>
+                <article><div className="mockCardArt blue">RC</div><strong>Mewtwo ex</strong><span>$180.00</span></article>
+              </div>
+              <div className="primeLotActivityList">
+                <span>Recommended lots</span>
+                <span>Singles with comps</span>
+                <span>Direct collector messages</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="primeLotWctDiscount">
+            <div className="discountLogoMark">WCT</div>
+            <div>
+              <strong>PrimeLot members save on Wicked Card Tracker</strong>
+              <p>Active PrimeLot members get $5/month off Wicked Card Tracker. Keep your membership active and keep the discount for life.</p>
+            </div>
+            <span>$5 OFF / MONTH</span>
+          </div>
+
+          <div className="primeLotLandingSection">
+            <h2>Why collectors choose PrimeLot</h2>
+            <div className="primeLotFeatureGrid">
+              {[
+                ["🤝", "Buy, sell, and make offers", "Negotiate directly with collectors and close deals your way."],
+                ["📋", "Unlimited listings", "List as many cards, lots, and sealed products as you want."],
+                ["💵", "No PrimeLot transaction commissions", "0% marketplace fees. You pay sellers directly."],
+                ["💛", "Wishlist matching", "Get alerts when cards on your wishlist are listed."],
+                ["🛒", "Import from eBay", "Import live and sold eBay listings in seconds."],
+                ["🎁", "Premium giveaways", "Members get entries into premium card giveaways."],
+              ].map(([icon, title, copy]) => (
+                <article className="primeLotFeatureCard" key={title}>
+                  <span>{icon}</span>
+                  <div><strong>{title}</strong><p>{copy}</p></div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <div className="primeLotLandingSection">
+            <h2>Everything collectors need in one marketplace</h2>
+            <div className="primeLotNeedGrid">
+              <article><div className="miniListingCard">Mike Trout<br /><strong>$89.00</strong></div><p>Find the exact card you are searching for.</p></article>
+              <article><div className="miniListingCard dark">Transparent Lot View<br /><strong>Individual pricing</strong></div><p>See the price of every card before you buy.</p></article>
+              <article><div className="miniListingCard sealed">Sealed Products<br /><strong>Boxes, packs & ETBs</strong></div><p>Shop sealed products alongside singles and lots.</p></article>
+              <article><div className="miniChatCard"><span>Hey, is this still available?</span><strong>Yes! Direct message sent.</strong></div><p>Message sellers directly to ask questions and make offers.</p></article>
+            </div>
+          </div>
+
+          <div className="primeLotLandingSection">
+            <h2>How it works</h2>
+            <div className="primeLotSteps">
+              {[
+                ["1", "Create your account", "Sign up in seconds and set up your collector profile."],
+                ["2", "Browse or list cards", "Find cards you love or list your own in just a few clicks."],
+                ["3", "Make offers and message collectors", "Negotiate, ask questions, and agree on the details."],
+                ["4", "Buy, sell, and track your deals", "Complete the deal and track your purchases and sales in one place."],
+              ].map(([step, title, copy]) => (
+                <article className="primeLotStep" key={step}><span>{step}</span><strong>{title}</strong><p>{copy}</p></article>
+              ))}
+            </div>
+          </div>
+
+          <div className="primeLotMembershipBlock">
+            <div className="primeLotPriceCard">
+              <small>Best value</small>
+              <h3>PrimeLot Membership</h3>
+              <strong>$6.99 <span>/ month</span></strong>
+              <p>First 3 months free. Then $6.99/month plus applicable tax.</p>
+              <ul>
+                <li>Buy cards, make offers, and message sellers</li>
+                <li>Create unlimited listings</li>
+                <li>Import from eBay</li>
+                <li>No PrimeLot transaction commissions</li>
+                <li>$5 off Wicked Card Tracker per month</li>
+              </ul>
+              <a className="primary buttonLink" href={PRIMELOT_SIGNUP_URL} target="_blank" rel="noreferrer">Start Free</a>
+            </div>
+            <div className="primeLotDashboardPreview">
+              <h3>One PrimeLot membership</h3>
+              <div className="dashboardPreviewStats"><span>48 Active listings</span><span>12 Offers received</span><span>27 Items sold</span><span>35 Wishlist items</span></div>
+              <div className="dashboardPreviewRows"><span>Recent listing • Charizard VMAX • $350.00</span><span>Offer received • Michael Jordan RC • $125.00</span><span>Wishlist match • 2020 Prizm Silver • $25.00</span></div>
+            </div>
+          </div>
+
+          <div className="primeLotFaqBlock">
+            <h2>Frequently asked questions</h2>
+            <details><summary>What does the membership include?</summary><p>Unlimited listings, direct messaging, offers, wishlist matching, eBay imports, giveaways, and the WCT discount.</p></details>
+            <details><summary>Can I browse without a membership?</summary><p>Yes. Collectors can browse listings, then sign up when they are ready to buy, sell, message, or make offers.</p></details>
+            <details><summary>How does the Wicked Card Tracker discount work?</summary><p>Active PrimeLot members get $5/month off WCT while their PrimeLot membership stays active.</p></details>
+            <details><summary>Are there transaction fees?</summary><p>PrimeLot charges 0% marketplace transaction commissions. Buyers and sellers handle payment directly.</p></details>
+          </div>
+
+          <div className="primeLotFinalCta">
+            <h2>Start your 3-month free trial</h2>
+            <p>Join thousands of collectors on the transparent marketplace built for cards.</p>
+            <div className="primeLotHeroActions">
+              <a className="primary buttonLink" href={PRIMELOT_SIGNUP_URL} target="_blank" rel="noreferrer">Join PrimeLot</a>
+              <a className="secondary buttonLink" href={PRIMELOT_MARKETPLACE_URL} target="_blank" rel="noreferrer">Browse Listings</a>
+            </div>
+          </div>
+        </section>
       )}
 
       {tab === "glance" && (
