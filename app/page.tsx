@@ -763,6 +763,7 @@ export default function Home() {
   const [gradingFeeDraft, setGradingFeeDraft] = useState<GradingFeeDraft | null>(null);
   const [gradingFeeSelection, setGradingFeeSelection] = useState<string[]>([]);
   const [bulkGradingFee, setBulkGradingFee] = useState("");
+  const [deletingGradingSubmission, setDeletingGradingSubmission] = useState<GradingSubmission | null>(null);
   const [importPreviews, setImportPreviews] = useState<ImportCardPreview[]>([]);
   const [importFileName, setImportFileName] = useState("");
   const [importingCards, setImportingCards] = useState(false);
@@ -3031,6 +3032,33 @@ export default function Home() {
     setReturnGradeRows([]);
   };
 
+  const confirmDeleteGradingSubmission = async () => {
+    if (!deletingGradingSubmission) return;
+    setError("");
+    setNotice("");
+    const submissionToDelete = deletingGradingSubmission;
+
+    if (usingSupabase && supabase && session?.user.id) {
+      const linkDelete = await supabase.from("grading_submission_cards").delete().eq("submission_id", submissionToDelete.id);
+      if (linkDelete.error) {
+        setError(`Could not delete grading submission cards: ${linkDelete.error.message}`);
+        return;
+      }
+      const submissionDelete = await supabase.from("grading_submissions").delete().eq("id", submissionToDelete.id);
+      if (submissionDelete.error) {
+        setError(`Could not delete grading submission: ${submissionDelete.error.message}`);
+        return;
+      }
+    }
+
+    setGradingSubmissions((current) => current.filter((submission) => submission.id !== submissionToDelete.id));
+    setOpenGradingSubmissionId((current) => current === submissionToDelete.id ? null : current);
+    setReturningSubmission((current) => current?.id === submissionToDelete.id ? null : current);
+    setGradingFeeDraft((current) => current?.submission.id === submissionToDelete.id ? null : current);
+    setDeletingGradingSubmission(null);
+    setNotice(`${submissionToDelete.reference || `${submissionToDelete.company} submission`} deleted.`);
+  };
+
   const inventoryDateSuffix = inventoryStartDate || inventoryEndDate
     ? `${inventoryDateFieldLabels[inventoryDateField].replace(/\s+/g, "-")}-${inventoryStartDate || "start"}-to-${inventoryEndDate || "today"}`
     : "all-dates";
@@ -4135,9 +4163,10 @@ export default function Home() {
                             ))}
                             {!submissionCards.length && <p className="empty">No cards found for this submission.</p>}
                           </div>
-                          <div className="rowActions">
-                            <button className="secondary" type="button" onClick={() => openGradingFeesModal(submission)}>Enter grading fees</button>
-                            {submission.status !== "Returned" && <button className="primary" type="button" onClick={() => openReturnGradingModal(submission)}>Mark returned</button>}
+                          <div className="rowActions gradingOrderActions">
+                            <button className="primary gradingActionButton" type="button" onClick={() => openGradingFeesModal(submission)}>Enter grading fees</button>
+                            {submission.status !== "Returned" && <button className="primary gradingActionButton" type="button" onClick={() => openReturnGradingModal(submission)}>Mark returned</button>}
+                            <button className="danger" type="button" onClick={() => setDeletingGradingSubmission(submission)}>Delete submission</button>
                           </div>
                         </div>
                       )}
@@ -4802,6 +4831,26 @@ export default function Home() {
               <button className="primary full" type="submit">Create grading submission</button>
             </div>
           </form>
+        </div>
+      )}
+
+      {deletingGradingSubmission && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Delete grading submission confirmation">
+          <div className="modal panel themedConfirmModal">
+            <div>
+              <p className="eyebrow dangerEyebrow">Are you sure?</p>
+              <h2>Delete grading submission?</h2>
+              <p className="muted">This removes the grading order and its submitted-card links. The inventory cards stay in your account.</p>
+            </div>
+            <div className="confirmSummaryBox">
+              <strong>{deletingGradingSubmission.reference || `${deletingGradingSubmission.company} submission`}</strong>
+              <span>{deletingGradingSubmission.company} • Sent {formatDateLabel(deletingGradingSubmission.sentDate)} • {gradingSubmissionCardQuantity(deletingGradingSubmission)} cards</span>
+            </div>
+            <div className="modalActionRow">
+              <button className="secondary" type="button" onClick={() => setDeletingGradingSubmission(null)}>Cancel</button>
+              <button className="danger" type="button" onClick={confirmDeleteGradingSubmission}>Yes, delete submission</button>
+            </div>
+          </div>
         </div>
       )}
 
