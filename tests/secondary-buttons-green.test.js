@@ -10,16 +10,16 @@ function assert(condition, message) {
 }
 
 assert(
-  css.includes('.secondary { background: linear-gradient(135deg, var(--neon-green), #67e8f9);') &&
+  css.includes('.primary, .secondary { background: linear-gradient(135deg, var(--neon-green), #67e8f9);') &&
     css.includes('border: 1px solid rgba(57,255,156,.72)') &&
     css.includes('box-shadow: 0 0 20px rgba(57,255,156,.2)'),
-  'Secondary buttons should use the existing green gradient style instead of the dark bordered style.'
+  'Primary and secondary buttons should use the existing green gradient style instead of cyan/dark bordered styles.'
 );
 
 assert(
-  css.includes('.secondary:hover { background: linear-gradient(135deg, #6dffb6, #7dd3fc);') &&
+  css.includes('.primary:hover, .secondary:hover { background: linear-gradient(135deg, #6dffb6, #7dd3fc);') &&
     css.includes('border-color: var(--neon-green)'),
-  'Secondary button hover state should stay green themed.'
+  'Primary and secondary button hover states should stay green themed.'
 );
 
 assert(

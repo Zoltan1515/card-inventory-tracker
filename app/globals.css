@@ -215,10 +215,8 @@ textarea { min-height: 90px; resize: vertical; }
   padding: 12px 14px;
   font-weight: 800;
 }
-.primary { background: var(--primary); color: #06101d; }
-.primary:hover { background: #7dd3fc; }
-.secondary { background: linear-gradient(135deg, var(--neon-green), #67e8f9); color: #031018; border: 1px solid rgba(57,255,156,.72); box-shadow: 0 0 20px rgba(57,255,156,.2); }
-.secondary:hover { background: linear-gradient(135deg, #6dffb6, #7dd3fc); border-color: var(--neon-green); box-shadow: 0 0 0 3px rgba(57,255,156,.14), 0 0 28px rgba(57,255,156,.24); }
+.primary, .secondary { background: linear-gradient(135deg, var(--neon-green), #67e8f9); color: #031018; border: 1px solid rgba(57,255,156,.72); box-shadow: 0 0 20px rgba(57,255,156,.2); }
+.primary:hover, .secondary:hover { background: linear-gradient(135deg, #6dffb6, #7dd3fc); border-color: var(--neon-green); box-shadow: 0 0 0 3px rgba(57,255,156,.14), 0 0 28px rgba(57,255,156,.24); }
 .danger { background: rgba(248,113,113,.12); color: var(--bad); border: 1px solid rgba(248,113,113,.28); }
 .filters { display: flex; gap: 12px; min-width: min(720px, 100%); align-items: center; }
 .inventoryFilterPanel { border: 1px solid var(--line); border-radius: 18px; background: rgba(15,23,42,.5); padding: 14px; display: grid; grid-template-columns: minmax(240px, 1.4fr) repeat(3, minmax(145px, 1fr)); gap: 12px; margin-bottom: 18px; align-items: end; }
