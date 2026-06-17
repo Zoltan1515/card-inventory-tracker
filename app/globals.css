@@ -354,10 +354,11 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .roiDotKey { width: 10px; height: 10px; border-radius: 999px; border: 2px solid var(--neon-green); background: #031018; box-shadow: 0 0 8px rgba(57,255,156,.32); }
 .roiChartSvg { width: 100%; height: 160px; min-height: 0; border: 1px solid rgba(103,232,249,.2); border-radius: 18px; background: linear-gradient(180deg, rgba(8,16,34,.88), rgba(3,7,18,.72)); overflow: visible; }
 .roiChartSvg line { stroke: rgba(148,163,184,.16); stroke-width: .55; vector-effect: non-scaling-stroke; }
-.roiChartSvg text { fill: rgba(226,232,240,.72); font-size: 4px; font-weight: 900; paint-order: stroke; stroke: rgba(3,7,18,.75); stroke-width: .7; vector-effect: non-scaling-stroke; }
 .roiChartSvg path { fill: none; stroke: var(--neon-green); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 8px rgba(57,255,156,.42)); vector-effect: non-scaling-stroke; }
 .roiChartSvg circle { fill: #031018; stroke: var(--neon-green); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.singleRoiNote { border: 1px solid rgba(103,232,249,.18); border-radius: 14px; background: rgba(8,15,28,.55); color: var(--muted); font-weight: 800; margin: 0; padding: 10px 12px; }
 .roiTrendList { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.roiTrendList.singlePeriod { grid-template-columns: minmax(0, 280px); }
 .roiTrendList div { border: 1px solid rgba(103,232,249,.2); border-radius: 14px; background: rgba(8,15,28,.65); padding: 10px; display: grid; gap: 4px; }
 .roiTrendList span { color: var(--muted); font-size: .74rem; font-weight: 900; text-transform: uppercase; letter-spacing: .07em; }
 .roiTrendList strong { font-size: 1.1rem; }
@@ -759,7 +760,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .roiChartHeader { flex-direction: column; align-items: stretch; }
   .roiSummaryGrid { grid-template-columns: 1fr; }
   .roiChartSvg { height: 140px; }
-  .roiTrendList { grid-template-columns: 1fr; max-height: 220px; overflow: auto; }
+  .roiTrendList, .roiTrendList.singlePeriod { grid-template-columns: 1fr; max-height: 220px; overflow: auto; }
   .inventoryFilterPanel { grid-template-columns: 1fr; }
   .inventoryFilterToggleRow, .inventoryToolbarActions { align-items: stretch; flex-direction: column; }
   .filterToggleButton, .exportInventoryButton { width: 100%; }

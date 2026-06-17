@@ -21,8 +21,9 @@ assert(page.includes('roiTrendPoints'), 'ROI% chart should be driven by calculat
 assert(page.includes('roiTrendPath'), 'ROI% chart should render a line path that moves up or down.');
 assert(page.includes('current.expenses += expense.amount') && page.includes('const costBasis = bucket.cost + bucket.expenses'), 'ROI trend should subtract expenses and divide by cost plus expenses.');
 assert(page.includes('.filter((point) => point.soldCount > 0)'), 'ROI trend should exclude expense-only periods with zero sold cards.');
-assert(page.includes('Line = ROI after expenses') && page.includes('Dots = periods with sold cards'), 'ROI chart should explain what the line and dots mean.');
-assert(page.includes('<text x="2" y="14"') && page.includes('<text x="2" y="92"'), 'ROI chart should include visible high/low axis labels.');
+assert(page.includes('ROI after expenses</span>') && page.includes('Sold-card periods</span>'), 'ROI chart should explain the line and dots without cluttered copy.');
+assert(page.includes('roiTrendPoints.length > 1') && page.includes('Only one sold-card period in this range'), 'ROI chart should avoid rendering an ugly one-dot graph for single-period data.');
+assert(!page.includes('<text x="2" y="14"') && !page.includes('<text x="2" y="92"'), 'ROI chart should not render stretched SVG text labels.');
 assert(page.includes('ROI% trend') && page.includes('DateFilterControls'), 'ROI% tab should reuse month/year/all-time date filters.');
 assert(page.includes('soldViewRoiPercent'), 'Sold Inventory dashboard should calculate ROI% for shown sold cards.');
 assert(page.includes('<Stat label="Total sold collected" value={money(totals.revenue)} />\n            <Stat label="Sold inventory cost" value={money(totals.soldInventoryCost)} />'), 'Business Numbers should not show a second sold-only ROI card after Total sold collected.');
@@ -39,7 +40,7 @@ assert(css.includes('.secondaryStatStrip small') && css.includes('font-size: .61
 assert(css.includes('.roiChartCard'), 'ROI% chart card styles should exist.');
 assert(css.includes('.roiChartSvg'), 'ROI% chart SVG styles should exist.');
 assert(css.includes('.roiChartSvg { width: 100%; height: 160px; min-height: 0;'), 'ROI% chart should be compact instead of taking most of the screen.');
-assert(css.includes('.roiChartLegend') && css.includes('.roiChartSvg text'), 'ROI% chart should style visible labels and legend indicators.');
+assert(css.includes('.roiChartLegend') && css.includes('.singleRoiNote'), 'ROI% chart should style legend indicators and the single-period summary note.');
 assert(css.includes('.soldRoiBadge'), 'Sold card ROI% badge styles should exist.');
 assert(css.includes('.soldRoiBadge strong.negative'), 'Negative sold ROI values should stay red inside ROI badges.');
 assert(css.includes('@media (max-width: 720px)') && css.includes('.roiSummaryGrid'), 'ROI% layout should have mobile responsive styles.');
