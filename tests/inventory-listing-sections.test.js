@@ -19,6 +19,11 @@ assert(
 );
 
 assert(
+  page.includes('inventoryMainSwitchButtonActive') && page.includes('inventoryMainSwitchButtonInactive') && !page.includes('activeInventoryMainView === "Not Listed" ? "primary" : "secondary"'),
+  'Only the selected inventory main switch button should use the bright green primary style.'
+);
+
+assert(
   page.includes('Not listed <span>{notListedInventoryQuantity}</span>') && page.includes('Listed <span>{listedInventoryQuantity}</span>'),
   'Inventory should render two main buttons: Not listed and Listed.'
 );
@@ -36,6 +41,13 @@ assert(
 assert(
   css.includes('.inventoryMainSwitch'),
   'Two-button inventory switch should have dedicated styling.'
+);
+
+assert(
+  css.includes('.inventoryMainSwitchButtonInactive { border: 1px solid rgba(103,232,249,.28);') &&
+    css.includes('background: linear-gradient(135deg, rgba(15,23,42,.86), rgba(8,16,34,.78));') &&
+    css.includes('.inventoryMainSwitchButtonInactive span'),
+  'Inactive inventory main switch button should be subdued instead of bright green.'
 );
 
 assert(

@@ -4192,8 +4192,8 @@ export default function Home() {
 
           {!isSoldInventoryView && (
             <section className="inventoryMainSwitch" aria-label="Inventory listing status">
-              <button className={activeInventoryMainView === "Not Listed" ? "primary" : "secondary"} type="button" onClick={() => showInventoryMainView("Not Listed")}>Not listed <span>{notListedInventoryQuantity}</span></button>
-              <button className={activeInventoryMainView === "Listed" ? "primary" : "secondary"} type="button" onClick={() => showInventoryMainView("Listed")}>Listed <span>{listedInventoryQuantity}</span></button>
+              <button className={`inventoryMainSwitchButton ${activeInventoryMainView === "Not Listed" ? "primary inventoryMainSwitchButtonActive" : "inventoryMainSwitchButtonInactive"}`} type="button" onClick={() => showInventoryMainView("Not Listed")}>Not listed <span>{notListedInventoryQuantity}</span></button>
+              <button className={`inventoryMainSwitchButton ${activeInventoryMainView === "Listed" ? "primary inventoryMainSwitchButtonActive" : "inventoryMainSwitchButtonInactive"}`} type="button" onClick={() => showInventoryMainView("Listed")}>Listed <span>{listedInventoryQuantity}</span></button>
             </section>
           )}
 
