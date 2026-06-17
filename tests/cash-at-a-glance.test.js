@@ -51,7 +51,7 @@ assert(css.includes('.dashboardCashEntryBody'), 'Dashboard cash entry body shoul
 assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
 assert(page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'), 'Cash on hand should use all-time cash entries plus sales minus purchases and expenses so new expenses update cash immediately.');
 assert(page.includes('const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);'), 'Filtered expense totals should sum actual expense rows directly.');
-assert(page.includes('const totalInventoryValue = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);'), 'Total inventory value should include every card bought in the selected period, including cards already sold.');
+assert(page.includes('const totalInventoryBought = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);'), 'Total inventory bought should include every card bought in the selected period, including cards already sold.');
 assert(page.includes('const currentInventoryCost = unlistedInventoryCost + listedInventoryCost;'), 'Report should show current inventory cost separately from all inventory bought.');
 assert(page.includes('const periodNetProfit = revenue - soldInventoryCost - expensesTotal;'), 'Report net profit should subtract sold inventory cost plus all selected-period expenses/fees.');
 assert(page.includes('const roi = roiCostBasis > 0 ? (periodNetProfit / roiCostBasis) * 100 : 0;'), 'Report ROI should be calculated after costs and fees.');
