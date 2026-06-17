@@ -45,4 +45,9 @@ assert(
   'Export inventory should inherit green secondary button styling instead of overriding back to dark.'
 );
 
+assert(
+  css.includes('.importFileButton { position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; min-width: 150px; min-height: 44px; color: #031018; }'),
+  'Choose PSA CSV should keep dark text on the green gradient instead of overriding to white text.'
+);
+
 console.log('Secondary button green style checks passed.');

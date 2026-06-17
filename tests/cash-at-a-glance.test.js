@@ -33,6 +33,7 @@ assert(page.includes('ROI after costs/fees'), 'At a Glance should show ROI after
 assert(!page.includes('Cash math'), 'At a Glance should not show the extra cash math bubble under the main stats.');
 assert(page.includes('aria-label="Detailed report breakdown"'), 'At a Glance should render a detailed inventory, sold, and expense breakdown.');
 assert(page.includes('onClick={() => window.print()}'), 'At a Glance should include print action.');
+assert(page.includes('businessReportHeader') && page.includes('printReportButton'), 'At a Glance print header should use constrained layout classes.');
 assert(page.includes('saveCashAdjustment'), 'Cash entry save handler should exist.');
 assert(page.includes('id="dashboard-cash-entry"'), 'Dashboard should expose a front-page cash entry form, not hide it only in At a Glance.');
 assert(page.includes('Enter actual business cash'), 'Dashboard cash entry should be clearly labeled for actual business cash.');
@@ -59,6 +60,9 @@ assert(page.includes('DateFilterControls'), 'At a Glance should reuse date filte
 
 assert(css.includes('@media print'), 'Print stylesheet should exist.');
 assert(css.includes('.printableReport'), 'Print stylesheet should target printable report.');
+assert(css.includes('.businessReportHeader { align-items: flex-start; }'), 'Business Numbers print header should align text and button safely.');
+assert(css.includes('.businessReportHeader > div { flex: 1 1 auto; }'), 'Business Numbers text block should be allowed to shrink before the print button.');
+assert(css.includes('.printReportButton { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }'), 'Print report button should stay constrained inside its panel.');
 assert(css.includes('.glanceHeroGrid'), 'At a Glance layout styles should exist.');
 assert(css.includes('.reportBreakdownList'), 'Detailed report breakdown rows should have dedicated styles.');
 assert(css.includes('padding-bottom: calc(32px + env(safe-area-inset-bottom))'), 'Mobile content should not reserve oversized space for the removed bottom nav.');

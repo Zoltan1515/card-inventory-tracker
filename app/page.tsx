@@ -3701,13 +3701,13 @@ export default function Home() {
 
       {tab === "glance" && (
         <section className="panel atAGlancePanel printableReport" id="at-a-glance-panel">
-          <div className="panelHeader inventoryHeader">
+          <div className="panelHeader inventoryHeader businessReportHeader">
             <div>
               <p className="eyebrow">Business Numbers</p>
               <h2>Clean business snapshot</h2>
               <p className="muted">Showing {selectedDateLabel.toLowerCase()}. Report includes inventory bought in the period (even if already sold), current inventory, sold totals, expenses/fees, net profit, and ROI after costs and fees.</p>
             </div>
-            <button className="secondary noPrint" type="button" onClick={() => window.print()}>Print report</button>
+            <button className="secondary noPrint printReportButton" type="button" onClick={() => window.print()}>Print report</button>
           </div>
           <DateFilterControls
             mode={dateFilterMode}
