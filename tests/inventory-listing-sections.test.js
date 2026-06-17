@@ -51,6 +51,11 @@ assert(
 );
 
 assert(
+  css.includes('.inventoryMainSwitch span { border-radius: 999px; background: rgba(255,255,255,.14); padding: 6px 13px; font-size: 1.64rem; line-height: 1; font-weight: 1000; }'),
+  'Inventory main switch count numbers should be about twice as large as the old compact pills.'
+);
+
+assert(
   page.includes('className={card.status === "Listed" ? "rowMoney askingRowMoney" : "rowMoney unlistedCostMoney"}') && page.includes('const activeInventoryDisplayPrice = (card: CardRecord) => card.status === "Listed" ? card.askingPrice'),
   'Listed inventory rows should make asking price the prominent row price instead of purchase cost.'
 );
