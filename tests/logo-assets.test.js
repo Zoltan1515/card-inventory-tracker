@@ -33,10 +33,10 @@ assert(publicIcon.width === 512 && publicIcon.height === 512, 'Public app icon s
 assert(appIcon.width === 512 && appIcon.height === 512, 'Next.js favicon/app icon should be a 512x512 PNG.');
 assert(css.includes('drop-shadow(0 18px 34px rgba(239,68,68,.24))'), 'Main logo glow should be red instead of gold.');
 assert(css.includes('drop-shadow(0 0 16px rgba(239,68,68,.38)) drop-shadow(0 0 22px rgba(127,29,29,.28))'), 'Mobile logo glow should be red instead of gold.');
-assert(css.includes('.mobileTopHeader { display: grid; grid-template-columns: 46px minmax(118px, 1fr) auto;'), 'Top header should reserve enough room for a readable logo without overlapping account buttons.');
-assert(css.includes('.mobileTopHeader .brandLogo { min-width: 0; justify-self: start; overflow: visible; }'), 'Top header logo wrapper should stay aligned to the left inside its grid column.');
-assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(118px, 12vw, 154px); max-width: 100%;'), 'Top header logo image should stay readable while still shrinking to available space.');
-assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(96px, 24vw, 128px); max-width: 100%; }'), 'Small mobile logo image should stay readable but constrained to the available column.');
+assert(css.includes('.mobileTopHeader { position: relative; display: grid; grid-template-columns: 46px 1fr auto;'), 'Top header should use a normal left/right control grid while allowing the logo to sit centered.');
+assert(css.includes('.mobileTopHeader .brandLogo { position: absolute; left: 50%; transform: translateX(-50%);'), 'Top header logo wrapper should be centered over the header instead of left-aligned.');
+assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(192px, 24vw, 260px); max-width: 42vw;'), 'Top header logo image should be large and centered on desktop/tablet widths.');
+assert(css.includes('.mobileTopHeader .brandLogo img { width: clamp(164px, 46vw, 220px); max-width: 46vw; }'), 'Small mobile logo image should remain bigger while still leaving space for account buttons.');
 assert(!css.includes('rgba(234,179,8') && !css.includes('rgba(120,53,15'), 'Old gold/brown logo glow colors should not remain.');
 
 console.log('Logo asset checks passed.');
