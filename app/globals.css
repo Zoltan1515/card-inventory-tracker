@@ -454,6 +454,13 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .gradingOrderSummary { width: 100%; border: 0; background: transparent; color: var(--text); display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; padding: 16px; text-align: left; }
 .gradingOrderSummary:hover { background: rgba(56,189,248,.08); }
 .gradingOrderDetail { border-top: 1px solid var(--line); padding: 16px; display: grid; gap: 14px; }
+.gradingFeeModal { width: min(860px, 100%); }
+.gradingFeeBulkBar { border: 1px solid rgba(103,232,249,.22); border-radius: 16px; background: rgba(8,15,28,.62); padding: 12px; display: grid; grid-template-columns: minmax(160px, 220px) auto 1fr; gap: 10px; align-items: end; }
+.gradingFeeRows { display: grid; gap: 10px; max-height: min(52vh, 520px); overflow: auto; padding-right: 4px; }
+.gradingFeeRow { border: 1px solid rgba(148,163,184,.18); border-radius: 16px; background: rgba(8,15,28,.54); padding: 12px; display: grid; grid-template-columns: 32px minmax(0, 1fr) minmax(140px, 190px); gap: 12px; align-items: center; }
+.gradingFeeCardInfo { display: grid; gap: 4px; min-width: 0; }
+.gradingFeeCardInfo strong { overflow-wrap: anywhere; }
+.gradingFeeRow label:not(.selectCardBox) { margin: 0; }
 .splitList { border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: rgba(15,23,42,.45); display: grid; gap: 12px; }
 .splitList > strong { color: var(--text); }
 .cashImpactNote { border: 1px solid rgba(57,255,156,.28); border-radius: 12px; padding: 10px 12px; background: rgba(57,255,156,.07); }
@@ -765,6 +772,11 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .inventoryFilterToggleRow, .inventoryToolbarActions { align-items: stretch; flex-direction: column; }
   .filterToggleButton, .exportInventoryButton { width: 100%; }
   .bulkGradingBar .rowActions { grid-template-columns: 1fr; }
+  .gradingOrderSummary { grid-template-columns: 1fr; }
+  .gradingFeeBulkBar { grid-template-columns: 1fr; align-items: stretch; }
+  .gradingFeeRow { grid-template-columns: 28px minmax(0, 1fr); align-items: start; }
+  .gradingFeeRow label:not(.selectCardBox) { grid-column: 1 / -1; }
+  .gradingFeeRows { max-height: 58vh; padding-right: 0; }
   .filterStatus { text-align: center; }
   .soldSummary { grid-template-columns: 1fr; }
   .saleMathGrid { grid-template-columns: 1fr; }

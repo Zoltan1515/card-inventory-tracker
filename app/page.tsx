@@ -73,6 +73,7 @@ type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
 };
+type GradingFeeDraft = { submission: GradingSubmission; fees: Record<string, string> };
 type PrimeLotListingType = "single_card" | "sealed_product" | "lot";
 type PrimeLotPostResult = {
   postedCount: number;
@@ -217,6 +218,7 @@ const saleExpenseLabelForCategory = (category: ExpenseCategory) => {
   return "Sale expense";
 };
 const saleExpenseDescriptionForCard = (category: ExpenseCategory, card: Pick<CardRecord, "name">) => `${saleExpenseLabelForCategory(category)}: ${card.name}`;
+const gradingFeeDescriptionForCard = (card: Pick<CardRecord, "id" | "name">) => `Grading fee: ${card.id}: ${card.name}`;
 const expenseDraftAmount = (value: string) => Math.max(0, Number(value || 0) || 0);
 const inventoryExpenseAmount = expenseDraftAmount;
 const inventoryExpenseDraftTotal = (draft: InventoryExpenseDraft) => inventoryExpenseAmount(draft.shipping) + inventoryExpenseAmount(draft.hst) + inventoryExpenseAmount(draft.duties);
@@ -231,6 +233,10 @@ const isSaleExpenseForCard = (expense: ExpenseRecord, card: CardRecord) => {
 };
 const saleExpensesTotalForCards = (sourceExpenses: ExpenseRecord[], sourceCards: CardRecord[]) => sourceExpenses
   .filter((expense) => sourceCards.some((card) => isSaleExpenseForCard(expense, card)))
+  .reduce((sum, expense) => sum + expense.amount, 0);
+const isGradingExpenseForCard = (expense: ExpenseRecord, card: Pick<CardRecord, "id" | "name">) => expense.category === "Grading Fees" && expense.description === gradingFeeDescriptionForCard(card);
+const gradingFeesTotalForCards = (sourceExpenses: ExpenseRecord[], sourceCards: CardRecord[]) => sourceExpenses
+  .filter((expense) => sourceCards.some((card) => isGradingExpenseForCard(expense, card)))
   .reduce((sum, expense) => sum + expense.amount, 0);
 const roiBucketKey = (date: string, mode: DateFilterMode, start: string, end: string) => {
   if (!date) return "No date";
@@ -754,6 +760,9 @@ export default function Home() {
   const [returningSubmission, setReturningSubmission] = useState<GradingSubmission | null>(null);
   const [returnDate, setReturnDate] = useState(todayIso());
   const [returnGradeRows, setReturnGradeRows] = useState<ReturnGradeRow[]>([]);
+  const [gradingFeeDraft, setGradingFeeDraft] = useState<GradingFeeDraft | null>(null);
+  const [gradingFeeSelection, setGradingFeeSelection] = useState<string[]>([]);
+  const [bulkGradingFee, setBulkGradingFee] = useState("");
   const [importPreviews, setImportPreviews] = useState<ImportCardPreview[]>([]);
   const [importFileName, setImportFileName] = useState("");
   const [importingCards, setImportingCards] = useState(false);
@@ -1415,17 +1424,21 @@ export default function Home() {
   const isSoldInventoryView = statusFilter === "Sold";
   const activeInventoryMainView: InventoryMainView = statusFilter === "Listed" ? "Listed" : "Not Listed";
   const saleExpenseTotalForCard = (card: CardRecord) => expenses.filter((expense) => isSaleExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
-  const totalProfitForCard = (card: CardRecord) => cardProfit(card) - saleExpenseTotalForCard(card);
+  const gradingFeeTotalForCard = (card: CardRecord) => expenses.filter((expense) => isGradingExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
+  const totalCostBasisForCard = (card: CardRecord) => cardPurchaseCost(card) + gradingFeeTotalForCard(card);
+  const totalProfitForCard = (card: CardRecord) => cardNetSoldPrice(card) - totalCostBasisForCard(card) - saleExpenseTotalForCard(card);
   const cardRoiAfterSaleExpenses = (card: CardRecord) => {
-    const purchaseCost = cardPurchaseCost(card);
+    const purchaseCost = cardPurchaseCost(card) + gradingFeeTotalForCard(card);
     if (!purchaseCost) return 0;
     return (totalProfitForCard(card) / purchaseCost) * 100;
   };
   const soldViewRevenue = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardNetSoldPrice(card), 0) : 0;
   const soldViewCost = isSoldInventoryView ? filteredCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0) : 0;
+  const soldViewGradingFees = isSoldInventoryView ? gradingFeesTotalForCards(expenses, filteredCards) : 0;
   const soldViewSaleExpenses = isSoldInventoryView ? saleExpensesTotalForCards(expenses, filteredCards) : 0;
-  const soldViewProfit = soldViewRevenue - soldViewCost - soldViewSaleExpenses;
-  const soldViewRoiPercent = soldViewCost > 0 ? (soldViewProfit / soldViewCost) * 100 : 0;
+  const soldViewProfit = soldViewRevenue - soldViewCost - soldViewGradingFees - soldViewSaleExpenses;
+  const soldViewRoiCostBasis = soldViewCost + soldViewGradingFees;
+  const soldViewRoiPercent = soldViewRoiCostBasis > 0 ? (soldViewProfit / soldViewRoiCostBasis) * 100 : 0;
 
   useEffect(() => {
     if (!isSoldInventoryView) return;
@@ -2828,6 +2841,79 @@ export default function Home() {
     })));
   };
 
+  const openGradingFeesModal = (submission: GradingSubmission) => {
+    const submissionCards = gradingSubmissionCards(submission);
+    setGradingFeeDraft({
+      submission,
+      fees: Object.fromEntries(submissionCards.map((card) => {
+        const existingFee = expenses.filter((expense) => isGradingExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
+        return [card.id, existingFee ? String(existingFee) : ""];
+      })),
+    });
+    setGradingFeeSelection(submissionCards.map((card) => card.id));
+    setBulkGradingFee("");
+  };
+
+  const closeGradingFeesModal = () => {
+    setGradingFeeDraft(null);
+    setGradingFeeSelection([]);
+    setBulkGradingFee("");
+  };
+
+  const toggleGradingFeeSelection = (cardId: string) => {
+    setGradingFeeSelection((current) => current.includes(cardId) ? current.filter((id) => id !== cardId) : [...current, cardId]);
+  };
+
+  const updateGradingFeeDraft = (cardId: string, value: string) => {
+    setGradingFeeDraft((draft) => draft ? ({ ...draft, fees: { ...draft.fees, [cardId]: value } }) : draft);
+  };
+
+  const applyBulkGradingFee = () => {
+    if (!gradingFeeDraft || !gradingFeeSelection.length) return;
+    setGradingFeeDraft((draft) => draft ? ({
+      ...draft,
+      fees: {
+        ...draft.fees,
+        ...Object.fromEntries(gradingFeeSelection.map((cardId) => [cardId, bulkGradingFee])),
+      },
+    }) : draft);
+  };
+
+  const saveGradingFees = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!gradingFeeDraft) return;
+    setError("");
+    setNotice("");
+    const submissionCards = gradingSubmissionCards(gradingFeeDraft.submission);
+    for (const card of submissionCards) {
+      for (const expense of expenses.filter((entry) => isGradingExpenseForCard(entry, card))) {
+        const deleted = await deleteExpense(expense);
+        if (!deleted) return;
+      }
+    }
+    const now = new Date().toISOString();
+    const feeRows: ExpenseRecord[] = submissionCards
+      .map((card) => ({ card, amount: expenseDraftAmount(gradingFeeDraft.fees[card.id] || "") }))
+      .filter((row) => row.amount > 0)
+      .map(({ card, amount }) => ({
+        ...emptyExpense(),
+        id: crypto.randomUUID(),
+        category: "Grading Fees",
+        amount,
+        expenseDate: gradingFeeDraft.submission.returnedDate || gradingFeeDraft.submission.sentDate || todayIso(),
+        vendor: gradingFeeDraft.submission.company || "Grading",
+        description: gradingFeeDescriptionForCard(card),
+        createdAt: now,
+        createdBy: currentUsername,
+        updatedAt: now,
+        updatedBy: currentUsername,
+      }));
+    const saved = await insertExpenseRecords(feeRows);
+    if (!saved) return;
+    setNotice(`Saved grading fees for ${saved.length} card${saved.length === 1 ? "" : "s"}.`);
+    closeGradingFeesModal();
+  };
+
   const updateReturnGradeRow = (rowId: string, changes: Partial<ReturnGradeRow>) => {
     setReturnGradeRows((rows) => rows.map((row) => row.id === rowId ? { ...row, ...changes } : row));
   };
@@ -4050,6 +4136,7 @@ export default function Home() {
                             {!submissionCards.length && <p className="empty">No cards found for this submission.</p>}
                           </div>
                           <div className="rowActions">
+                            <button className="secondary" type="button" onClick={() => openGradingFeesModal(submission)}>Enter grading fees</button>
                             {submission.status !== "Returned" && <button className="primary" type="button" onClick={() => openReturnGradingModal(submission)}>Mark returned</button>}
                           </div>
                         </div>
@@ -4165,6 +4252,7 @@ export default function Home() {
               <Stat label="Sold cards shown" value={String(filteredInventoryQuantity)} />
               <Stat label="Net sold amount shown" value={money(soldViewRevenue)} tone="positive" />
               <Stat label="Original cost shown" value={money(soldViewCost)} />
+              <Stat label="Grading fees shown" value={money(soldViewGradingFees)} tone={soldViewGradingFees > 0 ? "negative" : undefined} />
               <Stat label="Fees/Shipping label shown" value={money(soldViewSaleExpenses)} tone={soldViewSaleExpenses > 0 ? "negative" : undefined} />
               <Stat label="Profit from shown sold cards" value={money(soldViewProfit)} tone={soldViewProfit >= 0 ? "positive" : "negative"} />
               <Stat label="ROI% shown" value={percent(soldViewRoiPercent)} tone={soldViewRoiPercent >= 0 ? "positive" : "negative"} />
@@ -4222,7 +4310,7 @@ export default function Home() {
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
-                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected, ${money(cardPurchaseCost(card))} original cost, and ${money(saleExpenseTotalForCard(card))} fees/shipping label`}>
+                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected, ${money(cardPurchaseCost(card))} original cost, ${money(gradingFeeTotalForCard(card))} grading fees, and ${money(saleExpenseTotalForCard(card))} fees/shipping label`}>
                         <div>
                           <span>Card sold</span>
                           <strong>{money(card.soldPrice)}</strong>
@@ -4234,6 +4322,10 @@ export default function Home() {
                         <div>
                           <span>Original cost</span>
                           <strong>{money(cardPurchaseCost(card))}</strong>
+                        </div>
+                        <div className="soldDeduction">
+                          <span>Grading fees</span>
+                          <strong>{money(gradingFeeTotalForCard(card))}</strong>
                         </div>
                         <div className="soldDeduction">
                           <span>Fees/Shipping label</span>
@@ -4709,6 +4801,47 @@ export default function Home() {
               </div>
               <button className="primary full" type="submit">Create grading submission</button>
             </div>
+          </form>
+        </div>
+      )}
+
+      {gradingFeeDraft && (
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Enter grading fees for submission">
+          <form className="modal panel gradingFeeModal" onSubmit={saveGradingFees}>
+            <div className="panelHeader">
+              <div>
+                <p className="eyebrow">Enter grading fees</p>
+                <h2>{gradingFeeDraft.submission.reference || `${gradingFeeDraft.submission.company} submission`}</h2>
+                <p className="muted">Add the grading fee for each card. These become card-specific Grading Fees expenses and are included in sold profit and ROI.</p>
+              </div>
+              <button className="secondary" type="button" onClick={closeGradingFeesModal}>Cancel</button>
+            </div>
+            <div className="gradingFeeBulkBar full">
+              <label>Bulk fee
+                <input aria-label="Bulk grading fee" type="number" value={bulkGradingFee} onChange={(e) => setBulkGradingFee(e.target.value)} placeholder="0.00" />
+              </label>
+              <button className="secondary" type="button" onClick={applyBulkGradingFee} disabled={!gradingFeeSelection.length}>Apply to selected</button>
+              <span className="muted">{gradingFeeSelection.length} selected</span>
+            </div>
+            <div className="gradingFeeRows" aria-label="Cards in grading submission">
+              {gradingSubmissionCards(gradingFeeDraft.submission).map((card) => (
+                <article className="gradingFeeRow" key={card.id}>
+                  <label className="selectCardBox" aria-label={`Select ${card.name} for bulk grading fee`}>
+                    <input type="checkbox" checked={gradingFeeSelection.includes(card.id)} onChange={() => toggleGradingFeeSelection(card.id)} />
+                  </label>
+                  <div className="gradingFeeCardInfo">
+                    <strong>{card.name}</strong>
+                    <span className="muted">{[card.year, card.setName, card.cardNumber, gradingSubmissionQuantity(gradingFeeDraft.submission, card) > 1 ? `Qty ${gradingSubmissionQuantity(gradingFeeDraft.submission, card)}` : ""].filter(Boolean).join(" • ") || "No card details"}</span>
+                  </div>
+                  <Field label="Grading fee" type="number" value={gradingFeeDraft.fees[card.id] || ""} onChange={(v) => updateGradingFeeDraft(card.id, v)} placeholder="0.00" />
+                </article>
+              ))}
+            </div>
+            <div className="calc full">
+              <span>Total grading fees: <strong>{money(Object.values(gradingFeeDraft.fees).reduce((sum, value) => sum + expenseDraftAmount(value), 0))}</strong></span>
+              <span>Cards in submission: <strong>{gradingSubmissionCardQuantity(gradingFeeDraft.submission)}</strong></span>
+            </div>
+            <button className="primary full" type="submit">Save grading fees</button>
           </form>
         </div>
       )}
