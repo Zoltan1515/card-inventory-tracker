@@ -671,89 +671,98 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .pricingFinalCta { position: relative; overflow: hidden; text-align: center; margin: 20px 0 0; }
 .pricingFinalCta .subhead { margin-left: auto; margin-right: auto; margin-bottom: 22px; }
 
-.primeLotLandingPanel { overflow: hidden; display: grid; gap: 0; margin-bottom: 22px; color: #fff; border: 1px solid rgba(255,255,255,.08); border-radius: 28px; background: #050b16; box-shadow: 0 26px 80px rgba(0,0,0,.34); }
+.primeLotLandingPanel { overflow: hidden; display: grid; gap: 0; margin-bottom: 22px; color: #fff; border: 1px solid rgba(255,255,255,.1); border-radius: 32px; background: #050b16; box-shadow: 0 30px 90px rgba(0,0,0,.38); }
 .primeLotLandingPanel a { text-decoration: none; }
-.primeLotLandingTopbar { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; border-bottom: 1px solid rgba(255,255,255,.1); padding: 14px 22px; background: rgba(5,11,22,.92); backdrop-filter: blur(12px); }
-.primeLotLandingLogo img { width: 170px; max-width: 32vw; height: 48px; object-fit: contain; display: block; }
-.primeLotLandingTopbar nav { display: flex; justify-content: center; gap: 26px; font-size: .88rem; font-weight: 900; }
+.primeLotLandingTopbar { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 18px; align-items: center; border-bottom: 1px solid rgba(255,255,255,.1); padding: 16px 28px; background: rgba(5,11,22,.9); backdrop-filter: blur(14px); }
+.primeLotLandingLogo img { width: 170px; max-width: 32vw; height: 52px; object-fit: contain; display: block; }
+.primeLotLandingTopbar nav { display: flex; justify-content: center; gap: 28px; font-size: .9rem; font-weight: 900; }
 .primeLotLandingTopbar a { color: #e2e8f0; }
 .primeLotLandingTopbar nav a:hover, .primeLotTopbarActions > a:first-child:hover { color: #fde047; }
-.primeLotTopbarActions { display: flex; align-items: center; gap: 12px; font-size: .88rem; font-weight: 900; }
-.primeLotRedButton, .primeLotGhostButton { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; border-radius: 12px; padding: 0 22px; font-weight: 1000; color: #fff; transition: transform .16s ease, background .16s ease, border-color .16s ease; }
-.primeLotRedButton { border: 1px solid rgba(248,113,113,.3); background: linear-gradient(90deg, #dc2626, #ef4444); box-shadow: 0 18px 34px rgba(127,29,29,.34); }
-.primeLotRedButton:hover { transform: scale(1.02); background: linear-gradient(90deg, #ef4444, #f87171); }
-.primeLotGhostButton { border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.1); }
-.primeLotGhostButton:hover { background: rgba(255,255,255,.16); }
-.primeLotLandingHero { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(340px, .98fr); gap: 48px; align-items: center; padding: clamp(42px, 6vw, 78px) 24px; background: radial-gradient(circle at 20% 20%, rgba(255,199,44,.12), transparent 35%), radial-gradient(circle at 85% 15%, rgba(37,99,235,.22), transparent 35%), radial-gradient(circle at 50% 100%, rgba(220,38,38,.18), transparent 40%); }
-.primeLotHeroCopy { max-width: 760px; }
-.primeLotPill { display: inline-flex; margin-bottom: 20px; border: 1px solid rgba(250,204,21,.42); border-radius: 999px; padding: 8px 16px; background: rgba(250,204,21,.1); color: #fde047; font-size: .76rem; font-weight: 1000; letter-spacing: .22em; text-transform: uppercase; }
-.primeLotHeroCopy h1 { max-width: 760px; margin-bottom: 0; color: #fff; font-size: clamp(3rem, 7vw, 5.2rem); line-height: .95; letter-spacing: -.055em; }
-.primeLotHeroCopy .subhead { margin-top: 26px; max-width: 670px; color: #cbd5e1; font-size: 1.08rem; font-weight: 600; line-height: 1.75; }
+.primeLotTopbarActions { display: flex; align-items: center; gap: 12px; font-size: .9rem; font-weight: 900; }
+.primeLotRedButton, .primeLotGhostButton { display: inline-flex; align-items: center; justify-content: center; min-height: 50px; border-radius: 14px; padding: 0 24px; font-weight: 1000; color: #fff; transition: transform .16s ease, background .16s ease, border-color .16s ease, box-shadow .16s ease; }
+.primeLotRedButton { border: 1px solid rgba(248,113,113,.42); background: linear-gradient(90deg, #b91c1c, #ef4444); box-shadow: 0 18px 42px rgba(127,29,29,.42), inset 0 1px 0 rgba(255,255,255,.18); }
+.primeLotRedButton:hover { transform: translateY(-1px) scale(1.015); background: linear-gradient(90deg, #dc2626, #f87171); box-shadow: 0 22px 48px rgba(127,29,29,.5), 0 0 24px rgba(248,113,113,.22); }
+.primeLotGhostButton { border: 1px solid rgba(255,255,255,.22); background: rgba(255,255,255,.09); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
+.primeLotGhostButton:hover { background: rgba(255,255,255,.16); border-color: rgba(250,204,21,.5); }
+.primeLotLandingHero { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(380px, .98fr); gap: clamp(30px, 5vw, 64px); align-items: center; padding: clamp(48px, 7vw, 92px) clamp(22px, 5vw, 58px); background: radial-gradient(circle at 18% 18%, rgba(250,204,21,.16), transparent 28%), radial-gradient(circle at 88% 14%, rgba(37,99,235,.28), transparent 34%), radial-gradient(circle at 48% 98%, rgba(220,38,38,.2), transparent 38%), linear-gradient(135deg, #071225 0%, #050b16 58%, #110713 100%); }
+.primeLotLandingHero::after { content: ""; position: absolute; inset: auto 0 0 42%; height: 45%; background: radial-gradient(circle, rgba(250,204,21,.15), transparent 60%); pointer-events: none; }
+.primeLotHeroCopy { position: relative; z-index: 1; max-width: 780px; min-width: 0; }
+.primeLotPill { display: inline-flex; margin-bottom: 20px; border: 1px solid rgba(250,204,21,.45); border-radius: 999px; padding: 9px 16px; background: rgba(250,204,21,.1); color: #fde047; font-size: .76rem; font-weight: 1000; letter-spacing: .22em; text-transform: uppercase; box-shadow: 0 0 24px rgba(250,204,21,.1); }
+.primeLotHeroCopy h1 { max-width: 800px; margin-bottom: 0; color: #fff; font-size: clamp(2.9rem, 5.7vw, 4.95rem); line-height: .94; letter-spacing: -.05em; text-shadow: 0 18px 60px rgba(37,99,235,.22); }
+.primeLotHeroCopy .subhead { margin-top: 26px; max-width: 690px; color: #cbd5e1; font-size: 1.12rem; font-weight: 650; line-height: 1.78; }
 .primeLotHeroActions { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 32px; }
-.primeLotHeroActions a { min-width: 184px; }
-.primeLotTrustRow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 32px; }
-.primeLotTrustRow span { border: 1px solid rgba(255,255,255,.1); border-radius: 999px; padding: 12px 14px; color: #f8fafc; background: rgba(255,255,255,.1); font-size: .78rem; font-weight: 1000; line-height: 1.15; text-align: center; }
-.primeLotHeroMockupWrap { position: relative; }
-.primeLotHeroMockupWrap::before { content: ""; position: absolute; inset: 0; border-radius: 40px; background: linear-gradient(135deg, rgba(59,130,246,.2), rgba(250,204,21,.1), rgba(220,38,38,.2)); filter: blur(24px); }
-.primeLotHeroMockup { position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.15); border-radius: 32px; padding: 20px; background: rgba(8,17,32,.96); box-shadow: 0 26px 70px rgba(0,0,0,.42); }
-.primeLotMockupTop { display: flex; justify-content: space-between; gap: 12px; color: #e2e8f0; margin-bottom: 20px; font-size: .9rem; }
+.primeLotHeroActions a { min-width: 190px; }
+.primeLotTrustRow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 30px; }
+.primeLotTrustRow span { border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 12px 14px; color: #f8fafc; background: rgba(255,255,255,.09); font-size: .78rem; font-weight: 1000; line-height: 1.15; text-align: center; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.primeLotHeroOffer { width: fit-content; margin-top: 18px; border-left: 3px solid #facc15; border-radius: 12px; padding: 10px 14px; color: #fde68a; background: rgba(250,204,21,.08); font-weight: 900; }
+.primeLotHeroMockupWrap { position: relative; z-index: 1; min-width: 0; }
+.primeLotHeroMockupWrap::before { content: ""; position: absolute; inset: 0; border-radius: 44px; background: conic-gradient(from 180deg, rgba(37,99,235,.36), rgba(250,204,21,.22), rgba(220,38,38,.3), rgba(37,99,235,.36)); filter: blur(28px); opacity: .85; }
+.primeLotHeroMockup { position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,.16); border-radius: 32px; padding: 20px; background: linear-gradient(145deg, rgba(8,17,32,.94), rgba(2,6,23,.9)); box-shadow: 0 30px 80px rgba(0,0,0,.48), inset 0 1px 0 rgba(255,255,255,.1); }
+.primeLotMockupTop { display: flex; justify-content: space-between; gap: 12px; color: #e2e8f0; margin-bottom: 18px; font-size: .9rem; }
 .primeLotMockupTop strong { color: #fff; font-weight: 1000; }
-.primeLotMockupGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-.primeLotMockupGrid article { display: grid; gap: 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 12px; background: rgba(255,255,255,.05); }
-.mockCardArt { aspect-ratio: 3 / 4; min-height: 0; display: grid; place-items: center; border-radius: 12px; color: #fff; font-weight: 1000; font-size: 2rem; background: linear-gradient(145deg, #2563eb, #020617); box-shadow: 0 14px 26px rgba(0,0,0,.28); }
-.mockCardArt.gold { background: linear-gradient(145deg, #fde047, #f97316); color: #fff; }
-.mockCardArt.purple { background: linear-gradient(145deg, #9333ea, #2563eb); }
-.primeLotMockupGrid strong { color: #fff; font-size: .9rem; }
-.primeLotMockupGrid span { color: #93c5fd; font-weight: 1000; font-size: .82rem; }
-.primeLotActivityList { display: grid; gap: 12px; margin-top: 22px; }
-.primeLotActivityList span { display: flex; justify-content: space-between; gap: 14px; align-items: center; border-radius: 12px; padding: 12px 14px; background: rgba(255,255,255,.1); }
+.primeLotMockupTop span { color: #facc15; font-weight: 900; }
+.primeLotFeaturedListing { display: grid; grid-template-columns: 132px minmax(0, 1fr); gap: 16px; align-items: center; margin-bottom: 16px; border: 1px solid rgba(250,204,21,.2); border-radius: 22px; padding: 14px; background: linear-gradient(135deg, rgba(250,204,21,.12), rgba(37,99,235,.08)); }
+.primeLotFeaturedListing img { width: 100%; height: 178px; object-fit: cover; border-radius: 16px; box-shadow: 0 18px 36px rgba(0,0,0,.32); }
+.primeLotFeaturedListing p { margin: 0 0 6px; color: #fde047; font-size: .78rem; font-weight: 1000; letter-spacing: .14em; text-transform: uppercase; }
+.primeLotFeaturedListing h3 { margin: 0; color: #fff; font-size: 1.24rem; line-height: 1.12; }
+.primeLotFeaturedListing strong { display: block; margin-top: 8px; color: #93c5fd; font-size: 1.08rem; }
+.primeLotFeaturedListing small { display: block; margin-top: 6px; color: #cbd5e1; font-weight: 700; }
+.primeLotMockupGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.primeLotMockupGrid article { display: grid; gap: 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 18px; padding: 10px; background: rgba(255,255,255,.055); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.primeLotMockupGrid img { width: 100%; aspect-ratio: 3 / 4; height: auto; object-fit: cover; border-radius: 12px; box-shadow: 0 14px 26px rgba(0,0,0,.28); }
+.primeLotMockupGrid strong { color: #fff; font-size: .88rem; }
+.primeLotMockupGrid span { color: #93c5fd; font-weight: 1000; font-size: .8rem; }
+.primeLotActivityList { display: grid; gap: 11px; margin-top: 18px; }
+.primeLotActivityList span { display: flex; justify-content: space-between; gap: 14px; align-items: center; border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 12px 14px; background: rgba(255,255,255,.08); }
 .primeLotActivityList strong { color: #fff; font-weight: 1000; }
-.primeLotActivityList small { color: #94a3b8; font-weight: 800; }
-.primeLotWctDiscount { margin: 0 24px 40px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 24px; align-items: center; border: 1px solid rgba(239,68,68,.5); border-radius: 24px; padding: 24px; color: #fff; background: linear-gradient(90deg, #450a0a, #200812, #070d18); box-shadow: 0 24px 60px rgba(127,29,29,.24); }
-.discountLogoMark { width: 96px; height: 96px; display: grid; place-items: center; overflow: hidden; border-radius: 999px; border: 1px solid rgba(239,68,68,.42); background: rgba(0,0,0,.4); }
-.discountLogoMark img { width: 80px; height: 80px; object-fit: contain; }
-.primeLotWctDiscount strong { display: block; margin-bottom: 8px; font-size: 1.5rem; font-weight: 1000; }
-.primeLotWctDiscount p { margin: 0; color: #fee2e2; font-weight: 600; line-height: 1.55; }
-.primeLotWctDiscount > span { border: 1px solid rgba(248,113,113,.72); border-radius: 16px; padding: 16px 26px; color: #fff; font-size: 2rem; font-weight: 1000; text-align: center; background: rgba(185,28,28,.42); }
+.primeLotActivityList small { color: #94a3b8; font-weight: 800; text-align: right; }
+.primeLotWctDiscount { margin: 0 clamp(16px, 4vw, 44px) 42px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 24px; align-items: center; border: 1px solid rgba(239,68,68,.55); border-radius: 28px; padding: 24px; color: #fff; background: radial-gradient(circle at 10% 0%, rgba(248,113,113,.22), transparent 28%), linear-gradient(90deg, #450a0a, #200812 45%, #070d18); box-shadow: 0 24px 70px rgba(127,29,29,.26), inset 0 1px 0 rgba(255,255,255,.08); }
+.discountLogoMark { width: 100px; height: 100px; display: grid; place-items: center; overflow: hidden; border-radius: 999px; border: 1px solid rgba(239,68,68,.46); background: rgba(0,0,0,.42); box-shadow: 0 0 28px rgba(239,68,68,.18); }
+.discountLogoMark img { width: 82px; height: 82px; object-fit: contain; }
+.primeLotWctDiscount strong { display: block; margin-bottom: 8px; font-size: 1.55rem; font-weight: 1000; }
+.primeLotWctDiscount p { margin: 0; color: #fee2e2; font-weight: 650; line-height: 1.55; }
+.primeLotWctDiscount > span { border: 1px solid rgba(248,113,113,.75); border-radius: 18px; padding: 16px 26px; color: #fff; font-size: 2rem; font-weight: 1000; text-align: center; background: rgba(185,28,28,.46); box-shadow: inset 0 1px 0 rgba(255,255,255,.12); }
 .primeLotWctDiscount > span small { display: block; margin-top: 4px; color: #fee2e2; font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; }
-.primeLotLandingSection, .primeLotMembershipBlock, .primeLotFaqBlock, .primeLotFinalCta { padding: clamp(42px, 5vw, 64px) 24px; color: #0f172a; background: #fff; }
-.primeLotLandingSection.soft, .primeLotMembershipBlock { background: #f8fafc; }
-.primeLotLandingSection h2, .primeLotFaqBlock h2, .primeLotFinalCta h2 { text-align: center; color: #0f172a; margin-bottom: 0; font-size: clamp(2rem, 4vw, 2.55rem); line-height: 1.05; font-weight: 1000; }
+.primeLotLandingSection, .primeLotMembershipBlock, .primeLotFaqBlock, .primeLotFinalCta { padding: clamp(48px, 6vw, 76px) clamp(18px, 4vw, 48px); color: #0f172a; background: #fff; }
+.primeLotLandingSection.soft, .primeLotMembershipBlock { background: linear-gradient(180deg, #f8fafc, #eef2ff); }
+.primeLotLandingSection h2, .primeLotFaqBlock h2, .primeLotFinalCta h2 { text-align: center; color: #0f172a; margin-bottom: 0; font-size: clamp(2rem, 4vw, 2.8rem); line-height: 1.04; font-weight: 1000; letter-spacing: -.035em; }
 .primeLotSectionEyebrow { margin: 0 0 12px; color: #dc2626; font-size: .82rem; font-weight: 1000; letter-spacing: .18em; text-align: center; text-transform: uppercase; }
-.primeLotFeatureGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; max-width: 1180px; margin: 40px auto 0; }
-.primeLotFeatureCard { display: grid; gap: 14px; border: 1px solid #e2e8f0; border-radius: 24px; padding: 24px; background: #fff; box-shadow: 0 5px 16px rgba(15,23,42,.05); }
-.primeLotFeatureCard > span { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 18px; background: #fef3c7; font-size: 1.5rem; }
-.primeLotFeatureCard strong, .primeLotNeedGrid strong, .primeLotStep strong { color: #0f172a; font-size: 1.08rem; font-weight: 1000; }
+.primeLotFeatureGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; max-width: 1180px; margin: 42px auto 0; }
+.primeLotFeatureCard { position: relative; overflow: hidden; display: grid; gap: 16px; border: 1px solid #e2e8f0; border-radius: 28px; padding: 26px; background: linear-gradient(180deg, #fff, #f8fafc); box-shadow: 0 18px 44px rgba(15,23,42,.08); }
+.primeLotFeatureCard::after { content: ""; position: absolute; inset: auto 0 0; height: 4px; background: linear-gradient(90deg, #dc2626, #facc15, #2563eb); opacity: .7; }
+.primeLotFeatureCard > span { width: fit-content; display: grid; place-items: center; border-radius: 999px; padding: 7px 11px; background: #fef3c7; color: #92400e; font-size: .76rem; font-weight: 1000; letter-spacing: .08em; text-transform: uppercase; }
+.primeLotFeatureCard strong, .primeLotNeedGrid strong, .primeLotStep strong { color: #0f172a; font-size: 1.1rem; font-weight: 1000; }
 .primeLotFeatureCard p, .primeLotNeedGrid p, .primeLotStep p, .primeLotPriceCard p, .primeLotFaqBlock p, .primeLotFinalCta p { color: #64748b; margin: 8px 0 0; line-height: 1.7; }
-.primeLotNeedGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; max-width: 1180px; margin: 40px auto 0; text-align: center; }
-.primeLotNeedGrid article { display: grid; gap: 14px; }
-.miniListingCard { min-height: 190px; display: flex; flex-direction: column; justify-content: center; border-radius: 24px; padding: 24px; border: 1px solid #e2e8f0; background: #fff; color: #0f172a; box-shadow: 0 5px 16px rgba(15,23,42,.05); }
-.miniListingCard small { color: #3b82f6; font-size: .76rem; font-weight: 1000; letter-spacing: .14em; text-transform: uppercase; }
-.miniListingCard strong { display: block; margin-top: 20px; font-size: 1.25rem; }
-.miniListingCard.dark { color: #fff; border-color: #0f172a; background: #081120; }
-.miniListingCard.dark small, .miniListingCard.dark strong { color: #fff; }
-.miniListingCard.sealed { background: linear-gradient(145deg, #fff, #ecfeff 55%, #fef9c3); }
-.primeLotSteps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; max-width: 1180px; margin: 40px auto 0; }
-.primeLotStep { display: grid; gap: 14px; justify-items: center; text-align: center; border: 1px solid #e2e8f0; border-radius: 24px; padding: 28px; background: #fff; box-shadow: 0 5px 16px rgba(15,23,42,.05); }
-.primeLotStep > span { width: 44px; height: 44px; display: grid; place-items: center; border-radius: 999px; color: #fff; background: #2563eb; font-size: 1.05rem; font-weight: 1000; }
-.primeLotMembershipBlock { display: grid; grid-template-columns: 360px minmax(0, 1fr); gap: 24px; align-items: stretch; }
-.primeLotPriceCard { display: grid; gap: 16px; border-radius: 24px; padding: 28px; color: #fff; background: #081b3a; box-shadow: 0 24px 60px rgba(15,23,42,.2); }
-.primeLotPriceCard small { width: fit-content; border-radius: 999px; padding: 5px 14px; color: #0f172a; background: #facc15; font-size: .74rem; font-weight: 1000; text-transform: uppercase; }
-.primeLotPriceCard h3 { margin: 0; color: #fff; font-size: 1.55rem; }
-.primeLotPriceCard > strong { font-size: 3.1rem; color: #fff; line-height: 1; }
+.primeLotNeedGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; max-width: 1180px; margin: 42px auto 0; text-align: left; }
+.primeLotNeedGrid.imageHeavy { align-items: stretch; }
+.primeLotImageFeature { overflow: hidden; display: grid; grid-template-rows: 210px 1fr; border: 1px solid #e2e8f0; border-radius: 28px; background: #fff; box-shadow: 0 20px 52px rgba(15,23,42,.1); }
+.primeLotImageFeatureMedia { overflow: hidden; background: #081120; }
+.primeLotImageFeatureMedia img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.primeLotImageFeature > div:last-child { padding: 20px; }
+.primeLotImageFeature small { color: #2563eb; font-size: .76rem; font-weight: 1000; letter-spacing: .14em; text-transform: uppercase; }
+.primeLotImageFeature strong { display: block; margin-top: 8px; font-size: 1.22rem; }
+.primeLotSteps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; max-width: 1180px; margin: 42px auto 0; }
+.primeLotStep { position: relative; overflow: hidden; display: grid; gap: 14px; justify-items: center; text-align: center; border: 1px solid #e2e8f0; border-radius: 28px; padding: 30px 22px; background: linear-gradient(180deg, #fff, #f8fafc); box-shadow: 0 18px 44px rgba(15,23,42,.08); }
+.primeLotStep > span { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 999px; color: #fff; background: linear-gradient(135deg, #2563eb, #1e40af); font-size: 1.08rem; font-weight: 1000; box-shadow: 0 14px 28px rgba(37,99,235,.22); }
+.primeLotMembershipBlock { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 26px; align-items: stretch; }
+.primeLotPriceCard { position: relative; overflow: hidden; display: grid; gap: 16px; border: 1px solid rgba(255,255,255,.12); border-radius: 30px; padding: 30px; color: #fff; background: radial-gradient(circle at 10% 0%, rgba(250,204,21,.15), transparent 28%), linear-gradient(145deg, #081b3a, #061020); box-shadow: 0 28px 70px rgba(15,23,42,.24); }
+.primeLotPriceCard small { width: fit-content; border-radius: 999px; padding: 6px 14px; color: #0f172a; background: #facc15; font-size: .74rem; font-weight: 1000; text-transform: uppercase; }
+.primeLotPriceCard h3 { margin: 0; color: #fff; font-size: 1.6rem; }
+.primeLotPriceCard > strong { font-size: 3.25rem; color: #fff; line-height: 1; }
 .primeLotPriceCard > strong span { font-size: 1rem; color: #cbd5e1; }
 .primeLotPriceCard p, .primeLotPriceCard li { color: #e2e8f0; }
 .primeLotPriceCard ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; font-size: .92rem; font-weight: 800; }
 .primeLotPriceCard .finePrint { margin-top: 0; color: #94a3b8; font-size: .78rem; }
-.primeLotDashboardPreview { border: 1px solid #e2e8f0; border-radius: 24px; padding: 28px; background: #fff; box-shadow: 0 5px 16px rgba(15,23,42,.05); }
+.primeLotDashboardPreview { border: 1px solid #e2e8f0; border-radius: 30px; padding: 24px; background: rgba(255,255,255,.92); box-shadow: 0 20px 58px rgba(15,23,42,.1); }
+.dashboardPreviewImage { overflow: hidden; margin-bottom: 18px; border-radius: 22px; border: 1px solid #e2e8f0; background: #f8fafc; }
+.dashboardPreviewImage img { width: 100%; height: 220px; object-fit: cover; display: block; }
 .primeLotDashboardPreview h3 { color: #0f172a; font-size: 1.55rem; }
-.dashboardPreviewStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 24px 0; }
-.dashboardPreviewStats span, .dashboardPreviewRows span { display: block; border-radius: 16px; padding: 18px; color: #0f172a; background: #f8fafc; border: 1px solid #e2e8f0; font-weight: 1000; }
+.dashboardPreviewStats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 22px 0; }
+.dashboardPreviewStats span, .dashboardPreviewRows span { display: block; border-radius: 16px; padding: 16px; color: #0f172a; background: #f8fafc; border: 1px solid #e2e8f0; font-weight: 1000; }
 .dashboardPreviewStats b { display: block; font-size: 2rem; color: #0f172a; }
-.dashboardPreviewRows { display: grid; gap: 14px; }
-.primeLotFaqBlock { background: #fff; }
-.primeLotFaqBlock { display: grid; justify-items: center; }
-.primeLotFaqBlock details { width: min(100%, 820px); border: 1px solid #e2e8f0; border-radius: 16px; padding: 18px; color: #0f172a; background: #fff; box-shadow: 0 5px 16px rgba(15,23,42,.05); }
+.dashboardPreviewRows { display: grid; gap: 12px; }
+.primeLotFaqBlock { display: grid; justify-items: center; background: #fff; }
+.primeLotFaqBlock details { width: min(100%, 860px); border: 1px solid #e2e8f0; border-radius: 18px; padding: 18px 20px; color: #0f172a; background: linear-gradient(180deg, #fff, #f8fafc); box-shadow: 0 10px 28px rgba(15,23,42,.06); }
 .primeLotFaqBlock details:first-of-type { margin-top: 34px; }
 .primeLotFaqBlock details + details { margin-top: 14px; }
 .primeLotFaqBlock summary { cursor: pointer; list-style: none; font-weight: 1000; }
@@ -761,9 +770,9 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .primeLotFaqBlock summary { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
 .primeLotFaqBlock details[open] summary b { transform: rotate(45deg); }
 .primeLotFaqBlock summary b { font-size: 1.25rem; transition: transform .16s ease; }
-.primeLotFinalCta { margin: 0; text-align: center; color: #fff; background: linear-gradient(90deg, #081b3a, #0d1525, #200812); }
+.primeLotFinalCta { margin: 0; text-align: center; color: #fff; background: radial-gradient(circle at 50% 0%, rgba(250,204,21,.12), transparent 28%), linear-gradient(90deg, #081b3a, #0d1525, #200812); }
 .primeLotFinalCta h2 { color: #fff; }
-.primeLotFinalCta p { max-width: 680px; margin: 16px auto 0; color: #cbd5e1; font-size: 1.08rem; }
+.primeLotFinalCta p { max-width: 720px; margin: 16px auto 0; color: #cbd5e1; font-size: 1.08rem; }
 .primeLotFinalCta .primeLotHeroActions { justify-content: center; }
 
 .importPanel { border: 1px solid rgba(103,232,249,.22); border-radius: 20px; padding: 16px; margin-bottom: 20px; background: rgba(15,23,42,.42); display: grid; gap: 14px; }
@@ -802,6 +811,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .primeLotLandingTopbar nav { flex-wrap: wrap; gap: 14px 22px; }
   .primeLotLandingHero, .primeLotMembershipBlock { grid-template-columns: 1fr; }
   .primeLotFeatureGrid, .primeLotNeedGrid, .primeLotSteps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .primeLotHeroMockupWrap::before { inset: 0; }
+  .dashboardPreviewStats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pricingHero, .pricingGridSection { grid-template-columns: 1fr; }
   .pricingFeatureGrid { grid-template-columns: 1fr; }
   .rowMoney { justify-items: start; }
@@ -819,6 +830,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .primeLotHeroCopy h1 { font-size: clamp(2.6rem, 12vw, 3.4rem); }
   .primeLotHeroActions, .primeLotHeroActions a { display: grid; width: 100%; }
   .primeLotTrustRow, .primeLotFeatureGrid, .primeLotNeedGrid, .primeLotSteps, .primeLotMockupGrid, .dashboardPreviewStats { grid-template-columns: 1fr; }
+  .primeLotFeaturedListing { grid-template-columns: 1fr; }
+  .primeLotFeaturedListing img { height: 260px; }
+  .primeLotImageFeature { grid-template-rows: 240px 1fr; }
+  .dashboardPreviewImage img { height: 180px; }
   .primeLotWctDiscount { margin: 0 16px 28px; grid-template-columns: 1fr; text-align: center; justify-items: center; }
   .primeLotWctDiscount > span { width: 100%; }
   .mockCardArt { min-height: 112px; }
