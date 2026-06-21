@@ -543,7 +543,7 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .mobileTopHeader { display: grid; grid-template-columns: 46px 1fr auto; grid-template-areas: "logo logo logo" "menu spacer actions"; align-items: center; column-gap: 12px; row-gap: 10px; margin-bottom: 18px; }
 .mobileTopHeader .brandLogo { grid-area: logo; min-width: 0; justify-self: center; overflow: visible; margin: 0 auto; }
 .mobileTopHeader .brandLogo img { width: clamp(176px, 22vw, 240px); max-width: min(240px, 46vw); filter: drop-shadow(0 0 16px rgba(239,68,68,.38)) drop-shadow(0 0 22px rgba(127,29,29,.28)); }
-.iconCircle { width: 46px; height: 46px; border-radius: 999px; border: 1px solid rgba(103,232,249,.28); background: rgba(8,16,34,.74); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(103,232,249,.08); font-size: 1.1rem; }
+.iconCircle { width: 46px; height: 46px; display: inline-grid; place-items: center; padding: 0; line-height: 1; text-align: center; border-radius: 999px; border: 1px solid rgba(103,232,249,.28); background: rgba(8,16,34,.74); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 0 18px rgba(103,232,249,.08); font-size: 1.1rem; appearance: none; -webkit-appearance: none; }
 .menuToggleButton { grid-area: menu; }
 .topHeaderActions { grid-area: actions; display: flex; align-items: center; gap: 8px; }
 .signOutButton { position: static; border-radius: 999px; white-space: nowrap; min-width: 82px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
@@ -890,7 +890,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .secondaryStatStrip { grid-template-columns: repeat(4, minmax(116px, 1fr)); overflow-x: auto; border-radius: 18px; scrollbar-width: none; }
   .secondaryStatStrip::-webkit-scrollbar { display: none; }
   .secondaryStatStrip button { min-width: 116px; padding: 12px 10px; }
-  .menuToggleButton { display: grid; position: sticky; top: 10px; z-index: 18; }
+  .menuToggleButton { display: grid; position: sticky; top: 10px; z-index: 14; place-items: center; }
   .quickActionsScrim { display: block; position: fixed; inset: 0; z-index: 12; border: 0; padding: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); }
   .modalBackdrop { padding: 12px; align-items: start; }
   .modal { width: min(100%, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
