@@ -66,7 +66,7 @@ type ImportCardPreview = {
   warnings: string[];
 };
 type CsvRow = Record<string, string>;
-type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string };
+type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string; gradingFee: string };
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string; shippingLabel: string };
 type RefundDraft = { amount: string; refundDate: string; note: string };
@@ -76,7 +76,7 @@ type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
   error: { message: string } | null;
 };
-type GradingFeeDraft = { submission: GradingSubmission; fees: Record<string, string> };
+type ReturnedGradingFeeCard = { card: CardRecord; gradingFee: number };
 type PrimeLotListingType = "single_card" | "sealed_product" | "lot";
 type PrimeLotPostResult = {
   postedCount: number;
@@ -778,9 +778,6 @@ export default function Home() {
   const [returningSubmission, setReturningSubmission] = useState<GradingSubmission | null>(null);
   const [returnDate, setReturnDate] = useState(todayIso());
   const [returnGradeRows, setReturnGradeRows] = useState<ReturnGradeRow[]>([]);
-  const [gradingFeeDraft, setGradingFeeDraft] = useState<GradingFeeDraft | null>(null);
-  const [gradingFeeSelection, setGradingFeeSelection] = useState<string[]>([]);
-  const [bulkGradingFee, setBulkGradingFee] = useState("");
   const [deletingGradingSubmission, setDeletingGradingSubmission] = useState<GradingSubmission | null>(null);
   const [importPreviews, setImportPreviews] = useState<ImportCardPreview[]>([]);
   const [importFileName, setImportFileName] = useState("");
@@ -2885,59 +2882,23 @@ export default function Home() {
   const openReturnGradingModal = (submission: GradingSubmission) => {
     setReturningSubmission(submission);
     setReturnDate(todayIso());
-    setReturnGradeRows(gradingSubmissionCards(submission).flatMap((card) => Array.from({ length: gradingSubmissionQuantity(submission, card) }, () => ({
-      id: crypto.randomUUID(),
-      cardId: card.id,
-      quantity: 1,
-      grade: cardGradeLabel(card),
-      slabNumber: "",
-    }))));
+    setReturnGradeRows(gradingSubmissionCards(submission).flatMap((card) => {
+      const quantity = gradingSubmissionQuantity(submission, card);
+      const existingFee = expenses.filter((expense) => isGradingExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
+      const existingFeePerCard = existingFee ? String(Number((existingFee / Math.max(1, quantity)).toFixed(2))) : "";
+      return Array.from({ length: quantity }, () => ({
+        id: crypto.randomUUID(),
+        cardId: card.id,
+        quantity: 1,
+        grade: cardGradeLabel(card),
+        slabNumber: "",
+        gradingFee: existingFeePerCard,
+      }));
+    }));
   };
 
-  const openGradingFeesModal = (submission: GradingSubmission) => {
+  const saveReturnedGradingFeeExpenses = async (submission: GradingSubmission, returnedCards: ReturnedGradingFeeCard[]) => {
     const submissionCards = gradingSubmissionCards(submission);
-    setGradingFeeDraft({
-      submission,
-      fees: Object.fromEntries(submissionCards.map((card) => {
-        const existingFee = expenses.filter((expense) => isGradingExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
-        return [card.id, existingFee ? String(existingFee) : ""];
-      })),
-    });
-    setGradingFeeSelection(submissionCards.map((card) => card.id));
-    setBulkGradingFee("");
-  };
-
-  const closeGradingFeesModal = () => {
-    setGradingFeeDraft(null);
-    setGradingFeeSelection([]);
-    setBulkGradingFee("");
-  };
-
-  const toggleGradingFeeSelection = (cardId: string) => {
-    setGradingFeeSelection((current) => current.includes(cardId) ? current.filter((id) => id !== cardId) : [...current, cardId]);
-  };
-
-  const updateGradingFeeDraft = (cardId: string, value: string) => {
-    setGradingFeeDraft((draft) => draft ? ({ ...draft, fees: { ...draft.fees, [cardId]: value } }) : draft);
-  };
-
-  const applyBulkGradingFee = () => {
-    if (!gradingFeeDraft || !gradingFeeSelection.length) return;
-    setGradingFeeDraft((draft) => draft ? ({
-      ...draft,
-      fees: {
-        ...draft.fees,
-        ...Object.fromEntries(gradingFeeSelection.map((cardId) => [cardId, bulkGradingFee])),
-      },
-    }) : draft);
-  };
-
-  const saveGradingFees = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!gradingFeeDraft) return;
-    setError("");
-    setNotice("");
-    const submissionCards = gradingSubmissionCards(gradingFeeDraft.submission);
     for (const card of submissionCards) {
       for (const expense of expenses.filter((entry) => isGradingExpenseForCard(entry, card))) {
         const deleted = await deleteExpense(expense);
@@ -2945,26 +2906,22 @@ export default function Home() {
       }
     }
     const now = new Date().toISOString();
-    const feeRows: ExpenseRecord[] = submissionCards
-      .map((card) => ({ card, amount: expenseDraftAmount(gradingFeeDraft.fees[card.id] || "") }))
-      .filter((row) => row.amount > 0)
-      .map(({ card, amount }) => ({
+    const feeRows: ExpenseRecord[] = returnedCards
+      .filter((row) => row.gradingFee > 0)
+      .map(({ card, gradingFee }) => ({
         ...emptyExpense(),
         id: crypto.randomUUID(),
         category: "Grading Fees",
-        amount,
-        expenseDate: gradingFeeDraft.submission.returnedDate || gradingFeeDraft.submission.sentDate || todayIso(),
-        vendor: gradingFeeDraft.submission.company || "Grading",
+        amount: gradingFee,
+        expenseDate: returnDate || submission.returnedDate || submission.sentDate || todayIso(),
+        vendor: submission.company || "Grading",
         description: gradingFeeDescriptionForCard(card),
         createdAt: now,
         createdBy: currentUsername,
         updatedAt: now,
         updatedBy: currentUsername,
       }));
-    const saved = await insertExpenseRecords(feeRows);
-    if (!saved) return;
-    setNotice(`Saved grading fees for ${saved.length} card${saved.length === 1 ? "" : "s"}.`);
-    closeGradingFeesModal();
+    return insertExpenseRecords(feeRows);
   };
 
   const updateReturnGradeRow = (rowId: string, changes: Partial<ReturnGradeRow>) => {
@@ -2976,7 +2933,7 @@ export default function Home() {
     const expectedQuantity = gradingSubmissionQuantity(returningSubmission, card);
     const usedQuantity = returnGradeRows.filter((row) => row.cardId === card.id).reduce((sum, row) => sum + row.quantity, 0);
     const remainingQuantity = Math.max(1, expectedQuantity - usedQuantity);
-    setReturnGradeRows((rows) => [...rows, { id: crypto.randomUUID(), cardId: card.id, quantity: remainingQuantity, grade: "", slabNumber: "" }]);
+    setReturnGradeRows((rows) => [...rows, { id: crypto.randomUUID(), cardId: card.id, quantity: remainingQuantity, grade: "", slabNumber: "", gradingFee: "" }]);
   };
 
   const removeReturnGradeRow = (rowId: string) => {
@@ -2985,6 +2942,7 @@ export default function Home() {
 
   const applyReturnedGradeSplits = async (submission: GradingSubmission) => {
     const insertedCards: CardRecord[] = [];
+    const returnedFeeCards: ReturnedGradingFeeCard[] = [];
     const now = new Date().toISOString();
 
     for (const card of gradingSubmissionCards(submission)) {
@@ -2993,12 +2951,13 @@ export default function Home() {
       const totalQuantity = rowsForCard.reduce((sum, row) => sum + row.quantity, 0);
       if (totalQuantity !== expectedQuantity) {
         setError(`${card.name} needs grade quantities totaling ${expectedQuantity}.`);
-        return false;
+        return null;
       }
 
       const returnedUnits = rowsForCard.flatMap((row) => Array.from({ length: row.quantity }, (_, index) => ({
         grade: row.grade,
         slabNumber: row.quantity === 1 ? row.slabNumber : index === 0 ? row.slabNumber : "",
+        gradingFee: expenseDraftAmount(row.gradingFee),
       })));
 
       for (const [index, returnedUnit] of returnedUnits.entries()) {
@@ -3029,17 +2988,19 @@ export default function Home() {
         };
         if (index === 0) {
           const updated = await updateCard(returnedCard);
-          if (!updated) return false;
+          if (!updated) return null;
+          returnedFeeCards.push({ card: returnedCard, gradingFee: returnedUnit.gradingFee });
         } else {
           const inserted = await insertCardRecord(returnedCard);
-          if (!inserted) return false;
+          if (!inserted) return null;
           insertedCards.push(inserted);
+          returnedFeeCards.push({ card: inserted, gradingFee: returnedUnit.gradingFee });
         }
       }
     }
 
     if (insertedCards.length) setCards((current) => [...insertedCards, ...current]);
-    return true;
+    return returnedFeeCards;
   };
 
   const markGradingReturned = async (event: FormEvent) => {
@@ -3049,8 +3010,10 @@ export default function Home() {
       setError("Add the return date before marking the submission returned.");
       return;
     }
-    const gradeSplitsApplied = await applyReturnedGradeSplits(returningSubmission);
-    if (!gradeSplitsApplied) return;
+    const returnedFeeCards = await applyReturnedGradeSplits(returningSubmission);
+    if (!returnedFeeCards) return;
+    const savedGradingFees = await saveReturnedGradingFeeExpenses(returningSubmission, returnedFeeCards);
+    if (!savedGradingFees) return;
 
     const now = new Date().toISOString();
     const returnedSubmission: GradingSubmission = {
@@ -3091,7 +3054,7 @@ export default function Home() {
       setGradingSubmissions((current) => current.map((submission) => submission.id === returnedSubmission.id ? returnedSubmission : submission));
     }
 
-    setNotice(`${returnedSubmission.company} grading submission marked returned.`);
+    setNotice(`${returnedSubmission.company} grading submission marked returned${savedGradingFees.length ? ` with ${savedGradingFees.length} grading fee${savedGradingFees.length === 1 ? "" : "s"}` : ""}.`);
     setReturningSubmission(null);
     setReturnGradeRows([]);
   };
@@ -3118,7 +3081,6 @@ export default function Home() {
     setGradingSubmissions((current) => current.filter((submission) => submission.id !== submissionToDelete.id));
     setOpenGradingSubmissionId((current) => current === submissionToDelete.id ? null : current);
     setReturningSubmission((current) => current?.id === submissionToDelete.id ? null : current);
-    setGradingFeeDraft((current) => current?.submission.id === submissionToDelete.id ? null : current);
     setDeletingGradingSubmission(null);
     setNotice(`${submissionToDelete.reference || `${submissionToDelete.company} submission`} deleted.`);
   };
@@ -4444,8 +4406,7 @@ export default function Home() {
                             {!submissionCards.length && <p className="empty">No cards found for this submission.</p>}
                           </div>
                           <div className="rowActions gradingOrderActions">
-                            <button className="primary gradingActionButton" type="button" onClick={() => openGradingFeesModal(submission)}>Enter grading fees</button>
-                            {submission.status !== "Returned" && <button className="primary gradingActionButton" type="button" onClick={() => openReturnGradingModal(submission)}>Mark returned</button>}
+                            {submission.status !== "Returned" && <button className="primary gradingActionButton" type="button" onClick={() => openReturnGradingModal(submission)}>Grades are In!</button>}
                             <button className="danger" type="button" onClick={() => setDeletingGradingSubmission(submission)}>Delete submission</button>
                           </div>
                         </div>
@@ -5134,53 +5095,12 @@ export default function Home() {
         </div>
       )}
 
-      {gradingFeeDraft && (
-        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Enter grading fees for submission">
-          <form className="modal panel gradingFeeModal" onSubmit={saveGradingFees}>
-            <div className="panelHeader">
-              <div>
-                <p className="eyebrow">Enter grading fees</p>
-                <h2>{gradingFeeDraft.submission.reference || `${gradingFeeDraft.submission.company} submission`}</h2>
-                <p className="muted">Add the grading fee for each card. These become card-specific Grading Fees expenses and are included in sold profit and ROI.</p>
-              </div>
-              <button className="secondary" type="button" onClick={closeGradingFeesModal}>Cancel</button>
-            </div>
-            <div className="gradingFeeBulkBar full">
-              <label>Bulk fee
-                <input aria-label="Bulk grading fee" type="number" value={bulkGradingFee} onChange={(e) => setBulkGradingFee(e.target.value)} placeholder="0.00" />
-              </label>
-              <button className="secondary" type="button" onClick={applyBulkGradingFee} disabled={!gradingFeeSelection.length}>Apply to selected</button>
-              <span className="muted">{gradingFeeSelection.length} selected</span>
-            </div>
-            <div className="gradingFeeRows" aria-label="Cards in grading submission">
-              {gradingSubmissionCards(gradingFeeDraft.submission).map((card) => (
-                <article className="gradingFeeRow" key={card.id}>
-                  <label className="selectCardBox" aria-label={`Select ${card.name} for bulk grading fee`}>
-                    <input type="checkbox" checked={gradingFeeSelection.includes(card.id)} onChange={() => toggleGradingFeeSelection(card.id)} />
-                  </label>
-                  <div className="gradingFeeCardInfo">
-                    <strong>{card.name}</strong>
-                    <span className="muted">{[card.year, card.setName, card.cardNumber, gradingSubmissionQuantity(gradingFeeDraft.submission, card) > 1 ? `Qty ${gradingSubmissionQuantity(gradingFeeDraft.submission, card)}` : ""].filter(Boolean).join(" • ") || "No card details"}</span>
-                  </div>
-                  <Field label="Grading fee" type="number" value={gradingFeeDraft.fees[card.id] || ""} onChange={(v) => updateGradingFeeDraft(card.id, v)} placeholder="0.00" />
-                </article>
-              ))}
-            </div>
-            <div className="calc full">
-              <span>Total grading fees: <strong>{money(Object.values(gradingFeeDraft.fees).reduce((sum, value) => sum + expenseDraftAmount(value), 0))}</strong></span>
-              <span>Cards in submission: <strong>{gradingSubmissionCardQuantity(gradingFeeDraft.submission)}</strong></span>
-            </div>
-            <button className="primary full" type="submit">Save grading fees</button>
-          </form>
-        </div>
-      )}
-
       {returningSubmission && (
-        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Mark grading submission returned">
+        <div className="modalBackdrop" role="dialog" aria-modal="true" aria-label="Enter returned grades and grading fees">
           <form className="modal panel" onSubmit={markGradingReturned}>
             <div className="panelHeader">
               <div>
-                <p className="eyebrow">Mark returned</p>
+                <p className="eyebrow">Grades are in</p>
                 <h2>{returningSubmission.reference || `${returningSubmission.company} submission`}</h2>
               </div>
               <button className="secondary" type="button" onClick={() => { setReturningSubmission(null); setReturnGradeRows([]); }}>Cancel</button>
@@ -5194,7 +5114,7 @@ export default function Home() {
               </div>
               <div className="full splitList">
                 <strong>Grades received</strong>
-                <p className="muted">If the same card got different grades, add one line per grade. Example: Qty 1 PSA 10, Qty 1 PSA 9.</p>
+                <p className="muted">Enter each returned grade, slab/cert number, and grading fee. If the same card got different grades, add one line per grade.</p>
                 {gradingSubmissionCards(returningSubmission).map((card) => {
                   const expectedQuantity = gradingSubmissionQuantity(returningSubmission, card);
                   const rows = returnGradeRows.filter((row) => row.cardId === card.id);
@@ -5210,6 +5130,7 @@ export default function Home() {
                           <Field label="Qty" type="number" value={String(row.quantity)} onChange={(v) => updateReturnGradeRow(row.id, { quantity: Math.max(1, Math.min(expectedQuantity, sanitizeQuantityInput(v))) })} />
                           <Field label="Grade" value={row.grade} onChange={(v) => updateReturnGradeRow(row.id, { grade: v })} placeholder="PSA 10, PSA 9..." />
                           <Field label="Slab / cert #" value={row.slabNumber} onChange={(v) => updateReturnGradeRow(row.id, { slabNumber: v })} placeholder="Optional" />
+                          <Field label="Grading fee" type="number" value={row.gradingFee} onChange={(v) => updateReturnGradeRow(row.id, { gradingFee: v })} placeholder="0.00" />
                           {rows.length > 1 && <button className="secondary" type="button" onClick={() => removeReturnGradeRow(row.id)}>Remove</button>}
                         </div>
                       ))}
@@ -5220,8 +5141,12 @@ export default function Home() {
                     </div>
                   );
                 })}
+                <div className="calc">
+                  <span>Total grading fees: <strong>{money(returnGradeRows.reduce((sum, row) => sum + (expenseDraftAmount(row.gradingFee) * row.quantity), 0))}</strong></span>
+                  <span>Expense type: <strong>Grading Fees</strong></span>
+                </div>
               </div>
-              <button className="primary full" type="submit">Mark order returned</button>
+              <button className="primary full" type="submit">Save grades and fees</button>
             </div>
           </form>
         </div>

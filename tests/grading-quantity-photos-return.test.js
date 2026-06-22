@@ -39,7 +39,7 @@ assert(
   'Expanded grading submissions should show card photos and keep the photo lightbox available.'
 );
 assert(
-  page.includes('type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string }') &&
+  page.includes('type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string; gradingFee: string }') &&
     page.includes('Field label="Slab / cert #"') &&
     page.includes('Slab #: ${cleanSlabNumber}'),
   'Returned grading flow should capture slab/cert numbers.'
@@ -51,8 +51,8 @@ assert(
   'Returned graded cards should clear raw-card photos and save returned grade details.'
 );
 assert(
-  css.includes('.returnGradeSplitRow { grid-template-columns: minmax(82px, 110px) minmax(140px, 1fr) minmax(140px, 1fr) auto; }'),
-  'Return grade rows should have room for quantity, grade, slab/cert, and remove controls.'
+  css.includes('.returnGradeSplitRow { grid-template-columns: minmax(72px, 92px) minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 150px) auto; }'),
+  'Return grade rows should have room for quantity, grade, slab/cert, grading fee, and remove controls.'
 );
 assert(
   css.includes('.gradingCardRow { border: 1px solid rgba(148,163,184,.16);') &&
