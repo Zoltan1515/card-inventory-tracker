@@ -27,6 +27,12 @@ assert(
   'Sending quantity rows to grading should split them into one-card grading records.'
 );
 assert(
+  page.includes('return submission.status === "At Grading" && inventoryQuantity > 1 ? Math.max(linkedQuantity, inventoryQuantity)') &&
+    page.includes('const gradingSubmissionCardCopies = (submission: GradingSubmission) => gradingSubmissionCards(submission).flatMap') &&
+    page.includes('Copy {copyNumber} of {totalCopies}'),
+  'Legacy active grading rows with quantity should expand into individual visible card copies.'
+);
+assert(
   page.includes('setEnlargedPhotoCard(card)') &&
     page.includes('aria-label={`Enlarge photos of ${card.name || "card"}`}') &&
     page.includes('No photo'),
@@ -47,6 +53,12 @@ assert(
 assert(
   css.includes('.returnGradeSplitRow { grid-template-columns: minmax(82px, 110px) minmax(140px, 1fr) minmax(140px, 1fr) auto; }'),
   'Return grade rows should have room for quantity, grade, slab/cert, and remove controls.'
+);
+assert(
+  css.includes('.gradingCardRow { border: 1px solid rgba(148,163,184,.16);') &&
+    css.includes('.gradingCardRow .photoThumbButton,') &&
+    css.includes('.gradingCardRow .cardThumb { width: 52px; height: 72px;'),
+  'Grading submission card rows should use a compact row layout.'
 );
 
 console.log('Grading quantity, photo, and return flow checks passed.');

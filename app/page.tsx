@@ -1340,10 +1340,18 @@ export default function Home() {
     : "";
 
   const cardById = useMemo(() => new Map(cards.map((card) => [card.id, card])), [cards]);
-  const gradingSubmissionQuantity = (submission: GradingSubmission, card: CardRecord) => Math.max(1, Math.min(cardQuantity(card), Math.floor(Number(submission.cardQuantities[card.id]) || cardQuantity(card))));
+  const gradingSubmissionQuantity = (submission: GradingSubmission, card: CardRecord) => {
+    const linkedQuantity = Math.max(1, Math.floor(Number(submission.cardQuantities[card.id]) || 1));
+    const inventoryQuantity = cardQuantity(card);
+    return submission.status === "At Grading" && inventoryQuantity > 1 ? Math.max(linkedQuantity, inventoryQuantity) : Math.max(1, Math.min(inventoryQuantity, linkedQuantity));
+  };
   const gradingSubmissionCards = (submission: GradingSubmission) => submission.cardIds.map((cardId) => cardById.get(cardId)).filter((card): card is CardRecord => Boolean(card));
-  const gradingSubmissionCardQuantity = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + gradingSubmissionQuantity(submission, card), 0);
-  const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCards(submission).reduce((sum, card) => sum + (card.purchasePrice * gradingSubmissionQuantity(submission, card)), 0);
+  const gradingSubmissionCardCopies = (submission: GradingSubmission) => gradingSubmissionCards(submission).flatMap((card) => {
+    const quantity = gradingSubmissionQuantity(submission, card);
+    return Array.from({ length: quantity }, (_, index) => ({ card, copyNumber: index + 1, totalCopies: quantity, key: `${card.id}-${index}` }));
+  });
+  const gradingSubmissionCardQuantity = (submission: GradingSubmission) => gradingSubmissionCardCopies(submission).length;
+  const gradingPurchaseValue = (submission: GradingSubmission) => gradingSubmissionCardCopies(submission).reduce((sum, { card }) => sum + card.purchasePrice, 0);
   const activeGradingSubmissionForCard = (cardId: string) => openGradingSubmissions.find((submission) => submission.cardIds.includes(cardId)) || null;
   const openGradingCardCount = openGradingSubmissions.reduce((sum, submission) => sum + gradingSubmissionCardQuantity(submission), 0);
   const openGradingPurchaseValue = openGradingSubmissions.reduce((sum, submission) => sum + gradingPurchaseValue(submission), 0);
@@ -2865,13 +2873,13 @@ export default function Home() {
   const openReturnGradingModal = (submission: GradingSubmission) => {
     setReturningSubmission(submission);
     setReturnDate(todayIso());
-    setReturnGradeRows(gradingSubmissionCards(submission).map((card) => ({
+    setReturnGradeRows(gradingSubmissionCards(submission).flatMap((card) => Array.from({ length: gradingSubmissionQuantity(submission, card) }, () => ({
       id: crypto.randomUUID(),
       cardId: card.id,
-      quantity: gradingSubmissionQuantity(submission, card),
+      quantity: 1,
       grade: cardGradeLabel(card),
       slabNumber: "",
-    })));
+    }))));
   };
 
   const openGradingFeesModal = (submission: GradingSubmission) => {
@@ -4352,6 +4360,7 @@ export default function Home() {
               <div className="cardsList">
                 {gradingSubmissions.map((submission) => {
                   const submissionCards = gradingSubmissionCards(submission);
+                  const submissionCardCopies = gradingSubmissionCardCopies(submission);
                   const isOpen = openGradingSubmissionId === submission.id;
                   return (
                     <article className={submission.status === "Returned" ? "gradingOrder returned" : "gradingOrder"} key={submission.id}>
@@ -4372,9 +4381,9 @@ export default function Home() {
                       {isOpen && (
                         <div className="gradingOrderDetail">
                           {submission.notes && <p className="muted">{submission.notes}</p>}
-                          <div className="cardsList">
-                            {submissionCards.map((card) => (
-                              <article className="cardRow compactRow" key={card.id}>
+                          <div className="cardsList gradingCardsList">
+                            {submissionCardCopies.map(({ card, copyNumber, totalCopies, key }) => (
+                              <article className="gradingCardRow" key={key}>
                                 {card.frontPhotoUrl || card.backPhotoUrl ? (
                                   <button className="photoThumbButton photoThumbStack" type="button" onClick={() => setEnlargedPhotoCard(card)} aria-label={`Enlarge photos of ${card.name || "card"}`}>
                                     {card.frontPhotoUrl ? <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} /> : <div className="cardThumb placeholderThumb">No front</div>}
@@ -4384,13 +4393,15 @@ export default function Home() {
                                   <div className="cardThumb placeholderThumb">No photo</div>
                                 )}
                                 <div>
-                                  <strong>{card.name}</strong>
+                                  <div className="rowTitle">
+                                    <strong>{card.name}</strong>
+                                    {totalCopies > 1 && <span className="statusBadge notlisted">Copy {copyNumber} of {totalCopies}</span>}
+                                  </div>
                                   <p className="muted">{[card.year, card.setName, card.cardNumber].filter(Boolean).join(" • ") || "No card details"}</p>
-                                  {cardQuantity(card) > 1 && <p className="warning">This older grading row has qty {cardQuantity(card)}. Marking returned will split it into individual unlisted cards.</p>}
                                 </div>
                                 <div className="rowMoney">
-                                  <span>{money(card.purchasePrice * gradingSubmissionQuantity(submission, card))}</span>
-                                  <small>{gradingSubmissionQuantity(submission, card) > 1 ? `${gradingSubmissionQuantity(submission, card)} items` : "purchase cost"}</small>
+                                  <span>{money(card.purchasePrice)}</span>
+                                  <small>purchase cost</small>
                                 </div>
                               </article>
                             ))}
