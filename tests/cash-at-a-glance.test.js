@@ -56,7 +56,8 @@ assert(css.includes('.dashboardCashEntryPanel'), 'Dashboard cash entry layout st
 assert(css.includes('.cashEntryToggle'), 'Dashboard cash entry should have compact toggle styles.');
 assert(css.includes('.dashboardCashEntryBody'), 'Dashboard cash entry body should be separate from the compact toggle.');
 assert(css.includes('.dashboardCashForm > label:nth-of-type(4) { grid-column: 1 / 4; }'), 'Dashboard cash note field should use the available width instead of staying cramped.');
-assert(css.includes('.dashboardCashForm .primary { grid-column: 4; grid-row: 2; min-height: 48px; }'), 'Dashboard cash submit button should align beside the wide note field.');
+assert(css.includes('.dashboardCashForm .primary { grid-column: 4; grid-row: 2; width: 100%; min-height: 48px; white-space: normal; }'), 'Dashboard cash submit button should align beside the wide note field without clipping.');
+assert(css.includes('@media (max-width: 1180px)') && css.includes('.dashboardCashEntryBody { grid-template-columns: 1fr; align-items: stretch; }'), 'Dashboard cash form should stack before the submit button can clip on narrower desktop widths.');
 assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
 assert(css.includes('.cashSuccessBackdrop'), 'Cash success modal should have a themed backdrop.');
 assert(css.includes('.cashSuccessModal'), 'Cash success modal should have dedicated themed styles.');

@@ -608,9 +608,9 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .cashEntryToggle small { color: var(--muted); font-weight: 700; line-height: 1.3; }
 .cashEntryToggleIcon { width: 38px; height: 38px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 999px; border: 1px solid rgba(103,232,249,.42); background: rgba(8,16,34,.82); color: var(--primary); font-size: 1.45rem; font-weight: 1000; box-shadow: 0 0 18px rgba(103,232,249,.16); }
 .dashboardCashEntryBody { display: grid; grid-template-columns: minmax(260px, .78fr) minmax(0, 1.72fr); gap: 22px; padding: 0 18px 18px; align-items: end; }
-.dashboardCashForm { grid-template-columns: minmax(150px, 1fr) minmax(160px, 1fr) minmax(210px, 1.25fr) minmax(170px, .85fr); align-items: end; }
+.dashboardCashForm { grid-template-columns: minmax(140px, 1fr) minmax(120px, .8fr) minmax(170px, 1.15fr) minmax(160px, .85fr); align-items: end; }
 .dashboardCashForm > label:nth-of-type(4) { grid-column: 1 / 4; }
-.dashboardCashForm .primary { grid-column: 4; grid-row: 2; min-height: 48px; }
+.dashboardCashForm .primary { grid-column: 4; grid-row: 2; width: 100%; min-height: 48px; white-space: normal; }
 .dashboardCashForm .secondary { grid-column: 4; align-self: end; }
 .quickActionsHeader .eyebrow { margin-bottom: 12px; color: var(--neon-green); text-shadow: 0 0 16px rgba(57,255,156,.28); }
 .quickActionGrid.navBar { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: transparent; border: 0; box-shadow: none; padding: 0; margin: 0; }
@@ -807,6 +807,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .importHeader { flex-direction: column; }
   .importFileButton { width: 100%; }
   .importActions .primary, .importActions .secondary { width: 100%; }
+}
+
+@media (max-width: 1180px) {
+  .dashboardCashEntryBody { grid-template-columns: 1fr; align-items: stretch; }
 }
 
 @media (max-width: 1000px) {
