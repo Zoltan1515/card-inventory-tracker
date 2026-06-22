@@ -485,6 +485,7 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .cashImpactNote strong { color: var(--neon-green); }
 .splitCard { border: 1px solid rgba(148,163,184,.18); border-radius: 14px; padding: 12px; display: grid; gap: 10px; background: rgba(8,15,28,.42); }
 .splitRow { display: grid; grid-template-columns: minmax(82px, 110px) minmax(160px, 1fr) auto; gap: 10px; align-items: end; }
+.returnGradeSplitRow { grid-template-columns: minmax(82px, 110px) minmax(140px, 1fr) minmax(140px, 1fr) auto; }
 .miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
 .inventoryControls input, .inventoryControls select { padding: 10px; }
 .listingEditButton { width: 100%; justify-content: center; }
