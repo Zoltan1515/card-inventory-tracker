@@ -70,6 +70,7 @@ type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: str
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string; shippingLabel: string };
 type RefundDraft = { amount: string; refundDate: string; note: string };
+type CashSuccessSummary = { adjustmentType: CashAdjustmentRecord["adjustmentType"]; amount: number; adjustmentDate: string; description: string; endingCash: number };
 type SaleCelebration = { cardName: string; quantity: number; saleTotal: number; saleUnitPrice: number; shippingCharge: number; shippingUnitPrice: number; collectedTotal: number; purchaseCost: number; saleExpenseTotal: number; netProfit: number; remainingQuantity?: number; platform: string; listingRemovalReminder: MultiPlatformListing[] };
 type GradingLinkQueryResult = {
   data: Array<{ submission_id: string; card_id: string; quantity_sent?: number | string | null }> | null;
@@ -750,6 +751,7 @@ export default function Home() {
   const [expenseForSoldCard, setExpenseForSoldCard] = useState<CardRecord | null>(null);
   const [activeCashAdjustment, setActiveCashAdjustment] = useState<CashAdjustmentRecord>(emptyCashAdjustment());
   const [editingCashAdjustmentId, setEditingCashAdjustmentId] = useState<string | null>(null);
+  const [cashSuccessSummary, setCashSuccessSummary] = useState<CashSuccessSummary | null>(null);
   const [cashOnboardingDismissed, setCashOnboardingDismissed] = useState(false);
   const [dashboardCashEntryOpen, setDashboardCashEntryOpen] = useState(false);
   const [dashboardCashEntryAutoOpened, setDashboardCashEntryAutoOpened] = useState(false);
@@ -1650,6 +1652,9 @@ export default function Home() {
     if (!entry.description.trim()) return "Add a short note so you know why cash changed.";
     return "";
   };
+  const cashAdjustmentSignedAmount = (entry: Pick<CashAdjustmentRecord, "adjustmentType" | "amount">) => entry.adjustmentType === "Cash Removed" ? -entry.amount : entry.amount;
+  const cashSuccessActionLabel = (type: CashAdjustmentRecord["adjustmentType"]) => type === "Cash Removed" ? "removed cash" : type === "Starting Cash" ? "set starting cash" : "added cash";
+  const cashSuccessTitle = (type: CashAdjustmentRecord["adjustmentType"]) => `You've successfully ${cashSuccessActionLabel(type)}.`;
 
 
   const handleCardImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -2541,7 +2546,6 @@ export default function Home() {
       setError(validationError);
       return;
     }
-
     if (usingSupabase && supabase && session?.user.id) {
       if (editingExpenseId) {
         let updateQuery = supabase
@@ -2641,6 +2645,8 @@ export default function Home() {
       setError(validationError);
       return;
     }
+    const previousCashEntry = editingCashAdjustmentId ? cashAdjustments.find((entry) => entry.id === editingCashAdjustmentId) : null;
+    const projectedEndingCash = totals.cash - (previousCashEntry ? cashAdjustmentSignedAmount(previousCashEntry) : 0) + cashAdjustmentSignedAmount(entryToSave);
 
     if (usingSupabase && supabase && session?.user.id) {
       if (editingCashAdjustmentId) {
@@ -2669,7 +2675,13 @@ export default function Home() {
       });
     }
 
-    setNotice("Cash entry saved.");
+    setCashSuccessSummary({
+      adjustmentType: entryToSave.adjustmentType,
+      amount: entryToSave.amount,
+      adjustmentDate: entryToSave.adjustmentDate,
+      description: entryToSave.description,
+      endingCash: projectedEndingCash,
+    });
     setActiveCashAdjustment(emptyCashAdjustment());
     setEditingCashAdjustmentId(null);
     setDashboardCashEntryOpen(false);
@@ -3584,6 +3596,30 @@ export default function Home() {
             </div>
           )}
         </section>
+      )}
+
+      {cashSuccessSummary && (
+        <div className="modalBackdrop cashSuccessBackdrop" role="dialog" aria-modal="true" aria-label="Cash entry saved successfully">
+          <section className="modalCard cashSuccessModal">
+            <div className="successIcon" aria-hidden="true">✓</div>
+            <div>
+              <p className="eyebrow">Cash on hand updated</p>
+              <h2>{cashSuccessTitle(cashSuccessSummary.adjustmentType)}</h2>
+              <p className="muted">Your business cash has been updated and your dashboard totals now include this entry.</p>
+            </div>
+            <div className="successSummaryGrid cashSuccessSummaryGrid">
+              <span><small>Cash type</small><strong>{cashSuccessSummary.adjustmentType}</strong></span>
+              <span><small>Amount</small><strong>{cashSuccessSummary.adjustmentType === "Cash Removed" ? "-" : "+"}{money(cashSuccessSummary.amount)}</strong></span>
+              <span><small>Date</small><strong>{formatDateLabel(cashSuccessSummary.adjustmentDate)}</strong></span>
+              <span><small>Cash on hand</small><strong>{money(cashSuccessSummary.endingCash)}</strong></span>
+            </div>
+            <div className="cashSuccessNote">
+              <small>Note</small>
+              <strong>{cashSuccessSummary.description}</strong>
+            </div>
+            <button className="primary full" type="button" onClick={() => setCashSuccessSummary(null)}>Nice — continue</button>
+          </section>
+        </div>
       )}
 
       {primeLotModalOpen && (

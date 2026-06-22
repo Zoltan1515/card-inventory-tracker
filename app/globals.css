@@ -414,6 +414,12 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .successSummaryGrid { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .successSummaryGrid span { border: 1px solid rgba(57,255,156,.22); border-radius: 16px; background: rgba(15,23,42,.58); padding: 12px; display: grid; gap: 4px; }
 .successSummaryGrid small { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; }
+.cashSuccessBackdrop { background: radial-gradient(circle at 50% 20%, rgba(57,255,156,.18), rgba(2,6,23,.82) 42%, rgba(2,6,23,.92)); z-index: 34; }
+.cashSuccessModal { width: min(560px, 100%); display: grid; justify-items: center; text-align: center; gap: 14px; border-color: rgba(57,255,156,.38); background: linear-gradient(145deg, rgba(5,18,29,.98), rgba(8,16,34,.98) 58%, rgba(6,43,47,.92)); box-shadow: 0 28px 90px rgba(0,0,0,.68), 0 0 40px rgba(57,255,156,.2), inset 0 1px 0 rgba(255,255,255,.08); }
+.cashSuccessSummaryGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cashSuccessNote { width: 100%; border: 1px solid rgba(103,232,249,.22); border-radius: 16px; background: rgba(4,9,20,.62); padding: 12px; display: grid; gap: 5px; text-align: left; }
+.cashSuccessNote small { color: var(--muted); font-size: .72rem; font-weight: 1000; text-transform: uppercase; letter-spacing: .08em; }
+.cashSuccessNote strong { color: var(--text); overflow-wrap: anywhere; }
 .saleCelebrationBackdrop { background: radial-gradient(circle at 50% 20%, rgba(57,255,156,.18), rgba(2,6,23,.82) 42%, rgba(2,6,23,.92)); z-index: 35; }
 .saleCelebrationModal { position: relative; width: min(620px, 100%); overflow: hidden; display: grid; justify-items: center; text-align: center; gap: 14px; border-color: rgba(57,255,156,.38); background: linear-gradient(145deg, rgba(5,18,29,.98), rgba(8,16,34,.98) 54%, rgba(6,43,47,.94)); box-shadow: 0 28px 90px rgba(0,0,0,.68), 0 0 40px rgba(57,255,156,.2), inset 0 1px 0 rgba(255,255,255,.08); }
 .saleCelebrationModal::before, .saleCelebrationModal::after { content: ""; position: absolute; width: 180px; height: 180px; border-radius: 999px; filter: blur(10px); opacity: .22; pointer-events: none; }

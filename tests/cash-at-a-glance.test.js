@@ -35,6 +35,12 @@ assert(page.includes('aria-label="Detailed report breakdown"'), 'At a Glance sho
 assert(page.includes('onClick={() => window.print()}'), 'At a Glance should include print action.');
 assert(page.includes('businessReportHeader') && page.includes('printReportButton'), 'At a Glance print header should use constrained layout classes.');
 assert(page.includes('saveCashAdjustment'), 'Cash entry save handler should exist.');
+assert(page.includes('type CashSuccessSummary'), 'Cash entry success modal should use a typed summary.');
+assert(page.includes('cashSuccessSummary'), 'Cash entry success modal state should exist.');
+assert(page.includes('setCashSuccessSummary({'), 'Saving a cash entry should open the success modal.');
+assert(page.includes("You've successfully"), 'Cash entry success modal should confirm the action.');
+assert(page.includes('Cash on hand updated'), 'Cash entry success modal should match the cash section theme.');
+assert(page.includes('cashSuccessActionLabel'), 'Cash entry success text should adapt for added, removed, and starting cash.');
 assert(page.includes('id="dashboard-cash-entry"'), 'Dashboard should expose a front-page cash entry form, not hide it only in At a Glance.');
 assert(page.includes('Enter actual business cash'), 'Dashboard cash entry should be clearly labeled for actual business cash.');
 assert(page.includes('Only use this feature to add actual cash to your business or record cash removed.'), 'Dashboard cash entry should explain this is only for real cash added or removed.');
@@ -50,6 +56,9 @@ assert(css.includes('.dashboardCashEntryPanel'), 'Dashboard cash entry layout st
 assert(css.includes('.cashEntryToggle'), 'Dashboard cash entry should have compact toggle styles.');
 assert(css.includes('.dashboardCashEntryBody'), 'Dashboard cash entry body should be separate from the compact toggle.');
 assert(css.includes('.cashOnboardingCard'), 'Cash onboarding card styles should exist.');
+assert(css.includes('.cashSuccessBackdrop'), 'Cash success modal should have a themed backdrop.');
+assert(css.includes('.cashSuccessModal'), 'Cash success modal should have dedicated themed styles.');
+assert(css.includes('.cashSuccessSummaryGrid'), 'Cash success modal should show a compact transaction summary.');
 assert(page.includes('const cash = allCashAdjustmentsTotal + allRevenue - allTotalInventoryCost - allExpensesTotal;'), 'Cash on hand should use all-time cash entries plus sales minus purchases and expenses so new expenses update cash immediately.');
 assert(page.includes('const expensesTotal = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);'), 'Filtered expense totals should sum actual expense rows directly.');
 assert(page.includes('const totalInventoryBought = inventoryCostCards.reduce((sum, card) => sum + cardPurchaseCost(card), 0);'), 'Total inventory bought should include every card bought in the selected period, including cards already sold.');
