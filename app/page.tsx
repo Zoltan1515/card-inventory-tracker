@@ -66,7 +66,7 @@ type ImportCardPreview = {
   warnings: string[];
 };
 type CsvRow = Record<string, string>;
-type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string; gradingFee: string };
+type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string; gradingFee: string; frontPhotoUrl: string; backPhotoUrl: string };
 type InventoryExpenseDraft = { shipping: string; hst: string; duties: string };
 type SaleExpenseDraft = { hst: string; fees: string; shippingLabel: string };
 type RefundDraft = { amount: string; refundDate: string; note: string };
@@ -2893,6 +2893,8 @@ export default function Home() {
         grade: cardGradeLabel(card),
         slabNumber: "",
         gradingFee: existingFeePerCard,
+        frontPhotoUrl: "",
+        backPhotoUrl: "",
       }));
     }));
   };
@@ -2928,16 +2930,47 @@ export default function Home() {
     setReturnGradeRows((rows) => rows.map((row) => row.id === rowId ? { ...row, ...changes } : row));
   };
 
-  const addReturnGradeRow = (card: CardRecord) => {
-    if (!returningSubmission) return;
-    const expectedQuantity = gradingSubmissionQuantity(returningSubmission, card);
-    const usedQuantity = returnGradeRows.filter((row) => row.cardId === card.id).reduce((sum, row) => sum + row.quantity, 0);
-    const remainingQuantity = Math.max(1, expectedQuantity - usedQuantity);
-    setReturnGradeRows((rows) => [...rows, { id: crypto.randomUUID(), cardId: card.id, quantity: remainingQuantity, grade: "", slabNumber: "", gradingFee: "" }]);
-  };
+  const uploadReturnSlabPhoto = async (rowId: string, file: File, side: "front" | "back") => {
+    setError("");
+    setNotice("");
+    setPhotoUploading(true);
+    const photoField = side === "front" ? "frontPhotoUrl" : "backPhotoUrl";
+    const sideLabel = side === "front" ? "Front slab" : "Back slab";
 
-  const removeReturnGradeRow = (rowId: string) => {
-    setReturnGradeRows((rows) => rows.length <= 1 ? rows : rows.filter((row) => row.id !== rowId));
+    try {
+      const uploadFile = await normalizePhotoFile(file);
+
+      if (usingSupabase && supabase && session?.user.id) {
+        const path = `${session.user.id}/returned-${side}-${crypto.randomUUID()}.jpg`;
+        const { error: uploadError } = await supabase.storage.from("card-photos").upload(path, uploadFile, {
+          cacheControl: "3600",
+          contentType: uploadFile.type,
+          upsert: false,
+        });
+
+        if (uploadError) {
+          setError(`Photo upload failed. Make sure the card-photos storage SQL has been run. ${uploadError.message}`);
+          return;
+        }
+
+        const { data } = supabase.storage.from("card-photos").getPublicUrl(path);
+        updateReturnGradeRow(rowId, { [photoField]: data.publicUrl });
+        setNotice(`${sideLabel} photo uploaded.`);
+      } else {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(uploadFile);
+        });
+        updateReturnGradeRow(rowId, { [photoField]: dataUrl });
+        setNotice(`${sideLabel} photo added locally.`);
+      }
+    } catch (photoError) {
+      setError(photoError instanceof Error ? photoError.message : "Photo upload failed. Try taking the photo again.");
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const applyReturnedGradeSplits = async (submission: GradingSubmission) => {
@@ -2958,6 +2991,8 @@ export default function Home() {
         grade: row.grade,
         slabNumber: row.quantity === 1 ? row.slabNumber : index === 0 ? row.slabNumber : "",
         gradingFee: expenseDraftAmount(row.gradingFee),
+        frontPhotoUrl: row.quantity === 1 ? row.frontPhotoUrl : index === 0 ? row.frontPhotoUrl : "",
+        backPhotoUrl: row.quantity === 1 ? row.backPhotoUrl : index === 0 ? row.backPhotoUrl : "",
       })));
 
       for (const [index, returnedUnit] of returnedUnits.entries()) {
@@ -2978,8 +3013,8 @@ export default function Home() {
           listedDate: "",
           listedAt: "",
           listedBy: "",
-          frontPhotoUrl: "",
-          backPhotoUrl: "",
+          frontPhotoUrl: returnedUnit.frontPhotoUrl,
+          backPhotoUrl: returnedUnit.backPhotoUrl,
           notes: notesWithReturnedGrade(card.notes, parsedGrade.grade, gradingCompany, returnedUnit.slabNumber),
           createdAt: index === 0 ? card.createdAt : now,
           createdBy: index === 0 ? card.createdBy : currentUsername,
@@ -4965,7 +5000,7 @@ export default function Home() {
               </div>
               <div className="full splitList">
                 <strong>Grades received</strong>
-                <p className="muted">Enter each returned grade, slab/cert number, and grading fee. If the same card got different grades, add one line per grade.</p>
+                <p className="muted">Enter the returned grade, slab/cert number, grading fee, and new slab photos for each card.</p>
                 {gradingSubmissionCards(returningSubmission).map((card) => {
                   const expectedQuantity = gradingSubmissionQuantity(returningSubmission, card);
                   const rows = returnGradeRows.filter((row) => row.cardId === card.id);
@@ -4976,18 +5011,40 @@ export default function Home() {
                         <strong>{card.name}</strong>
                         <span className="muted">Qty returning: {expectedQuantity}</span>
                       </div>
-                      {rows.map((row) => (
-                        <div className="splitRow returnGradeSplitRow" key={row.id}>
-                          <Field label="Qty" type="number" value={String(row.quantity)} onChange={(v) => updateReturnGradeRow(row.id, { quantity: Math.max(1, Math.min(expectedQuantity, sanitizeQuantityInput(v))) })} />
-                          <Field label="Grade" value={row.grade} onChange={(v) => updateReturnGradeRow(row.id, { grade: v })} placeholder="PSA 10, PSA 9..." />
-                          <Field label="Slab / cert #" value={row.slabNumber} onChange={(v) => updateReturnGradeRow(row.id, { slabNumber: v })} placeholder="Optional" />
-                          <Field label="Grading fee" type="number" value={row.gradingFee} onChange={(v) => updateReturnGradeRow(row.id, { gradingFee: v })} placeholder="0.00" />
-                          {rows.length > 1 && <button className="secondary" type="button" onClick={() => removeReturnGradeRow(row.id)}>Remove</button>}
+                      {rows.map((row, rowIndex) => (
+                        <div className="returnGradeCard" key={row.id}>
+                          <div className="returnGradeCardHeader">
+                            <span>{rows.length > 1 ? `Returned card ${rowIndex + 1} of ${expectedQuantity}` : "Returned card details"}</span>
+                          </div>
+                          <div className="splitRow returnGradeSplitRow">
+                            <Field label="Grade" value={row.grade} onChange={(v) => updateReturnGradeRow(row.id, { grade: v })} placeholder="PSA 10, PSA 9..." />
+                            <Field label="Slab / cert #" value={row.slabNumber} onChange={(v) => updateReturnGradeRow(row.id, { slabNumber: v })} placeholder="Optional" />
+                            <Field label="Grading fee" type="number" value={row.gradingFee} onChange={(v) => updateReturnGradeRow(row.id, { gradingFee: v })} placeholder="0.00" />
+                          </div>
+                          <div className="returnSlabPhotoGrid">
+                            <div className="slabPhotoPanel">
+                              <SlabPhotoUploadControl label="Front slab photo" helpText="Take or upload the front of the graded slab." onPick={(file) => uploadReturnSlabPhoto(row.id, file, "front")} />
+                              {row.frontPhotoUrl && (
+                                <div className="photoPreviewCard">
+                                  <NextImage src={row.frontPhotoUrl} alt={`Front slab of ${card.name}`} width={220} height={300} unoptimized />
+                                  <button className="secondary" type="button" onClick={() => updateReturnGradeRow(row.id, { frontPhotoUrl: "" })}>Remove front</button>
+                                </div>
+                              )}
+                            </div>
+                            <div className="slabPhotoPanel">
+                              <SlabPhotoUploadControl label="Back slab photo" helpText="Take or upload the back of the graded slab." onPick={(file) => uploadReturnSlabPhoto(row.id, file, "back")} />
+                              {row.backPhotoUrl && (
+                                <div className="photoPreviewCard">
+                                  <NextImage src={row.backPhotoUrl} alt={`Back slab of ${card.name}`} width={220} height={300} unoptimized />
+                                  <button className="secondary" type="button" onClick={() => updateReturnGradeRow(row.id, { backPhotoUrl: "" })}>Remove back</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       ))}
-                      <div className="rowActions">
+                      <div className="returnGradeQuantityStatus">
                         <span className={enteredQuantity === expectedQuantity ? "muted" : "warning"}>Entered qty: {enteredQuantity} / {expectedQuantity}</span>
-                        <button className="secondary" type="button" onClick={() => addReturnGradeRow(card)}>Add another grade line</button>
                       </div>
                     </div>
                   );
@@ -5302,6 +5359,31 @@ function PhotoUploadControl({ helpText, onPick }: { helpText: string; onPick: (f
   return (
     <div className="full photoUploadLabel">
       <span>Front photo</span>
+      <div className="photoUploadActions">
+        <label className="primary photoChoiceButton">
+          Take photo
+          <input accept="image/*" capture="environment" type="file" onChange={handleFile} />
+        </label>
+        <label className="secondary photoChoiceButton">
+          Choose from gallery
+          <input accept="image/*" type="file" onChange={handleFile} />
+        </label>
+      </div>
+      <span className="muted">{helpText}</span>
+    </div>
+  );
+}
+
+function SlabPhotoUploadControl({ label, helpText, onPick }: { label: string; helpText: string; onPick: (file: File) => void }) {
+  const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) onPick(file);
+  };
+
+  return (
+    <div className="slabPhotoUploadControl">
+      <span>{label}</span>
       <div className="photoUploadActions">
         <label className="primary photoChoiceButton">
           Take photo

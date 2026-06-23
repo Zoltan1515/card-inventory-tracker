@@ -39,20 +39,22 @@ assert(
   'Expanded grading submissions should show card photos and keep the photo lightbox available.'
 );
 assert(
-  page.includes('type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string; gradingFee: string }') &&
+  page.includes('type ReturnGradeRow = { id: string; cardId: string; quantity: number; grade: string; slabNumber: string; gradingFee: string; frontPhotoUrl: string; backPhotoUrl: string }') &&
     page.includes('Field label="Slab / cert #"') &&
     page.includes('Slab #: ${cleanSlabNumber}'),
   'Returned grading flow should capture slab/cert numbers.'
 );
 assert(
-  page.includes('frontPhotoUrl: "",') &&
-    page.includes('backPhotoUrl: "",') &&
+  page.includes('frontPhotoUrl: returnedUnit.frontPhotoUrl,') &&
+    page.includes('backPhotoUrl: returnedUnit.backPhotoUrl,') &&
     page.includes('notesWithReturnedGrade(card.notes, parsedGrade.grade, gradingCompany, returnedUnit.slabNumber)'),
-  'Returned graded cards should clear raw-card photos and save returned grade details.'
+  'Returned graded cards should save new slab photos and returned grade details.'
 );
 assert(
-  css.includes('.returnGradeSplitRow { grid-template-columns: minmax(72px, 92px) minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 150px) auto; }'),
-  'Return grade rows should have room for quantity, grade, slab/cert, grading fee, and remove controls.'
+  css.includes('.returnGradeSplitRow { grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 150px); }') &&
+    css.includes('.returnSlabPhotoGrid') &&
+    css.includes('.slabPhotoUploadControl'),
+  'Return grade rows should have room for grade, slab/cert, grading fee, and slab photo controls.'
 );
 assert(
   css.includes('.gradingCardRow { border: 1px solid rgba(148,163,184,.16);') &&

@@ -22,5 +22,7 @@ assert(page.includes('from("grading_submissions").delete().eq("id", submissionTo
 assert(css.includes('.gradingActionButton') && css.includes('var(--neon-green)'), 'Grading action buttons should share green themed styling.');
 assert(css.includes('.themedConfirmModal') && css.includes('.dangerEyebrow') && css.includes('.confirmSummaryBox'), 'Delete confirmation modal should have themed styles.');
 assert(css.includes('.returnGradeSplitRow') && css.includes('minmax(110px, 150px)'), 'Return modal should have room for the grading fee field.');
+assert(!page.includes('Add another grade line'), 'Return modal should not show an extra grade-line button.');
+assert(page.includes('SlabPhotoUploadControl') && page.includes('uploadReturnSlabPhoto'), 'Return modal should capture new front and back slab photos.');
 
 console.log('Grading order action UI checks passed.');

@@ -24,6 +24,7 @@ assert(page.includes('isGradingExpenseForCard'), 'Accounting should match gradin
 assert(page.includes('gradingFeeTotalForCard(card)') && page.includes('<span>Grading fees</span>'), 'Sold items should show their grading fees separately.');
 assert(page.includes('totalCostBasisForCard') && page.includes('cardPurchaseCost(card) + gradingFeeTotalForCard(card)'), 'Sold ROI should include grading fees in cost basis.');
 assert(page.includes('soldViewGradingFees') && page.includes('Grading fees shown'), 'Sold inventory totals should include grading fees.');
-assert(css.includes('.returnGradeSplitRow { grid-template-columns: minmax(72px, 92px) minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 150px) auto; }'), 'Return grade rows should have room for qty, grade, slab/cert, fee, and remove controls.');
+assert(css.includes('.returnGradeSplitRow { grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 150px); }'), 'Return grade rows should have room for grade, slab/cert, and fee fields.');
+assert(!page.includes('Add another grade line'), 'Return modal should not show an extra grade-line button.');
 
 console.log('Grading fee feature checks passed.');

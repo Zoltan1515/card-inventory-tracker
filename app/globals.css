@@ -498,7 +498,16 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .cashImpactNote strong { color: var(--neon-green); }
 .splitCard { border: 1px solid rgba(148,163,184,.18); border-radius: 14px; padding: 12px; display: grid; gap: 10px; background: rgba(8,15,28,.42); }
 .splitRow { display: grid; grid-template-columns: minmax(82px, 110px) minmax(160px, 1fr) auto; gap: 10px; align-items: end; }
-.returnGradeSplitRow { grid-template-columns: minmax(72px, 92px) minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 150px) auto; }
+.returnGradeCard { border: 1px solid rgba(103,232,249,.14); border-radius: 14px; padding: 12px; display: grid; gap: 12px; background: rgba(2,7,16,.34); }
+.returnGradeCardHeader { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .82rem; font-weight: 900; }
+.returnGradeSplitRow { grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) minmax(110px, 150px); }
+.returnSlabPhotoGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.slabPhotoPanel { border: 1px solid rgba(148,163,184,.14); border-radius: 12px; padding: 10px; display: grid; gap: 10px; background: rgba(15,23,42,.34); }
+.slabPhotoUploadControl { display: grid; gap: 8px; }
+.slabPhotoUploadControl > span:first-child { color: var(--muted); font-size: .78rem; font-weight: 800; }
+.slabPhotoUploadControl .photoUploadActions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.slabPhotoUploadControl .photoChoiceButton { width: 100%; min-height: 38px; padding: 8px 10px; font-size: .82rem; }
+.returnGradeQuantityStatus { display: flex; justify-content: flex-end; }
 .miniLabel { gap: 5px; font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
 .inventoryControls input, .inventoryControls select { padding: 10px; }
 .listingEditButton { width: 100%; justify-content: center; }
@@ -858,6 +867,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .primeLotHeroCopy h1 { font-size: clamp(2.6rem, 12vw, 3.4rem); }
   .primeLotHeroActions, .primeLotHeroActions a { display: grid; width: 100%; }
   .primeLotTrustRow, .primeLotFeatureGrid, .primeLotNeedGrid, .primeLotSteps, .primeLotMockupGrid, .dashboardPreviewStats { grid-template-columns: 1fr; }
+  .returnGradeSplitRow, .returnSlabPhotoGrid, .slabPhotoUploadControl .photoUploadActions { grid-template-columns: 1fr; }
   .primeLotFeaturedListing { grid-template-columns: 1fr; }
   .primeLotFeaturedListing img { height: 260px; }
   .primeLotImageFeature { grid-template-rows: 240px 1fr; }
