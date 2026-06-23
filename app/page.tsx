@@ -3791,19 +3791,19 @@ export default function Home() {
               <div className="primeLotHeroMockup" aria-label="PrimeLot marketplace preview">
                 <div className="primeLotMockupTop"><strong>PrimeLot Marketplace</strong><span>Live collector preview</span></div>
                 <div className="primeLotFeaturedListing">
-                  <NextImage src="/cards/charizard-card.png" alt="Charizard trading card listing" width={180} height={250} />
+                  <NextImage src="/cards/charizard-card.png" alt="Fire Chase trading card listing" width={180} height={250} />
                   <div>
                     <p>Featured Lot</p>
-                    <h3>Charizard VMAX + graded chase lot</h3>
+                    <h3>Fire Chase + graded collector lot</h3>
                     <strong>CAD $2,999.00</strong>
                     <small>Transparent pricing across every card in the lot</small>
                   </div>
                 </div>
                 <div className="primeLotMockupGrid">
                   {[
-                    ["Luka Dončić", "CAD $125.00", "/cards/luka-card.png"],
-                    ["Charizard", "CAD $2,999.00", "/cards/charizard-card.png"],
-                    ["Mewtwo ex", "CAD $180.00", "/cards/mewtwo-card.png"],
+                    ["Court Star", "CAD $125.00", "/cards/luka-card.png"],
+                    ["Fire Chase", "CAD $2,999.00", "/cards/charizard-card.png"],
+                    ["Cosmic EX", "CAD $180.00", "/cards/mewtwo-card.png"],
                   ].map(([title, price, src]) => (
                     <article key={title}>
                       <NextImage src={src} alt={`${title} listing card`} width={180} height={250} />
@@ -3856,7 +3856,7 @@ export default function Home() {
             <h2>Everything collectors need in one marketplace</h2>
             <div className="primeLotNeedGrid imageHeavy">
               {[
-                ["Singles", "Mike Trout", "Find the exact card you are searching for.", "/cards/mike-trout.png", "trading card single"],
+                ["Singles", "Diamond Pro", "Find the exact card you are searching for.", "/cards/mike-trout.png", "trading card single"],
                 ["Transparent Lot View", "Every card priced", "See the price of every card before you buy.", "/screenshots/transparent-lot-view.png", "transparent lot breakdown screenshot"],
                 ["Sealed Products", "Boxes, packs & ETBs", "Shop sealed products alongside singles and lots.", "/cards/sealed-box.png", "sealed product box"],
                 ["Direct Messages", "Is this still available?", "Message sellers directly to ask questions and make offers.", "/screenshots/messages-preview.png", "messages preview screenshot"],
