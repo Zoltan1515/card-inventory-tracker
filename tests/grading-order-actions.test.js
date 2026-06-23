@@ -20,6 +20,7 @@ assert(page.includes('confirmDeleteGradingSubmission') && page.includes('grading
 assert(page.includes('from("grading_submission_cards").delete().eq("submission_id", submissionToDelete.id)'), 'Delete flow should remove grading submission card links.');
 assert(page.includes('from("grading_submissions").delete().eq("id", submissionToDelete.id)'), 'Delete flow should remove the grading submission row.');
 assert(css.includes('.gradingActionButton') && css.includes('var(--neon-green)'), 'Grading action buttons should share green themed styling.');
+assert(css.includes('.gradingOrderSummary') && css.includes('rgba(57,255,156,.16)') && css.includes('cursor: pointer'), 'Grading order summary rows should look clickable with a green action tint.');
 assert(css.includes('.themedConfirmModal') && css.includes('.dangerEyebrow') && css.includes('.confirmSummaryBox'), 'Delete confirmation modal should have themed styles.');
 assert(css.includes('.returnGradeSplitRow') && css.includes('minmax(110px, 150px)'), 'Return modal should have room for the grading fee field.');
 assert(!page.includes('Add another grade line'), 'Return modal should not show an extra grade-line button.');
