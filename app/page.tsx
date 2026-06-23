@@ -3750,24 +3750,14 @@ export default function Home() {
       )}
 
       {tab === "primeLotMarketplace" && (
-        <section className="primeLotLandingPanel" id="primelot-marketplace-panel" aria-label="PrimeLot Marketplace landing page">
-          <div className="primeLotLandingTopbar">
-            <Link className="primeLotLandingLogo" href="https://primelot.cards" target="_blank" rel="noreferrer" aria-label="Open PrimeLot Cards">
-              <NextImage src="/primelot-logo.png" alt="PrimeLot Cards" width={170} height={70} priority />
+        <section className="primeLotLandingPanel primeLotHeroOnlyPanel" id="primelot-marketplace-panel" aria-label="PrimeLot Marketplace landing page">
+          <div className="primeLotCenteredLogo">
+            <Link href="https://primelot.cards" target="_blank" rel="noreferrer" aria-label="Open PrimeLot Cards">
+              <NextImage src="/primelot-logo.png" alt="PrimeLot Cards" width={360} height={156} priority />
             </Link>
-            <nav aria-label="PrimeLot links">
-              <Link href={PRIMELOT_MARKETPLACE_URL} target="_blank" rel="noreferrer">Marketplace</Link>
-              <Link href="https://primelot.cards/wishlist" target="_blank" rel="noreferrer">Wishlist</Link>
-              <Link href="https://primelot.cards/giveaways" target="_blank" rel="noreferrer">Giveaways</Link>
-              <Link href={PRIMELOT_SELLER_MEMBERSHIP_URL} target="_blank" rel="noreferrer">Pricing</Link>
-            </nav>
-            <div className="primeLotTopbarActions">
-              <Link href="https://primelot.cards/login" target="_blank" rel="noreferrer">Log In</Link>
-              <Link className="primeLotRedButton" href={PRIMELOT_SIGNUP_URL} target="_blank" rel="noreferrer">Start 3 Months Free</Link>
-            </div>
           </div>
 
-          <div className="primeLotLandingHero">
+          <div className="primeLotLandingHero primeLotSoloHero">
             <div className="primeLotHeroCopy">
               <p className="primeLotPill">The transparent card marketplace</p>
               <h1>Buy &amp; Sell Cards Without Marketplace Fees</h1>
@@ -3785,145 +3775,6 @@ export default function Home() {
                 ].map((item) => <span key={item}>{item}</span>)}
               </div>
               <div className="primeLotHeroOffer">First 3 months free. Then $6.99/month plus applicable tax.</div>
-            </div>
-
-            <div className="primeLotHeroMockupWrap">
-              <div className="primeLotHeroMockup" aria-label="PrimeLot marketplace preview">
-                <div className="primeLotMockupTop"><strong>PrimeLot Marketplace</strong><span>Live collector preview</span></div>
-                <div className="primeLotFeaturedListing">
-                  <NextImage src="/cards/charizard-card.png" alt="Fire Chase trading card listing" width={180} height={250} />
-                  <div>
-                    <p>Featured Lot</p>
-                    <h3>Fire Chase + graded collector lot</h3>
-                    <strong>CAD $2,999.00</strong>
-                    <small>Transparent pricing across every card in the lot</small>
-                  </div>
-                </div>
-                <div className="primeLotMockupGrid">
-                  {[
-                    ["Court Star", "CAD $125.00", "/cards/luka-card.png"],
-                    ["Fire Chase", "CAD $2,999.00", "/cards/charizard-card.png"],
-                    ["Cosmic EX", "CAD $180.00", "/cards/mewtwo-card.png"],
-                  ].map(([title, price, src]) => (
-                    <article key={title}>
-                      <NextImage src={src} alt={`${title} listing card`} width={180} height={250} />
-                      <strong>{title}</strong>
-                      <span>{price}</span>
-                    </article>
-                  ))}
-                </div>
-                <div className="primeLotActivityList">
-                  <span><strong>Transparent lot pricing</strong><small>See every card before you buy</small></span>
-                  <span><strong>Recommended lots</strong><small>Matched to your wishlist</small></span>
-                  <span><strong>Singles with comps</strong><small>Sports, Pokémon, One Piece</small></span>
-                  <span><strong>Direct collector messages</strong><small>Ask, offer, and close the deal</small></span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="primeLotWctDiscount">
-            <div className="discountLogoMark"><NextImage src="/wicked-card-tracker-logo.png" alt="Wicked Card Tracker" width={86} height={86} /></div>
-            <div>
-              <strong>PrimeLot members save on Wicked Card Tracker</strong>
-              <p>Active PrimeLot members get <b>$5/month off</b> Wicked Card Tracker. Keep your PrimeLot membership active and keep the discount for life.</p>
-            </div>
-            <span>$5 OFF<small>/ MONTH</small></span>
-          </div>
-
-          <div className="primeLotLandingSection white primeLotWhySection">
-            <p className="primeLotSectionEyebrow">Built by collectors, for collectors</p>
-            <h2>Why collectors choose PrimeLot</h2>
-            <div className="primeLotFeatureGrid">
-              {[
-                ["Offer flow", "Buy, sell, and make offers", "Negotiate directly with collectors and close deals your way."],
-                ["No limits", "Unlimited listings", "List singles, lots, and sealed products with no PrimeLot transaction commissions."],
-                ["0% fees", "No marketplace commissions", "PrimeLot charges 0% transaction fees. Buyers pay sellers directly."],
-                ["Want list", "Wishlist matching", "Post what you want and let sellers come to you with offers."],
-                ["Fast import", "Import from eBay", "Bring over existing listings faster and reach more collectors."],
-                ["Members", "Member giveaways", "Active members can qualify for premium card giveaways."],
-              ].map(([label, title, copy]) => (
-                <article className="primeLotFeatureCard" key={title}>
-                  <span>{label}</span>
-                  <div><strong>{title}</strong><p>{copy}</p></div>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="primeLotLandingSection soft primeLotNeedsSection">
-            <p className="primeLotSectionEyebrow">Image-rich marketplace tools</p>
-            <h2>Everything collectors need in one marketplace</h2>
-            <div className="primeLotNeedGrid imageHeavy">
-              {[
-                ["Singles", "Diamond Pro", "Find the exact card you are searching for.", "/cards/mike-trout.png", "trading card single"],
-                ["Transparent Lot View", "Every card priced", "See the price of every card before you buy.", "/screenshots/transparent-lot-view.png", "transparent lot breakdown screenshot"],
-                ["Sealed Products", "Boxes, packs & ETBs", "Shop sealed products alongside singles and lots.", "/cards/sealed-box.png", "sealed product box"],
-                ["Direct Messages", "Is this still available?", "Message sellers directly to ask questions and make offers.", "/screenshots/messages-preview.png", "messages preview screenshot"],
-              ].map(([title, headline, copy, src, alt]) => (
-                <article className="primeLotImageFeature" key={title}>
-                  <div className="primeLotImageFeatureMedia"><NextImage src={src} alt={alt} width={520} height={360} /></div>
-                  <div><small>{title}</small><strong>{headline}</strong><p>{copy}</p></div>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="primeLotLandingSection white primeLotHowSection">
-            <p className="primeLotSectionEyebrow">Four simple steps</p>
-            <h2>How it works</h2>
-            <div className="primeLotSteps">
-              {[
-                ["1", "Create your account", "Sign up and set up your collector profile."],
-                ["2", "Browse or list cards", "Find cards you love or list your own in a few clicks."],
-                ["3", "Make offers and message collectors", "Negotiate, ask questions, and agree on the details."],
-                ["4", "Buy, sell, and track your deals", "Complete deals and track purchases and sales in one place."],
-              ].map(([step, title, copy]) => (
-                <article className="primeLotStep" key={step}><span>{step}</span><strong>{title}</strong><p>{copy}</p></article>
-              ))}
-            </div>
-          </div>
-
-          <div className="primeLotMembershipBlock">
-            <div className="primeLotPriceCard">
-              <small>First 3 months free</small>
-              <h3>PrimeLot Membership</h3>
-              <strong>$6.99 <span>/ month</span></strong>
-              <p>First 3 months free. Then $6.99/month plus applicable tax.</p>
-              <ul>
-                <li>✓ Buy cards, make offers, and message sellers</li>
-                <li>✓ Create unlimited listings</li>
-                <li>✓ Import from eBay</li>
-                <li>✓ No PrimeLot transaction commissions</li>
-                <li>✓ Premium member giveaways</li>
-                <li>✓ $5/month off Wicked Card Tracker for active PrimeLot members</li>
-              </ul>
-              <Link className="primeLotRedButton" href={PRIMELOT_SIGNUP_URL} target="_blank" rel="noreferrer">Start Free</Link>
-              <p className="finePrint">Browse for free. Membership required to buy, sell, make offers, message sellers, and create listings.</p>
-            </div>
-            <div className="primeLotDashboardPreview">
-              <div className="dashboardPreviewImage"><NextImage src="/screenshots/primelot-dashboard.png" alt="PrimeLot dashboard preview" width={900} height={570} /></div>
-              <h3>One PrimeLot membership</h3>
-              <div className="dashboardPreviewStats"><span><b>48</b>Active listings</span><span><b>12</b>Offers received</span><span><b>27</b>Items sold</span><span><b>35</b>Wishlist items</span></div>
-              <div className="dashboardPreviewRows"><span>Recent listing • Charizard VMAX • CAD $350.00</span><span>Offer received • Michael Jordan RC • CAD $125.00</span><span>Wishlist match • 2020 Prizm Silver • CAD $25.00</span><span>Sealed product sold • Booster Box • CAD $299.00</span></div>
-            </div>
-          </div>
-
-          <div className="primeLotFaqBlock">
-            <p className="primeLotSectionEyebrow">Collector questions</p>
-            <h2>Frequently asked questions</h2>
-            <details><summary><span>What does the membership include?</span><b>+</b></summary><p>Buying, selling, offers, messaging, seller details, wishlists, eBay import, unlimited listings, no PrimeLot transaction commissions, giveaways, and the Wicked Card Tracker discount.</p></details>
-            <details><summary><span>Can I browse without a membership?</span><b>+</b></summary><p>Yes. Visitors can browse listings. A membership is required to view seller contact details, buy, make offers, message sellers, or create listings.</p></details>
-            <details><summary><span>How does the Wicked Card Tracker discount work?</span><b>+</b></summary><p>Active PrimeLot members get $5/month off Wicked Card Tracker. The discount stays active for life as long as the PrimeLot membership remains active.</p></details>
-            <details><summary><span>Are there transaction fees?</span><b>+</b></summary><p>PrimeLot does not charge transaction commissions. Buyers pay sellers directly through the payment instructions provided at checkout.</p></details>
-          </div>
-
-          <div className="primeLotFinalCta">
-            <h2>Start your 3-month free trial</h2>
-            <p>Join collectors on the transparent card marketplace built for singles, lots, sealed products, wishlists, and direct deals.</p>
-            <div className="primeLotHeroActions">
-              <Link className="primeLotRedButton" href={PRIMELOT_SIGNUP_URL} target="_blank" rel="noreferrer">Join PrimeLot</Link>
-              <Link className="primeLotGhostButton" href={PRIMELOT_MARKETPLACE_URL} target="_blank" rel="noreferrer">Browse Listings</Link>
             </div>
           </div>
         </section>
