@@ -5645,6 +5645,7 @@ function NumberInput({ value, onChange, placeholder, required, ariaLabel, step =
         e.currentTarget.select();
       }}
       onBlur={() => setFocused(false)}
+      onWheel={(event) => event.currentTarget.blur()}
       onChange={(e) => {
         setDraft(e.target.value);
         onChange(e.target.value);
