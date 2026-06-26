@@ -132,6 +132,11 @@ button.stat { color: var(--text); text-align: left; }
 .printReportButton { flex: 0 0 auto; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .addListingModal .panelHeader { align-items: flex-start; }
 .addListingModal .panelHeader .secondary { flex: 0 0 auto; }
+#add-inventory-panel { position: relative; overflow: hidden; border-color: rgba(57,255,156,.68); background: radial-gradient(circle at 88% 6%, rgba(57,255,156,.2), transparent 18rem), linear-gradient(145deg, rgba(8,48,43,.9), rgba(5,14,28,.96) 56%, rgba(3,8,18,.98)); box-shadow: 0 0 0 1px rgba(57,255,156,.2), 0 24px 72px rgba(0,0,0,.48), 0 0 38px rgba(57,255,156,.18), inset 0 1px 0 rgba(255,255,255,.08); }
+#add-inventory-panel::before { content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; background: linear-gradient(90deg, rgba(57,255,156,.7), transparent 32%); height: 3px; }
+#add-inventory-panel .addInventoryHeader, #add-inventory-panel .formGrid, #add-inventory-panel .photoGrid, #add-inventory-panel .rowActions, #add-inventory-panel .importPanel { position: relative; z-index: 1; }
+#add-inventory-panel .addInventoryHeader h2 { color: #f7fffb; text-shadow: 0 0 18px rgba(57,255,156,.24); }
+#add-inventory-panel .addInventoryIntro { color: #d7fff0; }
 .addInventoryHeader { align-items: flex-start; }
 .addInventoryIntro { max-width: 620px; margin: 0; line-height: 1.45; }
 .addInventoryIntro strong { color: var(--text); }
@@ -817,6 +822,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
 .primeLotFinalCta .primeLotHeroActions { justify-content: center; }
 
 .importPanel { border: 1px solid rgba(103,232,249,.22); border-radius: 20px; padding: 16px; margin-bottom: 20px; background: rgba(15,23,42,.42); display: grid; gap: 14px; }
+#add-inventory-panel .importPanel { border-color: rgba(103,232,249,.56); background: linear-gradient(135deg, rgba(4,22,32,.92), rgba(5,17,31,.92)); box-shadow: 0 0 0 1px rgba(103,232,249,.12), 0 0 28px rgba(103,232,249,.13); }
+#add-inventory-panel .importFileButton { border-color: rgba(57,255,156,.86); box-shadow: 0 0 0 4px rgba(57,255,156,.1), 0 0 26px rgba(57,255,156,.28); }
 .importHeader { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .importHeader h3 { margin-bottom: 8px; }
 .importFileButton { position: relative; overflow: hidden; display: inline-flex; align-items: center; justify-content: center; min-width: 150px; min-height: 44px; color: #031018; }
