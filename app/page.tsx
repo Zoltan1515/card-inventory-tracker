@@ -4074,11 +4074,11 @@ export default function Home() {
             )}
             <div className="photoUploadGrid full">
               <PhotoUploadControl
-                helpText="Front photo"
+                label="Front"
                 onPick={(file) => uploadCardPhoto(file, "active", "front")}
               />
               <PhotoUploadControl
-                helpText="Back photo"
+                label="Back"
                 onPick={(file) => uploadCardPhoto(file, "active", "back")}
               />
             </div>
@@ -4876,11 +4876,11 @@ export default function Home() {
               )}
               <div className="photoUploadGrid full">
                 <PhotoUploadControl
-                  helpText="Replace front photo"
+                  label="Front"
                   onPick={(file) => uploadCardPhoto(file, "editing", "front")}
                 />
                 <PhotoUploadControl
-                  helpText="Add/replace back photo"
+                  label="Back"
                   onPick={(file) => uploadCardPhoto(file, "editing", "back")}
                 />
               </div>
@@ -5347,7 +5347,7 @@ function AttentionGroupSection({ group, onOpenItem, onListCard }: { group: Atten
   );
 }
 
-function PhotoUploadControl({ helpText, onPick }: { helpText: string; onPick: (file: File) => void }) {
+function PhotoUploadControl({ label, onPick }: { label: string; onPick: (file: File) => void }) {
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -5356,7 +5356,7 @@ function PhotoUploadControl({ helpText, onPick }: { helpText: string; onPick: (f
 
   return (
     <div className="full photoUploadLabel">
-      <span>Front photo</span>
+      <span>{label}</span>
       <div className="photoUploadActions">
         <label className="primary photoChoiceButton">
           Take photo
@@ -5367,7 +5367,6 @@ function PhotoUploadControl({ helpText, onPick }: { helpText: string; onPick: (f
           <input accept="image/*" type="file" onChange={handleFile} />
         </label>
       </div>
-      <span className="muted">{helpText}</span>
     </div>
   );
 }

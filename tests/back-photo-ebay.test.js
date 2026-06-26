@@ -22,8 +22,8 @@ assert(dbCard.includes('back_photo_url: card.backPhotoUrl'), 'card inserts/updat
 
 assert(page.includes('side: "front" | "back" = "front"'), 'Photo upload helper should support front and back sides.');
 assert(page.includes('photoField = side === "front" ? "frontPhotoUrl" : "backPhotoUrl"'), 'Photo upload helper should choose the correct front/back field.');
-assert(page.includes('helpText="Back photo"'), 'Add inventory form should show a back-photo upload option for marketplace listings.');
-assert(page.includes('Add/replace back photo'), 'Edit card form should show a back-photo upload option.');
+assert(page.includes('label="Front"') && page.includes('label="Back"'), 'Inventory photo upload options should be labeled simply as Front and Back.');
+assert(!page.includes('helpText="Back photo"') && !page.includes('Add/replace back photo'), 'Photo upload controls should not duplicate front/back photo wording.');
 assert(!page.includes('backPhotoDot') && !page.includes('<span className="backPhotoDot">Back</span>'), 'Inventory thumbnails should not label the front image as Back when a back photo exists.');
 assert(page.includes('Enlarged back of'), 'Photo lightbox should display the back photo.');
 assert(page.includes('One front/back photo set applies to every copy in this row'), 'Quantity rows should explain that one photo set applies to all copies in that row.');
