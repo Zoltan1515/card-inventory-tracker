@@ -9,7 +9,7 @@ const route = fs.readFileSync(path.join(root, 'app', 'api', 'primelot', 'post-li
 assert(page.includes('type PrimeLotListingType = "single_card" | "sealed_product" | "lot";'), 'Client should type the required PrimeLot listing type values.');
 assert(page.includes('listingType: PrimeLotListingType'), 'PrimeLot review drafts should store a required listing type choice.');
 assert(page.includes('listingType: draft?.listingType || ""'), 'Confirmed PrimeLot payload should include the user-chosen listingType, not infer it from title.');
-assert(page.includes('Choose Single Card, Sealed Product, or Lot for every selected listing before importing to PrimeLot.'), 'Confirm should require a listing type before import/export.');
+assert(page.includes('Choose Single Card, Sealed Product, or Lot.') && page.includes('primeLotReviewErrors'), 'Confirm should require a listing type and highlight the missing modal field before import/export.');
 assert(page.includes('PrimeLot listing type') && page.includes('Single Card') && page.includes('Sealed Product') && page.includes('Lot'), 'PrimeLot review UI should offer Single Card, Sealed Product, and Lot choices.');
 assert(page.includes('All imports are saved as PrimeLot drafts'), 'Review modal should tell users PrimeLot imports remain drafts for review.');
 

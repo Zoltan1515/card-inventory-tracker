@@ -399,11 +399,16 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .primeLotReviewList { display: grid; gap: 10px; }
 .primeLotReviewRow { border: 1px solid rgba(148,163,184,.2); border-radius: 16px; background: rgba(8,15,28,.58); padding: 12px; display: grid; gap: 10px; }
 .primeLotReviewRow.blocked { border-color: rgba(250,204,21,.36); background: rgba(250,204,21,.08); }
+.primeLotReviewRow.needsReview { border-color: rgba(248,113,113,.7); box-shadow: 0 0 0 1px rgba(248,113,113,.18), 0 0 26px rgba(248,113,113,.12); }
+.primeLotReviewError { border: 1px solid rgba(248,113,113,.52); border-radius: 14px; padding: 12px 14px; color: #fecdd3; background: rgba(127,29,29,.22); font-weight: 800; }
 .primeLotReviewCardHeader { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
 .primeLotBlockedActions { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .primeLotBlockedActions .warning { margin: 0; flex: 1 1 260px; }
 .primeLotReviewFields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .primeLotReviewFields.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.primeLotReviewField { display: grid; gap: 6px; }
+.primeLotReviewField.invalid input, .primeLotReviewField.invalid select { border-color: #fb7185; box-shadow: 0 0 0 3px rgba(248,113,113,.18), 0 0 18px rgba(248,113,113,.12); background: rgba(127,29,29,.14); }
+.fieldErrorText { margin: 0; color: #fda4af; font-size: .82rem; font-weight: 800; }
 .primeLotReviewSummary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .primeLotReviewSummary span { border: 1px solid rgba(57,255,156,.22); border-radius: 16px; background: rgba(15,23,42,.58); padding: 12px; display: grid; gap: 4px; }
 .primeLotReviewSummary small { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: .7rem; }

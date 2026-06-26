@@ -40,6 +40,15 @@ assert(
 );
 
 assert(
+  page.includes('primeLotReviewError') &&
+    page.includes('primeLotReviewErrors') &&
+    page.includes('Fix the highlighted fields before importing drafts to PrimeLot.') &&
+    page.includes('fieldErrors.listingType') &&
+    page.includes('fieldErrors.askingPrice'),
+  'Review modal should show validation errors inside the modal and mark missing fields before closing.'
+);
+
+assert(
   page.includes('const alreadyOnPrimeLot = (card: CardRecord) =>') && page.includes('const canPostCardToPrimeLot = (card: CardRecord) =>'),
   'PrimeLot posting eligibility should be explicit and reusable.'
 );

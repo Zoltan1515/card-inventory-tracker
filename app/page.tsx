@@ -788,6 +788,8 @@ export default function Home() {
   const [primeLotModalOpen, setPrimeLotModalOpen] = useState(false);
   const [primeLotReviewOpen, setPrimeLotReviewOpen] = useState(false);
   const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, { askingPrice: string; shippingCharge: string; gradingCompany: string; listingType: PrimeLotListingType | "" }>>({});
+  const [primeLotReviewErrors, setPrimeLotReviewErrors] = useState<Record<string, Partial<Record<"askingPrice" | "listingType" | "gradingCompany", string>>>>({});
+  const [primeLotReviewError, setPrimeLotReviewError] = useState("");
   const [primeLotPostResult, setPrimeLotPostResult] = useState<PrimeLotPostResult | null>(null);
   const [primeLotMembershipRequiredOpen, setPrimeLotMembershipRequiredOpen] = useState(false);
   const [primeLotIntent, setPrimeLotIntent] = useState<"create" | "connect">("create");
@@ -3169,6 +3171,8 @@ export default function Home() {
   const openPrimeLotReview = () => {
     setError("");
     setNotice("");
+    setPrimeLotReviewError("");
+    setPrimeLotReviewErrors({});
     if (!selectedPrimeLotCards.length) {
       setError("Select at least one card that is not already posted on PrimeLot.");
       return;
@@ -3192,6 +3196,20 @@ export default function Home() {
   };
 
   const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge" | "listingType", value: string) => {
+    setPrimeLotReviewError("");
+    setPrimeLotReviewErrors((errors) => {
+      if (field === "shippingCharge") return errors;
+      const cardErrors = errors[cardId];
+      if (!cardErrors || !(field in cardErrors)) return errors;
+      const remainingCardErrors = { ...cardErrors };
+      delete remainingCardErrors[field];
+      if (!Object.keys(remainingCardErrors).length) {
+        const remainingErrors = { ...errors };
+        delete remainingErrors[cardId];
+        return remainingErrors;
+      }
+      return { ...errors, [cardId]: remainingCardErrors };
+    });
     setPrimeLotReviewDrafts((drafts) => {
       const current = drafts[cardId];
       const nextDraft = {
@@ -3247,21 +3265,21 @@ export default function Home() {
 
   const confirmPrimeLotPost = async () => {
     const cardsToPost = reviewedPrimeLotCards();
-    const cardsMissingPrice = cardsToPost.filter((card) => Number(card.askingPrice || 0) <= 0);
-    if (cardsMissingPrice.length) {
-      setError("Add an asking price to every selected card before posting to PrimeLot.");
+    const reviewErrors = cardsToPost.reduce<Record<string, Partial<Record<"askingPrice" | "listingType" | "gradingCompany", string>>>>((errors, card) => {
+      const cardErrors: Partial<Record<"askingPrice" | "listingType" | "gradingCompany", string>> = {};
+      if (Number(card.askingPrice || 0) <= 0) cardErrors.askingPrice = "Add a listing price.";
+      if (!card.listingType) cardErrors.listingType = "Choose Single Card, Sealed Product, or Lot.";
+      if (card.grade.trim() && !card.gradingCompany.trim()) cardErrors.gradingCompany = "Add the grading company on this card before importing.";
+      if (Object.keys(cardErrors).length) errors[card.id] = cardErrors;
+      return errors;
+    }, {});
+    if (Object.keys(reviewErrors).length) {
+      setPrimeLotReviewErrors(reviewErrors);
+      setPrimeLotReviewError("Fix the highlighted fields before importing drafts to PrimeLot.");
       return;
     }
-    const cardsMissingListingType = cardsToPost.filter((card) => !card.listingType);
-    if (cardsMissingListingType.length) {
-      setError("Choose Single Card, Sealed Product, or Lot for every selected listing before importing to PrimeLot.");
-      return;
-    }
-    const cardsMissingGrader = cardsToPost.filter((card) => card.grade.trim() && !card.gradingCompany.trim());
-    if (cardsMissingGrader.length) {
-      setError("Every graded card needs its grading company before posting to PrimeLot.");
-      return;
-    }
+    setPrimeLotReviewError("");
+    setPrimeLotReviewErrors({});
     setPrimeLotReviewOpen(false);
     await postSelectedCardsToPrimeLot(cardsToPost);
   };
@@ -3670,8 +3688,9 @@ export default function Home() {
                 <h2 id="primelot-review-title">Confirm before posting</h2>
                 <p className="muted">Review each selected card, fill in any missing details, then confirm only when you are ready.</p>
               </div>
-              <button className="secondary compactButton" type="button" onClick={() => setPrimeLotReviewOpen(false)}>Cancel</button>
+              <button className="secondary compactButton" type="button" onClick={() => { setPrimeLotReviewOpen(false); setPrimeLotReviewError(""); setPrimeLotReviewErrors({}); }}>Cancel</button>
             </div>
+            {primeLotReviewError && <div className="primeLotReviewError" role="alert">{primeLotReviewError}</div>}
             <div className="primeLotIntentNote liveWarning">
               <strong>All imports are saved as PrimeLot drafts</strong>
               <p>Choose the correct PrimeLot listing type for each row. Sealed boxes, booster packs, tins, cases, and other sealed products must use Sealed Product. PrimeLot will save imported listings as drafts for review before publishing.</p>
@@ -3681,9 +3700,10 @@ export default function Home() {
                 const canPostToPrimeLot = canPostCardToPrimeLot(card);
                 const isAlreadyOnPrimeLot = alreadyOnPrimeLot(card);
                 const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "", listingType: "" as PrimeLotListingType | "" };
+                const fieldErrors = primeLotReviewErrors[card.id] || {};
                 const total = Number(draft.askingPrice || 0) * cardQuantity(card);
                 return (
-                  <article className={canPostToPrimeLot ? "primeLotReviewRow" : "primeLotReviewRow blocked"} key={card.id}>
+                  <article className={`${canPostToPrimeLot ? "primeLotReviewRow" : "primeLotReviewRow blocked"} ${Object.keys(fieldErrors).length ? "needsReview" : ""}`} key={card.id}>
                     <div className="primeLotReviewCardHeader">
                       <div>
                         <strong>{card.name}</strong>
@@ -3692,13 +3712,20 @@ export default function Home() {
                       <span className={`statusBadge ${card.status.replace(" ", "").toLowerCase()}`}>{canPostToPrimeLot ? "Ready" : "Already posted on PrimeLot"}</span>
                     </div>
                     <div className="primeLotReviewFields compact">
-                      <label>PrimeLot listing type<select required value={draft.listingType} onChange={(event) => updatePrimeLotReviewDraft(card.id, "listingType", event.target.value)}>
-                        <option value="">Choose listing type</option>
-                        {primeLotListingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                      </select></label>
-                      <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
+                      <div className={fieldErrors.listingType ? "primeLotReviewField invalid" : "primeLotReviewField"}>
+                        <label>PrimeLot listing type<select required aria-invalid={Boolean(fieldErrors.listingType)} value={draft.listingType} onChange={(event) => updatePrimeLotReviewDraft(card.id, "listingType", event.target.value)}>
+                          <option value="">Choose listing type</option>
+                          {primeLotListingTypeOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select></label>
+                        {fieldErrors.listingType && <p className="fieldErrorText">{fieldErrors.listingType}</p>}
+                      </div>
+                      <div className={fieldErrors.askingPrice ? "primeLotReviewField invalid" : "primeLotReviewField"}>
+                        <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
+                        {fieldErrors.askingPrice && <p className="fieldErrorText">{fieldErrors.askingPrice}</p>}
+                      </div>
                       <Field label="Buyer shipping charge" type="number" value={draft.shippingCharge} onChange={(value) => updatePrimeLotReviewDraft(card.id, "shippingCharge", value)} />
                     </div>
+                    {fieldErrors.gradingCompany && <p className="fieldErrorText">{fieldErrors.gradingCompany}</p>}
                     {draft.listingType === "sealed_product" && <p className="muted">Use Sealed Product for sealed boxes, booster packs, tins, cases, and other unopened products so PrimeLot does not import them as single cards.</p>}
                     {canPostToPrimeLot ? (
                       <p className="muted">PrimeLot listing total: {money(total)}</p>
@@ -3718,7 +3745,7 @@ export default function Home() {
             </div>
             <div className="rowActions">
               <button className="primary" type="button" onClick={confirmPrimeLotPost} disabled={postingToPrimeLot}>{postingToPrimeLot ? "Importing…" : "Confirm — import drafts to PrimeLot"}</button>
-              <button className="secondary" type="button" onClick={() => setPrimeLotReviewOpen(false)}>Cancel — go back</button>
+              <button className="secondary" type="button" onClick={() => { setPrimeLotReviewOpen(false); setPrimeLotReviewError(""); setPrimeLotReviewErrors({}); }}>Cancel — go back</button>
             </div>
           </section>
         </div>
