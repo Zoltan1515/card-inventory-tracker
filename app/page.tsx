@@ -4334,7 +4334,7 @@ export default function Home() {
       )}
 
       {tab === "inventory" && (
-        <section className="panel" id="inventory-panel">
+        <section className={`panel ${!isSoldInventoryView && activeInventoryMainView === "Not Listed" ? "notListedInventoryPanel" : ""}`} id="inventory-panel">
           <div className="panelHeader inventoryHeader">
             <div>
               <p className="eyebrow">{isSoldInventoryView ? "Sold Inventory" : activeInventoryMainView}</p>
