@@ -4271,7 +4271,6 @@ export default function Home() {
                                 {card.frontPhotoUrl || card.backPhotoUrl ? (
                                   <button className="photoThumbButton photoThumbStack" type="button" onClick={() => setEnlargedPhotoCard(card)} aria-label={`Enlarge photos of ${card.name || "card"}`}>
                                     {card.frontPhotoUrl ? <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} /> : <div className="cardThumb placeholderThumb">No front</div>}
-                                    {card.backPhotoUrl && <span className="backPhotoDot">Back</span>}
                                   </button>
                                 ) : (
                                   <div className="cardThumb placeholderThumb">No photo</div>
@@ -4442,7 +4441,6 @@ export default function Home() {
                 {card.frontPhotoUrl || card.backPhotoUrl ? (
                   <button className="photoThumbButton photoThumbStack" type="button" onClick={() => setEnlargedPhotoCard(card)} aria-label={`Enlarge photos of ${card.name || "card"}`}>
                     {card.frontPhotoUrl ? <img className="cardThumb" src={card.frontPhotoUrl} alt={`Front of ${card.name}`} /> : <div className="cardThumb placeholderThumb">No front</div>}
-                    {card.backPhotoUrl && <span className="backPhotoDot">Back</span>}
                   </button>
                 ) : (
                   <div className="cardThumb placeholderThumb">No photo</div>

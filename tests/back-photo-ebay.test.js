@@ -24,7 +24,7 @@ assert(page.includes('side: "front" | "back" = "front"'), 'Photo upload helper s
 assert(page.includes('photoField = side === "front" ? "frontPhotoUrl" : "backPhotoUrl"'), 'Photo upload helper should choose the correct front/back field.');
 assert(page.includes('helpText="Back photo"'), 'Add inventory form should show a back-photo upload option for marketplace listings.');
 assert(page.includes('Add/replace back photo'), 'Edit card form should show a back-photo upload option.');
-assert(page.includes('backPhotoDot'), 'Inventory rows should visibly indicate when a back photo exists.');
+assert(!page.includes('backPhotoDot') && !page.includes('<span className="backPhotoDot">Back</span>'), 'Inventory thumbnails should not label the front image as Back when a back photo exists.');
 assert(page.includes('Enlarged back of'), 'Photo lightbox should display the back photo.');
 assert(page.includes('One front/back photo set applies to every copy in this row'), 'Quantity rows should explain that one photo set applies to all copies in that row.');
 
