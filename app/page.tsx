@@ -52,11 +52,12 @@ type MultiPlatformListing = {
 };
 type ListedReviewItem = {
   card: CardRecord;
-  listing: MultiPlatformListing;
+  listings: MultiPlatformListing[];
   age: number;
   referenceDate: string;
   tone: "current" | "warning" | "urgent";
 };
+type ListingReviewLink = { id: string; label: string; url: string };
 type ListingReviewBucket = "current" | "warning" | "urgent" | "all";
 type ImportCardPreview = {
   id: string;
@@ -454,12 +455,73 @@ const isPrimeLotImportedCard = (card: CardRecord) => {
 const otherListingsAfterSale = (card: CardRecord) => activeListingsForCard(card).filter((listing) => listing.platform.trim().toLowerCase() !== (card.salePlatform || "").trim().toLowerCase());
 
 const firstUrlInText = (value: string) => value.match(/https?:\/\/\S+/i)?.[0]?.replace(/[),.;]+$/, "") || "";
+const urlsInText = (value: string) => Array.from(new Set(Array.from(value.matchAll(/https?:\/\/[^\s,]+/gi), ([url]) => url.replace(/[),.;]+$/, ""))));
 const listingHref = (card: Pick<CardRecord, "listingUrl" | "listedPlatform">) => card.listingUrl.trim() || firstUrlInText(card.listedPlatform || "");
 const listingPlatformLabel = (card: Pick<CardRecord, "listedPlatform" | "listingUrl">) => {
   const platform = card.listedPlatform.trim();
   const href = listingHref(card);
   if (!platform || platform === href) return href ? "Listed online" : "Listed";
   return platform.replace(href, "").trim().replace(/^[-•|]+|[-•|]+$/g, "").trim() || "Listed online";
+};
+const splitPlatformLabels = (platform: string) => platform
+  .split(/\s*(?:,|\/|\||&|\band\b)\s*/i)
+  .map((label) => label.trim())
+  .filter(Boolean);
+const displayPlatformLabel = (platform: string) => {
+  if (/^ebay$/i.test(platform)) return "eBay";
+  if (/^primelot(?:\s+draft)?$/i.test(platform)) return platform.toLowerCase().includes("draft") ? "PrimeLot Draft" : "PrimeLot";
+  return platform;
+};
+const platformUrlMatches = (platform: string, url: string) => {
+  const normalizedPlatform = platform.toLowerCase();
+  const normalizedUrl = url.toLowerCase();
+  if (normalizedPlatform.includes("primelot")) return normalizedUrl.includes("primelot");
+  if (normalizedPlatform.includes("ebay")) return normalizedUrl.includes("ebay.");
+  if (normalizedPlatform.includes("whatnot")) return normalizedUrl.includes("whatnot.");
+  if (normalizedPlatform.includes("tcg")) return normalizedUrl.includes("tcgplayer.");
+  return normalizedUrl.includes(normalizedPlatform.replace(/[^a-z0-9]/g, ""));
+};
+const marketplaceSearchUrl = (platform: string, card: CardRecord) => {
+  if (!platform.toLowerCase().includes("ebay")) return "";
+  const query = [card.name, card.year, card.setName, card.cardNumber].filter(Boolean).join(" ");
+  return `https://www.ebay.com/sch/i.html?_nkw=${encodeURIComponent(query || card.name || "trading card")}`;
+};
+const listingReviewPlatformsLabel = (listings: MultiPlatformListing[]) => {
+  const labels = listings.flatMap((listing) => splitPlatformLabels(listing.platform || "Listed online")).map(displayPlatformLabel);
+  return uniqueSorted(labels).join(", ") || "Not entered";
+};
+const listingReviewLinksForCard = (card: CardRecord, listings: MultiPlatformListing[]): ListingReviewLink[] => {
+  const links: ListingReviewLink[] = [];
+  const seen = new Set<string>();
+  listings.forEach((listing) => {
+    const platforms = splitPlatformLabels(listing.platform || "Listing");
+    const labels = platforms.length ? platforms : [listing.platform || "Listing"];
+    const urls = urlsInText(`${listing.url} ${listing.platform}`);
+    labels.forEach((rawLabel) => {
+      const label = displayPlatformLabel(rawLabel);
+      const matchedUrl = urls.find((url) => platformUrlMatches(rawLabel, url)) || (urls.length === 1 && labels.length === 1 ? urls[0] : "") || marketplaceSearchUrl(rawLabel, card);
+      if (!matchedUrl) return;
+      const key = `${label.toLowerCase()}|${matchedUrl.toLowerCase()}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      links.push({ id: key, label, url: matchedUrl });
+    });
+  });
+  return links;
+};
+const listingReviewReferenceDate = (card: CardRecord, listings: MultiPlatformListing[]) => {
+  const listingDates = listings.map((listing) => listing.listedDate).filter(Boolean).sort((a, b) => dateValue(a) - dateValue(b));
+  return listingDates[0] || listedAgeDate(card);
+};
+const listingReviewAskingValue = (item: ListedReviewItem) => {
+  const listingPrices = item.listings.map((listing) => listing.askingPrice).filter((value) => value > 0);
+  return (listingPrices[0] || item.card.askingPrice || 0) * cardQuantity(item.card);
+};
+const listingReviewAskingLabel = (item: ListedReviewItem) => {
+  const values = uniqueSorted(item.listings.map((listing) => listing.askingPrice).filter((value) => value > 0).map((value) => String(value))).map(Number);
+  if (!values.length) return `${money(item.card.askingPrice)}${cardQuantity(item.card) > 1 ? " each" : ""}`;
+  if (values.length === 1) return `${money(values[0])}${cardQuantity(item.card) > 1 ? " each" : ""}`;
+  return `${money(Math.min(...values))} - ${money(Math.max(...values))}${cardQuantity(item.card) > 1 ? " each" : ""}`;
 };
 const titleCaseCategoryLabel = (value: string) => value
   .replace(/[_-]+/g, " ")
@@ -1308,12 +1370,13 @@ export default function Home() {
 
   const listingReviewItems = useMemo<ListedReviewItem[]>(() => cards
     .filter((card) => card.status === "Listed" && !activeGradingCardIds.has(card.id))
-    .flatMap((card) => activeListingsForCard(card).map((listing) => ({ card, listing, referenceDate: listing.listedDate || listedAgeDate(card) })))
-    .map(({ card, listing, referenceDate }) => ({ card, listing, referenceDate, age: daysSince(referenceDate) }))
-    .filter((item): item is { card: CardRecord; listing: MultiPlatformListing; referenceDate: string; age: number } => item.age !== null)
-    .map(({ card, listing, referenceDate, age }) => ({ card, listing, referenceDate, age, tone: listingReviewTone(age) }))
+    .map((card) => ({ card, listings: activeListingsForCard(card) }))
+    .filter(({ listings }) => listings.length > 0)
+    .map(({ card, listings }) => ({ card, listings, referenceDate: listingReviewReferenceDate(card, listings) }))
+    .map(({ card, listings, referenceDate }) => ({ card, listings, referenceDate, age: daysSince(referenceDate) }))
+    .filter((item): item is { card: CardRecord; listings: MultiPlatformListing[]; referenceDate: string; age: number } => item.age !== null)
+    .map(({ card, listings, referenceDate, age }) => ({ card, listings, referenceDate, age, tone: listingReviewTone(age) }))
     .sort((a, b) => b.age - a.age), [activeGradingCardIds, cards]);
-  const listedAskingValue = (item: ListedReviewItem) => item.listing.askingPrice * cardQuantity(item.card);
   const listingReviewGroups = {
     current: listingReviewItems.filter((item) => item.tone === "current"),
     warning: listingReviewItems.filter((item) => item.tone === "warning"),
@@ -1325,9 +1388,9 @@ export default function Home() {
     urgent: listingReviewGroups.urgent.length,
   };
   const listingReviewAskingTotals = {
-    current: listingReviewGroups.current.reduce((sum, item) => sum + listedAskingValue(item), 0),
-    warning: listingReviewGroups.warning.reduce((sum, item) => sum + listedAskingValue(item), 0),
-    urgent: listingReviewGroups.urgent.reduce((sum, item) => sum + listedAskingValue(item), 0),
+    current: listingReviewGroups.current.reduce((sum, item) => sum + listingReviewAskingValue(item), 0),
+    warning: listingReviewGroups.warning.reduce((sum, item) => sum + listingReviewAskingValue(item), 0),
+    urgent: listingReviewGroups.urgent.reduce((sum, item) => sum + listingReviewAskingValue(item), 0),
   };
   const activeListingReviewItems = activeListingReviewBucket === "current" ? listingReviewGroups.current
     : activeListingReviewBucket === "warning" ? listingReviewGroups.warning
@@ -4208,36 +4271,41 @@ export default function Home() {
                 <button className="secondary" type="button" onClick={() => setActiveListingReviewBucket(null)}>Hide listings</button>
               </div>
               <div className="cardsList listingReviewList">
-                {activeListingReviewItems.map(({ card, listing, age, referenceDate, tone }) => (
-                  <article className={`cardRow compactRow listingReviewRow ${tone}`} key={`${card.id}-${listing.id}`}>
-                    <div>
-                      <div className="rowTitle">
-                        <strong>{card.name || "Unnamed card"}</strong>
-                        <span className={`listingAgeBadge ${tone}`}>{age} days listed</span>
-                      </div>
-                      <div className="listingReviewMeta" aria-label={`Listing details for ${card.name || "card"}`}>
-                        <span><small>Listed</small><strong>{referenceDate ? formatDateLabel(referenceDate) : "Date unknown"}</strong></span>
-                        <span><small>Platform</small><strong>{listing.platform || "Not entered"}</strong></span>
-                        <span><small>Asking</small><strong>{money(listing.askingPrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span>
-                        <span><small>Cost</small><strong>{money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""}</strong></span>
-                        <span><small>Potential profit</small><strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong></span>
-                        {listing.lowestAcceptablePrice ? <span><small>Minimum</small><strong>{money(listing.lowestAcceptablePrice)}{cardQuantity(card) > 1 ? " each" : ""}</strong></span> : null}
-                      </div>
-                      {activeGradingCardIds.has(card.id) && (
-                        <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
-                      )}
-                      {card.status === "Listed" && (
-                        <div className="listingLinkRow">
-                          {listing.url && <a href={listing.url} target="_blank" rel="noreferrer">Open {listing.platform}</a>}
-                          <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
+                {activeListingReviewItems.map((item) => {
+                  const { card, listings, age, referenceDate, tone } = item;
+                  const links = listingReviewLinksForCard(card, listings);
+                  const minimumPrices = listings.map((listing) => listing.lowestAcceptablePrice).filter((value) => value > 0);
+                  return (
+                    <article className={`cardRow compactRow listingReviewRow ${tone}`} key={card.id}>
+                      <div>
+                        <div className="rowTitle">
+                          <strong>{card.name || "Unnamed card"}</strong>
+                          <span className={`listingAgeBadge ${tone}`}>{age} days listed</span>
                         </div>
-                      )}
-                    </div>
-                    <div className="rowActions">
-                      <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit card</button>
-                    </div>
-                  </article>
-                ))}
+                        <div className="listingReviewMeta" aria-label={`Listing details for ${card.name || "card"}`}>
+                          <span><small>Listed</small><strong>{referenceDate ? formatDateLabel(referenceDate) : "Date unknown"}</strong></span>
+                          <span><small>Platform</small><strong>{listingReviewPlatformsLabel(listings)}</strong></span>
+                          <span><small>Asking</small><strong>{listingReviewAskingLabel(item)}</strong></span>
+                          <span><small>Cost</small><strong>{money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} items)` : ""}</strong></span>
+                          <span><small>Potential profit</small><strong className={listedPotentialProfit(card) >= 0 ? "positive" : "negative"}>{money(listedPotentialProfit(card))}</strong></span>
+                          {minimumPrices.length ? <span><small>Minimum</small><strong>{money(Math.min(...minimumPrices))}{minimumPrices.length > 1 ? " lowest" : ""}{cardQuantity(card) > 1 ? " each" : ""}</strong></span> : null}
+                        </div>
+                        {activeGradingCardIds.has(card.id) && (
+                          <p className="gradingInline">At grading: {openGradingSubmissions.find((submission) => submission.cardIds.includes(card.id))?.company || "grading company"}</p>
+                        )}
+                        {card.status === "Listed" && (
+                          <div className="listingLinkRow">
+                            {links.map((link) => <a key={link.id} href={link.url} target="_blank" rel="noreferrer">Open {link.label}</a>)}
+                            <button className="inlineLinkButton" type="button" onClick={() => requestClearListing(card)}>Clear listing</button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="rowActions">
+                        <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit card</button>
+                      </div>
+                    </article>
+                  );
+                })}
                 {!activeListingReviewItems.length && <p className="empty">No cards in this date bucket.</p>}
               </div>
             </div>

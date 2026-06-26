@@ -17,6 +17,10 @@ assert(page.includes('30–60 days listed • ${listingReviewCounts.warning} car
 assert(page.includes('60+ days listed • ${listingReviewCounts.urgent} cards'), 'Urgent date bucket should be shown as a clickable dollar tab.');
 assert(page.includes('activeListingReviewBucket ? ('), 'Listing rows should only render after a bucket is selected.');
 assert(page.includes('Pick a dollar amount above to open that date bucket. All individual listings are hidden until then.'), 'Listing Review should show a prompt instead of all rows by default.');
+assert(page.includes('.map((card) => ({ card, listings: activeListingsForCard(card) }))'), 'Listing Review should create one review row per physical card, not one row per marketplace listing.');
+assert(page.includes('key={card.id}'), 'Listing Review rows should be keyed by card id so cross-listed cards are not duplicated.');
+assert(page.includes('listingReviewLinksForCard(card, listings)') && page.includes('Open {link.label}'), 'Listing Review should render separate clickable links for each marketplace.');
+assert(page.includes('listingReviewPlatformsLabel(listings)'), 'Listing Review should summarize all platforms on one card row.');
 assert(page.includes('aria-pressed={active}'), 'Clickable stat tabs should expose active state accessibly.');
 assert(css.includes('.clickableStat'), 'Clickable dollar tabs should have styling.');
 assert(css.includes('.activeStat'), 'Active dollar tab should be visually highlighted.');
