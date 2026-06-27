@@ -34,8 +34,14 @@ assert(page.includes('<Stat label="ROI% shown" value={percent(soldViewRoiPercent
 assert(page.includes('<small>ROI%</small>') && page.includes('percent(cardRoiAfterSaleExpenses(card))'), 'Sold listing cards should display their ROI%.');
 assert(page.includes('cardRoiAfterSaleExpenses'), 'Sold listing ROI% should account for sale expenses tied to the card.');
 assert(page.includes('soldRoiBadge ${cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}'), 'Sold listing ROI% badge should get a negative class when ROI is below zero.');
-assert(css.includes('.compactHeroStats { grid-template-columns: repeat(5'), 'Account hero stat boxes should fit on one desktop line.');
-assert(css.includes('.secondaryStatStrip { display: grid; grid-template-columns: repeat(5'), 'Secondary stat strip should fit all five boxes on one desktop line.');
+assert(page.includes('<Stat label="Sold Cards" value={String(totals.soldCount)} />'), 'Account hero should show total sold card quantity.');
+assert(page.includes('<Stat label="Sold Revenue" value={money(totals.revenue)}'), 'Account hero should show sold revenue.');
+assert(page.indexOf('<Stat label="Total Inventory Value"') < page.indexOf('<Stat label="Sold Cards"'), 'Account hero should order inventory totals before sold totals.');
+assert(page.indexOf('<Stat label="Sold Revenue"') < page.indexOf('<Stat label="Net profit after costs/fees"'), 'Account hero should order sold revenue before profit and ROI.');
+assert(page.includes('<small>Sold Cards</small><strong>{totals.soldCount}</strong>'), 'Secondary stat strip should include sold card quantity.');
+assert(page.includes('<small>Sold Revenue</small><strong className={totals.revenue > 0 ? "positive" : ""}>{money(totals.revenue)}</strong>'), 'Secondary stat strip should include sold revenue.');
+assert(css.includes('.compactHeroStats { grid-template-columns: repeat(7'), 'Account hero stat boxes should fit all seven boxes on one desktop line.');
+assert(css.includes('.secondaryStatStrip { display: grid; grid-template-columns: repeat(7'), 'Secondary stat strip should fit all seven boxes on one desktop line.');
 assert(css.includes('.secondaryStatStrip small') && css.includes('font-size: .61rem'), 'Secondary stat strip labels should be compact enough for one-line layout.');
 assert(css.includes('.roiChartCard'), 'ROI% chart card styles should exist.');
 assert(css.includes('.roiChartSvg'), 'ROI% chart SVG styles should exist.');

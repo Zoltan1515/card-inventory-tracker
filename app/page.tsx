@@ -3585,10 +3585,12 @@ export default function Home() {
             <span className={`subscriptionStatusPill ${hasActiveSubscription ? "isSubscribed" : "isNotSubscribed"}`}>{subscriptionStatusLabel}</span>
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />
+              <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
+              <Stat label="Sold Cards" value={String(totals.soldCount)} />
+              <Stat label="Sold Revenue" value={money(totals.revenue)} tone={totals.revenue > 0 ? "positive" : undefined} />
               <Stat label="Net profit after costs/fees" value={money(totals.periodNetProfit)} tone={totals.periodNetProfit >= 0 ? "positive" : "negative"} />
               <Stat label="ROI after expenses" value={percent(totals.roi)} tone={totals.roi >= 0 ? "positive" : "negative"} />
               <Stat label="Cash on hand" value={money(totals.cash)} tone={totals.cash >= 0 ? "positive" : "negative"} />
-              <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
             </div>
           </div>
           <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} card sale ${money(mostExpensiveSoldCard.soldPrice)}` : "Top sold card placeholder"}>
@@ -3625,10 +3627,12 @@ export default function Home() {
 
       {session && (
         <section className="secondaryStatStrip" aria-label="Business stat strip">
+          <button type="button" onClick={() => setTab("inventory")}><small>Unsold Cards</small><strong>{activeInventoryQuantity}</strong></button>
           <button type="button" onClick={() => setTab("profit")}><small>Inventory Value</small><strong>{money(totals.totalInventoryValue)}</strong></button>
+          <button type="button" onClick={showSoldInventory}><small>Sold Cards</small><strong>{totals.soldCount}</strong></button>
+          <button type="button" onClick={() => setTab("profit")}><small>Sold Revenue</small><strong className={totals.revenue > 0 ? "positive" : ""}>{money(totals.revenue)}</strong></button>
           <button type="button" onClick={() => setTab("roi")}><small>ROI after expenses</small><strong className={totals.roi >= 0 ? "positive" : "negative"}>{percent(totals.roi)}</strong></button>
           <button type="button" onClick={() => setTab("expenses")}><small>Expenses</small><strong>{money(totals.expensesTotal)}</strong></button>
-          <button type="button" onClick={() => setTab("listingReview")}><small>Listed Value</small><strong>{money(listedValue)}</strong></button>
           <button type="button" onClick={() => setTab("attention")}><small>Needs Attention</small><strong>{totalAttentionItems}</strong></button>
         </section>
       )}
