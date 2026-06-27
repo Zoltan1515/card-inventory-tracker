@@ -232,12 +232,12 @@ textarea { min-height: 90px; resize: vertical; }
 .notListedInventoryPanel > * { position: relative; z-index: 1; }
 .notListedInventoryPanel .inventoryHeader h2 { color: #f7fffb; text-shadow: 0 0 18px rgba(57,255,156,.24); }
 .notListedInventoryPanel .inventoryHeader .muted { color: #d7fff0; }
-.notListedInventoryPanel .inventoryMainSwitchButtonActive { box-shadow: 0 0 0 4px rgba(57,255,156,.12), 0 0 28px rgba(57,255,156,.26); }
+.notListedInventoryPanel .inventoryMainSwitchButtonActive { border-color: rgba(235,255,248,.9); box-shadow: 0 0 0 3px rgba(235,255,248,.65), 0 0 0 7px rgba(57,255,156,.22), 0 0 34px rgba(57,255,156,.52), 0 0 64px rgba(103,232,249,.28), inset 0 1px 0 rgba(255,255,255,.28); }
 .notListedInventoryPanel .filterToggleButton, .notListedInventoryPanel .inventoryBulkBar { border-color: rgba(103,232,249,.38); background: rgba(4,22,32,.72); box-shadow: 0 0 22px rgba(103,232,249,.08); }
 .inventoryMainSwitch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0 0 14px; }
 .inventoryMainSwitch button { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 54px; font-size: 1rem; }
-.inventoryMainSwitchButtonInactive { border: 1px solid rgba(103,232,249,.28); border-radius: 12px; padding: 12px 14px; background: linear-gradient(135deg, rgba(15,23,42,.86), rgba(8,16,34,.78)); color: var(--text); font-weight: 800; box-shadow: inset 0 0 0 1px rgba(255,255,255,.03); }
-.inventoryMainSwitchButtonInactive:hover, .inventoryMainSwitchButtonInactive:focus-visible { border-color: rgba(57,255,156,.5); background: linear-gradient(135deg, rgba(57,255,156,.14), rgba(103,232,249,.09)); box-shadow: 0 0 0 3px rgba(57,255,156,.1); }
+.inventoryMainSwitchButtonInactive { border: 1px solid rgba(103,232,249,.32); border-radius: 12px; padding: 12px 14px; background: linear-gradient(135deg, rgba(15,23,42,.86), rgba(8,16,34,.78)); color: var(--text); font-weight: 800; box-shadow: inset 0 0 0 1px rgba(255,255,255,.03), 0 0 18px rgba(103,232,249,.08); transition: border-color .16s ease, box-shadow .16s ease, background .16s ease, transform .16s ease; }
+.inventoryMainSwitchButtonInactive:hover, .inventoryMainSwitchButtonInactive:focus-visible { border-color: rgba(57,255,156,.82); background: linear-gradient(135deg, rgba(57,255,156,.18), rgba(103,232,249,.12)); box-shadow: 0 0 0 3px rgba(57,255,156,.16), 0 0 28px rgba(57,255,156,.24), 0 0 44px rgba(103,232,249,.16); transform: translateY(-1px); }
 .inventoryMainSwitch span { border-radius: 999px; background: rgba(255,255,255,.14); padding: 6px 13px; font-size: 1.64rem; line-height: 1; font-weight: 1000; }
 .inventoryMainSwitchButtonInactive span { background: rgba(103,232,249,.12); color: var(--muted); }
 .inventoryFilterToggleRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
