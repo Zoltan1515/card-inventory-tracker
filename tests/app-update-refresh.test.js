@@ -17,5 +17,7 @@ assert(page.includes('window.setInterval(checkAppVersion, 15_000)'), 'App should
 assert(page.includes('window.addEventListener("focus", checkAppVersion)') && page.includes('visibilitychange'), 'App should re-check when the user returns to the tab.');
 assert(page.includes('New update available') && page.includes('window.location.reload()'), 'App should show a refresh prompt with a reload button.');
 assert(css.includes('.appUpdateBanner'), 'Refresh prompt should have dedicated themed styling.');
+assert(page.includes('refreshAppButton') && page.includes('>Refresh</button>'), 'Signed-in header should always expose a manual Refresh button.');
+assert(css.includes('.refreshAppButton'), 'Manual Refresh button should have dedicated themed styling.');
 
 console.log('App update refresh checks passed.');

@@ -3541,6 +3541,7 @@ export default function Home() {
         <button className="iconCircle menuToggleButton" type="button" aria-label={mobileQuickActionsOpen ? "Close quick actions menu" : "Open quick actions menu"} aria-expanded={mobileQuickActionsOpen} aria-controls="quick-actions" onClick={() => setMobileQuickActionsOpen((open) => !open)}>☰</button>
         <Logo />
         <div className="topHeaderActions">
+          {session && <button className="secondary signOutButton refreshAppButton" onClick={() => window.location.reload()} type="button">Refresh</button>}
           <a className="secondary signOutButton" href={accountActionPath}>{accountActionLabel}</a>
           {session ? <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button> : <a className="primary signOutButton" href="#account-login">Sign up</a>}
         </div>

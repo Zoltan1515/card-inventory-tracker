@@ -591,6 +591,8 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .menuToggleButton { grid-area: menu; }
 .topHeaderActions { grid-area: actions; display: flex; align-items: center; gap: 8px; }
 .signOutButton { position: static; border-radius: 999px; white-space: nowrap; min-width: 82px; min-height: 38px; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; }
+.refreshAppButton { border-color: rgba(57,255,156,.72); background: linear-gradient(135deg, rgba(57,255,156,.22), rgba(103,232,249,.18)); color: #eafff6; box-shadow: 0 0 0 1px rgba(57,255,156,.16), 0 0 22px rgba(57,255,156,.18); }
+.refreshAppButton:hover, .refreshAppButton:focus-visible { border-color: rgba(57,255,156,.95); box-shadow: 0 0 0 3px rgba(57,255,156,.14), 0 0 30px rgba(57,255,156,.26); }
 .collectorHeroCard, .secondaryStatStrip, .quickActionsPanel, .dashboardCashEntryPanel, .cashOnboardingCard { border: 1px solid rgba(103,232,249,.28); background: linear-gradient(145deg, rgba(8,16,34,.86), rgba(2,7,16,.92)); border-radius: 26px; box-shadow: 0 0 0 1px rgba(57,255,156,.08), 0 18px 56px rgba(0,0,0,.42), 0 0 34px rgba(103,232,249,.08); }
 .authForm a { text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
 .collectorHeroCard { position: relative; overflow: hidden; display: grid; grid-template-columns: 1.15fr minmax(120px, .85fr); gap: 16px; padding: 22px; margin-bottom: 14px; }
