@@ -941,7 +941,7 @@ export default function Home() {
       }
     };
     checkAppVersion();
-    const interval = window.setInterval(checkAppVersion, 60_000);
+    const interval = window.setInterval(checkAppVersion, 15_000);
     const checkWhenVisible = () => {
       if (document.visibilityState === "visible") checkAppVersion();
     };
