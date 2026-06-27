@@ -881,6 +881,7 @@ export default function Home() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [appUpdateAvailable, setAppUpdateAvailable] = useState(false);
   const [showAddInventoryCheck, setShowAddInventoryCheck] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
@@ -890,6 +891,7 @@ export default function Home() {
   const [topSoldMonth, setTopSoldMonth] = useState(todayIso().slice(0, 7));
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
+  const appVersionRef = useRef("");
   const isSignedIn = Boolean(session?.user.id);
   // Stripe subscription status is not connected yet. Keep this false until the Stripe customer/subscription record is wired to the logged-in account.
   const hasActiveSubscription = false;
@@ -919,6 +921,39 @@ export default function Home() {
     const timer = window.setTimeout(() => setNotice(""), 4000);
     return () => window.clearTimeout(timer);
   }, [notice]);
+
+  useEffect(() => {
+    let stopped = false;
+    const checkAppVersion = async () => {
+      try {
+        const response = await fetch("/api/version", { cache: "no-store" });
+        if (!response.ok) return;
+        const result: { version?: string } = await response.json();
+        const nextVersion = String(result.version || "").trim();
+        if (!nextVersion || stopped) return;
+        if (!appVersionRef.current) {
+          appVersionRef.current = nextVersion;
+          return;
+        }
+        if (appVersionRef.current !== nextVersion) setAppUpdateAvailable(true);
+      } catch {
+        // Keep the app usable if the version check cannot be reached.
+      }
+    };
+    checkAppVersion();
+    const interval = window.setInterval(checkAppVersion, 60_000);
+    const checkWhenVisible = () => {
+      if (document.visibilityState === "visible") checkAppVersion();
+    };
+    window.addEventListener("focus", checkAppVersion);
+    document.addEventListener("visibilitychange", checkWhenVisible);
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", checkAppVersion);
+      document.removeEventListener("visibilitychange", checkWhenVisible);
+    };
+  }, []);
 
   useEffect(() => {
     if (!showAddInventoryCheck) return;
@@ -3641,6 +3676,15 @@ export default function Home() {
         </nav>
       </section>
 
+      {appUpdateAvailable && (
+        <section className="appUpdateBanner" role="alert" aria-live="assertive" aria-label="New Wicked Card Tracker update available">
+          <div>
+            <strong>New update available</strong>
+            <span>Press Refresh to load the latest Wicked Card Tracker changes.</span>
+          </div>
+          <button className="primary" type="button" onClick={() => window.location.reload()}>Refresh</button>
+        </section>
+      )}
       {notice && <p className="notice">{notice}</p>}
       {showAddInventoryCheck && <div className="addInventoryCheck" aria-live="polite" aria-label="Inventory added">✓</div>}
       {error && <p className="errorBox">{error}</p>}
