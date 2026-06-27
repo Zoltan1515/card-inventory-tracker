@@ -882,6 +882,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [appUpdateAvailable, setAppUpdateAvailable] = useState(false);
+  const [appUpdateVersion, setAppUpdateVersion] = useState("");
   const [showAddInventoryCheck, setShowAddInventoryCheck] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [dateFilterMode, setDateFilterMode] = useState<DateFilterMode>("all");
@@ -892,6 +893,7 @@ export default function Home() {
 
   const usingSupabase = Boolean(isSupabaseConfigured && supabase);
   const appVersionRef = useRef("");
+  const appVersionStorageKey = "wicked-card-tracker-app-version";
   const isSignedIn = Boolean(session?.user.id);
   // Stripe subscription status is not connected yet. Keep this false until the Stripe customer/subscription record is wired to the logged-in account.
   const hasActiveSubscription = false;
@@ -931,11 +933,18 @@ export default function Home() {
         const result: { version?: string } = await response.json();
         const nextVersion = String(result.version || "").trim();
         if (!nextVersion || stopped) return;
-        if (!appVersionRef.current) {
+        const acknowledgedVersion = window.localStorage.getItem(appVersionStorageKey) || "";
+        const currentVersion = appVersionRef.current || acknowledgedVersion;
+        if (!currentVersion) {
           appVersionRef.current = nextVersion;
+          window.localStorage.setItem(appVersionStorageKey, nextVersion);
           return;
         }
-        if (appVersionRef.current !== nextVersion) setAppUpdateAvailable(true);
+        appVersionRef.current = currentVersion;
+        if (currentVersion !== nextVersion) {
+          setAppUpdateVersion(nextVersion);
+          setAppUpdateAvailable(true);
+        }
       } catch {
         // Keep the app usable if the version check cannot be reached.
       }
@@ -954,6 +963,11 @@ export default function Home() {
       document.removeEventListener("visibilitychange", checkWhenVisible);
     };
   }, []);
+
+  const refreshToLatestApp = () => {
+    if (appUpdateVersion) window.localStorage.setItem(appVersionStorageKey, appUpdateVersion);
+    window.location.reload();
+  };
 
   useEffect(() => {
     if (!showAddInventoryCheck) return;
@@ -3541,7 +3555,6 @@ export default function Home() {
         <button className="iconCircle menuToggleButton" type="button" aria-label={mobileQuickActionsOpen ? "Close quick actions menu" : "Open quick actions menu"} aria-expanded={mobileQuickActionsOpen} aria-controls="quick-actions" onClick={() => setMobileQuickActionsOpen((open) => !open)}>☰</button>
         <Logo />
         <div className="topHeaderActions">
-          {session && <button className="secondary signOutButton refreshAppButton" onClick={() => window.location.reload()} type="button">Refresh</button>}
           <a className="secondary signOutButton" href={accountActionPath}>{accountActionLabel}</a>
           {session ? <button className="secondary signOutButton" onClick={signOut} type="button">Sign out</button> : <a className="primary signOutButton" href="#account-login">Sign up</a>}
         </div>
@@ -3683,7 +3696,7 @@ export default function Home() {
             <strong>New update available</strong>
             <span>Press Refresh to load the latest Wicked Card Tracker changes.</span>
           </div>
-          <button className="primary" type="button" onClick={() => window.location.reload()}>Refresh</button>
+          <button className="primary" type="button" onClick={refreshToLatestApp}>Refresh</button>
         </section>
       )}
       {notice && <p className="notice">{notice}</p>}

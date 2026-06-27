@@ -12,12 +12,14 @@ function assert(condition, message) {
 
 assert(route.includes('VERCEL_GIT_COMMIT_SHA') && route.includes('Cache-Control') && route.includes('no-store'), 'Version endpoint should expose an uncached deployment version.');
 assert(page.includes('const [appUpdateAvailable, setAppUpdateAvailable] = useState(false);'), 'App should track whether a newer deployed version is available.');
+assert(page.includes('const [appUpdateVersion, setAppUpdateVersion] = useState("");'), 'App should remember the newer deployed version for the refresh action.');
 assert(page.includes('fetch("/api/version", { cache: "no-store" })'), 'App should poll the uncached version endpoint.');
+assert(page.includes('window.localStorage.getItem(appVersionStorageKey)'), 'App should compare against the last acknowledged browser version.');
+assert(page.includes('window.localStorage.setItem(appVersionStorageKey, appUpdateVersion)'), 'Refresh prompt should acknowledge the new version before reloading.');
 assert(page.includes('window.setInterval(checkAppVersion, 15_000)'), 'App should check frequently for new deployments.');
 assert(page.includes('window.addEventListener("focus", checkAppVersion)') && page.includes('visibilitychange'), 'App should re-check when the user returns to the tab.');
-assert(page.includes('New update available') && page.includes('window.location.reload()'), 'App should show a refresh prompt with a reload button.');
+assert(page.includes('New update available') && page.includes('onClick={refreshToLatestApp}'), 'App should show a refresh prompt with a reload button.');
 assert(css.includes('.appUpdateBanner'), 'Refresh prompt should have dedicated themed styling.');
-assert(page.includes('refreshAppButton') && page.includes('>Refresh</button>'), 'Signed-in header should always expose a manual Refresh button.');
-assert(css.includes('.refreshAppButton'), 'Manual Refresh button should have dedicated themed styling.');
+assert(!page.includes('refreshAppButton') && !css.includes('.refreshAppButton'), 'Refresh should appear only in the update banner, not as a permanent header button.');
 
 console.log('App update refresh checks passed.');
