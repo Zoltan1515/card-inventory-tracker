@@ -21,12 +21,15 @@ assert(page.includes('.map((card) => ({ card, listings: activeListingsForCard(ca
 assert(page.includes('key={card.id}'), 'Listing Review rows should be keyed by card id so cross-listed cards are not duplicated.');
 assert(page.includes('listingReviewLinksForCard(card, listings)') && page.includes('Open {link.label}'), 'Listing Review should render separate clickable links for each marketplace.');
 assert(page.includes('listingReviewPlatformsLabel(listings)'), 'Listing Review should summarize all platforms on one card row.');
+assert(page.includes('const photoUrl = card.frontPhotoUrl.trim() || card.backPhotoUrl.trim();'), 'Listing Review rows should use the saved card photo when available.');
+assert(page.includes('className={`listingReviewThumb ${photoUrl ? "hasPhoto" : ""}`') && page.includes('No photo'), 'Listing Review rows should render a card thumbnail or a no-photo placeholder.');
 assert(page.includes('aria-pressed={active}'), 'Clickable stat tabs should expose active state accessibly.');
 assert(css.includes('.clickableStat'), 'Clickable dollar tabs should have styling.');
 assert(css.includes('.activeStat'), 'Active dollar tab should be visually highlighted.');
 assert(css.includes('.listingReviewPrompt'), 'Hidden-listing prompt should have dedicated styling.');
 assert(page.includes('className="listingReviewMeta"'), 'Listing Review rows should use structured mobile-friendly detail chips instead of long bullet text.');
 assert(css.includes('.listingReviewMeta { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));') && css.includes('.listingReviewMeta { grid-template-columns: repeat(2, minmax(0, 1fr));'), 'Listing Review details should be compact chips on desktop and two-column chips on mobile.');
+assert(css.includes('.listingReviewRow { grid-template-columns: 96px minmax(0, 1fr) auto;') && css.includes('.listingReviewThumb img'), 'Listing Review rows should reserve a thumbnail column and style card photos.');
 assert(css.includes('.listingReviewRow.compactRow { grid-template-columns: 1fr;') && css.includes('.listingReviewRow .rowActions { grid-template-columns: 1fr; }'), 'Mobile Listing Review rows should stack cleanly without narrow squeezed columns.');
 
 console.log('Listing review bucket checks passed.');

@@ -4330,8 +4330,12 @@ export default function Home() {
                   const { card, listings, age, referenceDate, tone } = item;
                   const links = listingReviewLinksForCard(card, listings);
                   const minimumPrices = listings.map((listing) => listing.lowestAcceptablePrice).filter((value) => value > 0);
+                  const photoUrl = card.frontPhotoUrl.trim() || card.backPhotoUrl.trim();
                   return (
                     <article className={`cardRow compactRow listingReviewRow ${tone}`} key={card.id}>
+                      <div className={`listingReviewThumb ${photoUrl ? "hasPhoto" : ""}`} aria-label={photoUrl ? `Photo of ${card.name || "card"}` : `No photo saved for ${card.name || "card"}`}>
+                        {photoUrl ? <img src={photoUrl} alt={`Photo of ${card.name || "card"}`} /> : <span>No photo</span>}
+                      </div>
                       <div>
                         <div className="rowTitle">
                           <strong>{card.name || "Unnamed card"}</strong>
