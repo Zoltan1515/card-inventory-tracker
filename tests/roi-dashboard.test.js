@@ -35,8 +35,9 @@ assert(page.includes('<small>ROI%</small>') && page.includes('percent(cardRoiAft
 assert(page.includes('cardRoiAfterSaleExpenses'), 'Sold listing ROI% should account for sale expenses tied to the card.');
 assert(page.includes('soldRoiBadge ${cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}'), 'Sold listing ROI% badge should get a negative class when ROI is below zero.');
 assert(page.includes('<Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />'), 'Account hero should show remaining unsold card quantity.');
-assert(page.includes('<Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />'), 'Account hero should show remaining inventory value.');
+assert(page.includes('<Stat label="Inventory on Hand" value={money(totals.totalInventoryValue)} infoText="This reflects the $ that was spent on current inventory" />'), 'Account hero should show inventory on hand with an explanatory info tooltip.');
 assert(page.includes('<Stat label="Inventory at Grading" value={money(openGradingPurchaseValue)}'), 'Account hero should show purchase value currently away at grading.');
+assert(page.includes('function Stat({ label, value, tone, onClick, active = false, infoText }') && page.includes('className="statInfoDot"'), 'Stat cards should support an info dot tooltip.');
 assert(!page.includes('<Stat label="Sold Cards"') && !page.includes('<Stat label="Sold Revenue"'), 'Account hero should not duplicate sold performance stats.');
 assert(page.includes('<small>Sold Cards</small><strong>{totals.soldCount}</strong>'), 'Secondary stat strip should include sold card quantity.');
 assert(page.includes('<small>Sold Revenue</small><strong className={totals.revenue > 0 ? "positive" : ""}>{money(totals.revenue)}</strong>'), 'Secondary stat strip should include sold revenue.');
@@ -44,6 +45,7 @@ assert(page.includes('<small>Net Profit After Costs/Fees</small><strong classNam
 assert(page.includes('<small>Cash on hand</small><strong className={totals.cash >= 0 ? "positive" : "negative"}>{money(totals.cash)}</strong>'), 'Secondary stat strip should include cash on hand.');
 assert(css.includes('.compactHeroStats { grid-template-columns: repeat(3'), 'Account hero stat boxes should fit remaining inventory plus grading value.');
 assert(css.includes('.secondaryStatStrip { display: grid; grid-template-columns: repeat(5'), 'Secondary stat strip should fit the five performance boxes on one desktop line.');
+assert(css.includes('.statInfoDot') && css.includes('.statTooltip') && css.includes('.statInfoDot:hover .statTooltip'), 'Inventory on hand info dot should reveal a themed tooltip on hover.');
 assert(css.includes('.secondaryStatStrip small') && css.includes('font-size: .61rem'), 'Secondary stat strip labels should be compact enough for one-line layout.');
 assert(css.includes('.roiChartCard'), 'ROI% chart card styles should exist.');
 assert(css.includes('.roiChartSvg'), 'ROI% chart SVG styles should exist.');

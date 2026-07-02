@@ -3585,7 +3585,7 @@ export default function Home() {
             <span className={`subscriptionStatusPill ${hasActiveSubscription ? "isSubscribed" : "isNotSubscribed"}`}>{subscriptionStatusLabel}</span>
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />
-              <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
+              <Stat label="Inventory on Hand" value={money(totals.totalInventoryValue)} infoText="This reflects the $ that was spent on current inventory" />
               <Stat label="Inventory at Grading" value={money(openGradingPurchaseValue)} tone={openGradingPurchaseValue > 0 ? "warning" : undefined} />
             </div>
           </div>
@@ -5698,17 +5698,28 @@ function DateFilterControls({
   );
 }
 
-function Stat({ label, value, tone, onClick, active = false }: { label: string; value: string; tone?: "positive" | "negative" | "warning"; onClick?: () => void; active?: boolean }) {
+function Stat({ label, value, tone, onClick, active = false, infoText }: { label: string; value: string; tone?: "positive" | "negative" | "warning"; onClick?: () => void; active?: boolean; infoText?: string }) {
   const className = active ? "stat clickableStat activeStat" : onClick ? "stat clickableStat" : "stat";
+  const labelContent = (
+    <span className="statLabel">
+      <span>{label}</span>
+      {infoText && (
+        <span className="statInfoDot" aria-label={infoText} tabIndex={0}>
+          i
+          <span className="statTooltip" role="tooltip">{infoText}</span>
+        </span>
+      )}
+    </span>
+  );
   if (onClick) {
     return (
       <button className={className} type="button" onClick={onClick} aria-pressed={active}>
-        <span>{label}</span>
+        {labelContent}
         <strong className={tone}>{value}</strong>
       </button>
     );
   }
-  return <div className={className}><span>{label}</span><strong className={tone}>{value}</strong></div>;
+  return <div className={className}>{labelContent}<strong className={tone}>{value}</strong></div>;
 }
 
 function ProfitStatusSection({
