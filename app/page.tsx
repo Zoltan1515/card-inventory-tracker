@@ -3586,6 +3586,7 @@ export default function Home() {
             <div className="heroStatsGrid compactHeroStats">
               <Stat label="Total Unsold Cards" value={String(activeInventoryQuantity)} />
               <Stat label="Total Inventory Value" value={money(totals.totalInventoryValue)} />
+              <Stat label="Inventory at Grading" value={money(openGradingPurchaseValue)} tone={openGradingPurchaseValue > 0 ? "warning" : undefined} />
             </div>
           </div>
           <div className="slabShowpiece" aria-label={mostExpensiveSoldCard ? `Top sold card ${mostExpensiveSoldCard.name} card sale ${money(mostExpensiveSoldCard.soldPrice)}` : "Top sold card placeholder"}>

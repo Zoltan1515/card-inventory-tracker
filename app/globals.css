@@ -608,7 +608,7 @@ button.statusBadge { cursor: pointer; font: inherit; }
 .subscriptionStatusPill.isSubscribed { border-color: rgba(57,255,156,.34); background: rgba(57,255,156,.1); color: var(--neon-green); }
 .subscriptionStatusPill.isNotSubscribed { border-color: rgba(245,158,11,.34); background: rgba(245,158,11,.09); color: #fde68a; }
 .heroStatsGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-.compactHeroStats { grid-template-columns: repeat(2, minmax(150px, 1fr)); max-width: 430px; }
+.compactHeroStats { grid-template-columns: repeat(3, minmax(140px, 1fr)); max-width: 650px; }
 .collectorHeroCard .stat { background: rgba(4,9,20,.48); border-color: rgba(103,232,249,.12); box-shadow: none; padding: 10px 9px; border-radius: 14px; display: grid; grid-template-rows: minmax(2.35em, auto) auto; align-content: start; }
 .collectorHeroCard .stat span { font-size: .62rem; text-transform: uppercase; letter-spacing: .055em; line-height: 1.12; margin-bottom: 7px; }
 .collectorHeroCard .stat strong { color: var(--neon-green); font-size: .94rem; line-height: 1.1; }
