@@ -11,7 +11,7 @@ function assert(condition, message) {
 assert(page.includes('const [expenseForSoldCard, setExpenseForSoldCard] = useState<CardRecord | null>(null);'), 'Sold-card expenses should track which sold card the expense belongs to.');
 assert(page.includes('const saleExpenseCategories: ExpenseCategory[] = ["Shipping", "Marketplace Fees", "HST", "Other"];'), 'Sold-card expense modal should use a short sale-expense category list.');
 assert(page.includes('const openSoldCardExpenseModal = (card: CardRecord) => {'), 'Sold card rows should have a dedicated add-expense opener.');
-assert(page.includes('<button className="secondary" onClick={() => openSoldCardExpenseModal(card)} type="button">Add expense</button>'), 'Sold cards should show an Add expense action in the sold section.');
+assert(!page.includes('{card.status === "Sold" && <button className="secondary" onClick={() => openSoldCardExpenseModal(card)} type="button">Add expense</button>}'), 'Sold cards should not show an Add expense button in the sold section.');
 assert(page.includes('expenseForSoldCard ? `Add expense for ${expenseForSoldCard.name}`'), 'Expense modal title should make it clear when the expense is tied to a sold card.');
 assert(page.includes('This cost will lower this card’s Total profit and Profit from sold cards.'), 'Sold-card expense modal should explain the profit impact in plain language.');
 assert(page.includes('const normalizedSaleExpenseForCard = expenseForSoldCard ? normalizeSaleExpenseForCard(expenseToSave, expenseForSoldCard) : expenseToSave;'), 'Saving a sold-card expense should normalize date/vendor/description so profit math can link it to the card.');

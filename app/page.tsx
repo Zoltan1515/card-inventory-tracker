@@ -18,6 +18,7 @@ type ListingUrlFilter = "All" | "Has listing URL" | "Missing listing URL";
 type InventoryMainView = "Not Listed" | "Listed";
 type InventoryDateField = "purchaseDate" | "listedDate" | "saleDate";
 type InventorySort =
+  | "newest-sale"
   | "newest-purchase"
   | "oldest-purchase"
   | "highest-purchase"
@@ -1228,6 +1229,7 @@ export default function Home() {
 
   const showSoldInventory = () => {
     clearInventoryFilters("Sold");
+    setInventorySort("newest-sale");
     showDashboardTab("inventory", "inventory-panel");
   };
 
@@ -1255,6 +1257,8 @@ export default function Home() {
 
     return [...filtered].sort((a, b) => {
       switch (inventorySort) {
+        case "newest-sale":
+          return dateValue(b.soldAt || b.saleDate || b.updatedAt) - dateValue(a.soldAt || a.saleDate || a.updatedAt);
         case "oldest-purchase":
           return dateValue(a.purchaseDate) - dateValue(b.purchaseDate);
         case "highest-purchase":
@@ -1269,6 +1273,7 @@ export default function Home() {
           return a.name.localeCompare(b.name);
         case "newest-purchase":
         default:
+          if (statusFilter === "Sold") return dateValue(b.soldAt || b.saleDate || b.updatedAt) - dateValue(a.soldAt || a.saleDate || a.updatedAt);
           return dateValue(b.purchaseDate) - dateValue(a.purchaseDate);
       }
     });
@@ -4541,6 +4546,7 @@ export default function Home() {
             </label>
             <label>Sort
               <select aria-label="Sort inventory" value={inventorySort} onChange={(e) => setInventorySort(e.target.value as InventorySort)}>
+                {isSoldInventoryView && <option value="newest-sale">Newest sale date</option>}
                 <option value="newest-purchase">Newest purchase date</option>
                 <option value="oldest-purchase">Oldest purchase date</option>
                 <option value="highest-purchase">Highest purchase price</option>
@@ -4586,7 +4592,10 @@ export default function Home() {
           )}
 
           <div className="cardsList">
-            {filteredCards.map((card) => (
+            {filteredCards.map((card) => {
+              const soldTimestampLabel = formatDateTimeLabel(card.soldAt || card.saleDate || card.updatedAt);
+              const soldProfit = totalProfitForCard(card);
+              return (
               <article className={`cardRow ${isPrimeLotImportedCard(card) ? "primeLotImportedRow" : ""} ${isSoldInventoryView ? "noSelectCardRow" : ""} ${card.status === "Sold" ? "soldCardRow" : ""} ${card.status === "Listed" ? "listedCardRow" : ""}`} key={card.id}>
                 {!isSoldInventoryView && (
                 <label className="selectCardBox" aria-label={`Select ${card.name} for grading`}>
@@ -4619,52 +4628,56 @@ export default function Home() {
                   {(card.year || card.setName || card.cardNumber || cardQuantity(card) > 1) && <p className="cardDetailsLine">{[card.year, card.setName, card.cardNumber, cardQuantity(card) > 1 ? `Qty ${cardQuantity(card)}` : ""].filter(Boolean).join(" • ")}</p>}
                   {card.status === "Sold" ? (
                     <>
-                      <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected, ${money(cardPurchaseCost(card))} original cost, ${money(gradingFeeTotalForCard(card))} grading fees, and ${money(saleExpenseTotalForCard(card))} fees/shipping label`}>
-                        <div>
-                          <span>Card sold</span>
-                          <strong>{money(card.soldPrice)}</strong>
-                        </div>
-                        <div>
-                          <span>Shipping collected</span>
-                          <strong>{money(card.shippingCharge || 0)}</strong>
-                        </div>
-                        <div>
-                          <span>Original cost</span>
-                          <strong>{money(cardPurchaseCost(card))}</strong>
-                        </div>
-                        <div className="soldDeduction">
-                          <span>Grading fees</span>
-                          <strong>{money(gradingFeeTotalForCard(card))}</strong>
-                        </div>
-                        <div className="soldDeduction">
-                          <span>Fees/Shipping label</span>
-                          <strong>{money(saleExpenseTotalForCard(card))}</strong>
-                        </div>
-                        {cardRefundTotal(card) > 0 && (
-                          <div>
-                            <span>Refunded</span>
-                            <strong>{money(cardRefundTotal(card))}</strong>
-                          </div>
-                        )}
-                        <div>
-                          <span>Net collected</span>
-                          <strong>{money(cardNetSoldPrice(card))}</strong>
-                        </div>
-                        <div className={totalProfitForCard(card) >= 0 ? "soldProfit positive" : "soldProfit negative"}>
-                          <span>Total profit</span>
-                          <strong>{money(totalProfitForCard(card))}</strong>
-                        </div>
-                        <div className={`soldRoiBadge ${cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}`}>
-                          <small>ROI%</small>
-                          <strong className={cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}>{percent(cardRoiAfterSaleExpenses(card))}</strong>
-                        </div>
-                      </div>
                       <div className="cardDetailChips soldDetailChips" aria-label="Saved sale details">
-                        <span>Cost {money(cardPurchaseCost(card))}{cardQuantity(card) > 1 ? ` (${cardQuantity(card)} × ${money(card.purchasePrice)})` : ""}</span>
-                        <span>Sold {formatDateLabel(card.saleDate) || formatDateTimeLabel(card.soldAt || card.updatedAt)}</span>
+                        <span>Sold {soldTimestampLabel}</span>
                         <span>{card.salePlatform || "Unknown platform"}</span>
+                        <span>Net {money(cardNetSoldPrice(card))}</span>
+                        <span>Profit <strong className={soldProfit >= 0 ? "positive" : "negative"}>{money(soldProfit)}</strong></span>
                         {parseCardRefunds(card.notes).map((refund, index) => <span key={`${card.id}-refund-${index}`}>Refunded {money(refund.amount)}{refund.refundDate ? ` on ${formatDateLabel(refund.refundDate)}` : ""}{refund.note ? ` • ${refund.note}` : ""}</span>)}
                       </div>
+                      <details className="soldDetailsPanel">
+                        <summary>Sale details</summary>
+                        <div className="soldSummary" aria-label={`Card sold for ${money(card.soldPrice)} with ${money(card.shippingCharge || 0)} shipping collected, ${money(cardPurchaseCost(card))} original cost, ${money(gradingFeeTotalForCard(card))} grading fees, and ${money(saleExpenseTotalForCard(card))} fees/shipping label`}>
+                          <div>
+                            <span>Card sold</span>
+                            <strong>{money(card.soldPrice)}</strong>
+                          </div>
+                          <div>
+                            <span>Shipping collected</span>
+                            <strong>{money(card.shippingCharge || 0)}</strong>
+                          </div>
+                          <div>
+                            <span>Original cost</span>
+                            <strong>{money(cardPurchaseCost(card))}</strong>
+                          </div>
+                          <div className="soldDeduction">
+                            <span>Grading fees</span>
+                            <strong>{money(gradingFeeTotalForCard(card))}</strong>
+                          </div>
+                          <div className="soldDeduction">
+                            <span>Fees/Shipping label</span>
+                            <strong>{money(saleExpenseTotalForCard(card))}</strong>
+                          </div>
+                          {cardRefundTotal(card) > 0 && (
+                            <div>
+                              <span>Refunded</span>
+                              <strong>{money(cardRefundTotal(card))}</strong>
+                            </div>
+                          )}
+                          <div>
+                            <span>Net collected</span>
+                            <strong>{money(cardNetSoldPrice(card))}</strong>
+                          </div>
+                          <div className={soldProfit >= 0 ? "soldProfit positive" : "soldProfit negative"}>
+                            <span>Total profit</span>
+                            <strong>{money(soldProfit)}</strong>
+                          </div>
+                          <div className={`soldRoiBadge ${cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}`}>
+                            <small>ROI%</small>
+                            <strong className={cardRoiAfterSaleExpenses(card) >= 0 ? "positive" : "negative"}>{percent(cardRoiAfterSaleExpenses(card))}</strong>
+                          </div>
+                        </div>
+                      </details>
                     </>
                   ) : card.status === "Listed" ? (
                     <div className="listedMetaChips" aria-label="Listed card details">
@@ -4725,16 +4738,21 @@ export default function Home() {
                     </button>
                   </div>
                 )}
-                <div className="rowActions">
-                  <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
-                  <button className="secondary" onClick={() => openSaleModal(card)} type="button">{card.status === "Sold" ? "Update sale" : "Sale"}</button>
-                  {card.status === "Sold" && <button className="secondary" onClick={() => openSoldCardExpenseModal(card)} type="button">Add expense</button>}
-                  {card.status === "Sold" && <button className="secondary" onClick={() => openRefundModal(card)} type="button" disabled={cardNetSoldPrice(card) <= 0}>{cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"}</button>}
-                  {card.status === "Sold" && <button className="secondary" onClick={() => requestMoveBackToListed(card)} type="button">Move back to Listed</button>}
-                  {card.status !== "Sold" && <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>}
-                </div>
+                {card.status === "Sold" ? (
+                  <div className="rowActions soldRowActions">
+                    <button className="secondary" onClick={() => openRefundModal(card)} type="button" disabled={cardNetSoldPrice(card) <= 0}>{cardNetSoldPrice(card) <= 0 ? "Fully refunded" : "Refund"}</button>
+                    <button className="secondary" onClick={() => requestMoveBackToListed(card)} type="button">Move back to Listed</button>
+                  </div>
+                ) : (
+                  <div className="rowActions">
+                    <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
+                    <button className="secondary" onClick={() => openSaleModal(card)} type="button">Sale</button>
+                    <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>
+                  </div>
+                )}
               </article>
-            ))}
+              );
+            })}
             {!filteredCards.length && <p className="empty">No cards match your filters.</p>}
           </div>
         </section>

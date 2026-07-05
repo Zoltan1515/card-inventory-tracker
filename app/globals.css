@@ -288,9 +288,12 @@ textarea { min-height: 90px; resize: vertical; }
 .rowTitle { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .cardInfo { min-width: 0; }
 .cardDetailsLine { color: var(--muted); }
-.soldCardRow { align-items: start; }
-.soldCardRow.noSelectCardRow { grid-template-columns: 92px minmax(0, 1fr) 190px; align-items: start; }
-.soldSummary { display: grid; grid-template-columns: repeat(2, minmax(180px, 240px)); gap: 8px 18px; margin: 12px 0 10px; max-width: 520px; }
+.soldCardRow { align-items: center; padding: 14px 16px; }
+.soldCardRow.noSelectCardRow { grid-template-columns: 78px minmax(0, 1fr) minmax(148px, 178px); align-items: center; gap: 14px; }
+.soldDetailsPanel { margin-top: 8px; max-width: 560px; }
+.soldDetailsPanel summary { display: inline-flex; align-items: center; min-height: 32px; cursor: pointer; color: var(--primary); font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
+.soldDetailsPanel summary:hover, .soldDetailsPanel summary:focus-visible { color: var(--neon-green); }
+.soldSummary { display: grid; grid-template-columns: repeat(2, minmax(170px, 1fr)); gap: 6px 14px; margin: 8px 0 2px; max-width: 540px; }
 .soldSummary div { display: grid; grid-template-columns: minmax(0, 1fr) 96px; align-items: baseline; column-gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(148,163,184,.12); }
 .soldSummary span { color: var(--muted); font-size: .84rem; font-weight: 800; }
 .soldSummary strong { color: var(--text); font-size: 1rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -298,7 +301,10 @@ textarea { min-height: 90px; resize: vertical; }
 .soldSummary .soldDeduction strong { color: var(--bad); }
 .soldSummary .soldProfit.positive strong { color: var(--good); }
 .soldSummary .soldProfit.negative strong { color: var(--bad); }
-.soldDetailChips { margin-top: 2px; }
+.soldDetailChips { margin-top: 8px; }
+.soldDetailChips strong { font-size: inherit; }
+.soldDetailChips .positive { color: var(--good); }
+.soldDetailChips .negative { color: var(--bad); }
 .saleExpenseBox { display: grid; gap: 12px; border: 1px solid rgba(103,232,249,.2); border-radius: 16px; background: rgba(8,16,34,.55); padding: 14px; }
 .saleExpenseBox .eyebrow { margin-bottom: 4px; }
 .saleMath { display: grid; gap: 10px; border: 1px solid rgba(103,232,249,.24); border-radius: 18px; background: rgba(8,16,34,.58); padding: 14px; }
