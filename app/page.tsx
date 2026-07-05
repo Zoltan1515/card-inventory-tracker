@@ -1148,6 +1148,7 @@ export default function Home() {
   const soldInventoryCards = useMemo(() => cards.filter((card) => card.status === "Sold"), [cards]);
   const inventoryCategories = useMemo(() => uniqueSorted(activeInventoryCards.map((card) => card.category)), [activeInventoryCards]);
   const inventoryPlatforms = useMemo(() => uniqueSorted(activeInventoryCards.flatMap((card) => activeListingsForCard(card).map((listing) => listing.platform))), [activeInventoryCards]);
+  const defaultInventorySort = statusFilter === "Sold" ? "newest-sale" : "newest-purchase";
   const filtersAreActive = Boolean(
     query.trim() ||
     categoryFilter !== "All" ||
@@ -1157,7 +1158,7 @@ export default function Home() {
     inventoryDateField !== "purchaseDate" ||
     inventoryStartDate ||
     inventoryEndDate ||
-    inventorySort !== "newest-purchase"
+    inventorySort !== defaultInventorySort
   );
 
   const clearInventoryFilters = (nextStatus: CardStatus | "All" = "Not Listed") => {
@@ -4493,6 +4494,16 @@ export default function Home() {
               <span className={filtersAreActive ? "filterStatus active" : "filterStatus"}>{filtersAreActive ? "Filters active" : "No filters active"}</span>
             </div>
           </div>
+
+          {isSoldInventoryView && (
+            <div className="soldInventorySearchBar" role="search">
+              <label htmlFor="sold-inventory-search">Search sold listings</label>
+              <div>
+                <input id="sold-inventory-search" aria-label="Search sold listings" placeholder="Search sold cards by name, set, card #, platform, or notes..." value={query} onChange={(e) => setQuery(e.target.value)} />
+                {query.trim() && <button className="secondary" type="button" onClick={() => setQuery("")}>Clear search</button>}
+              </div>
+            </div>
+          )}
 
           {inventoryFiltersOpen && (
           <section className="inventoryFilterPanel" id="inventory-filter-panel" aria-label="Inventory search and filters">

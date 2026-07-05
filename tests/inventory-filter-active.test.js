@@ -18,7 +18,7 @@ assert(
 assert(
   filtersBlock[1].includes('query.trim()') &&
   filtersBlock[1].includes('categoryFilter !== "All"') &&
-  filtersBlock[1].includes('inventorySort !== "newest-purchase"'),
+  filtersBlock[1].includes('inventorySort !== defaultInventorySort'),
   'Search, dropdown filters, date filters, and sort changes should still count as active filters.'
 );
 

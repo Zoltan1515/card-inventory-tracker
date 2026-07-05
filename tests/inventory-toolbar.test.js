@@ -28,5 +28,26 @@ assert(
   css.includes('.inventoryToolbarActions') && css.includes('.exportInventoryButton') && css.includes('.filterStatus.active'),
   'Inventory toolbar should have dedicated layout, export, and filter status styling.'
 );
+assert(
+  page.includes('{isSoldInventoryView && (') &&
+  page.includes('className="soldInventorySearchBar"') &&
+  page.includes('Search sold listings') &&
+  page.includes('aria-label="Search sold listings"') &&
+  page.includes('onChange={(e) => setQuery(e.target.value)}') &&
+  page.includes('onClick={() => setQuery("")}'),
+  'Sold inventory should have an always-visible search bar wired to the inventory query.'
+);
+assert(
+  page.includes('const defaultInventorySort = statusFilter === "Sold" ? "newest-sale" : "newest-purchase";') &&
+  page.includes('inventorySort !== defaultInventorySort'),
+  'Sold inventory default newest-sale sort should not count as an active filter.'
+);
+assert(
+  css.includes('.soldInventorySearchBar {') &&
+  css.includes('border: 1px solid rgba(57,255,156,.36)') &&
+  css.includes('.soldInventorySearchBar > div { display: grid; grid-template-columns: minmax(0, 1fr) auto;') &&
+  css.includes('.soldInventorySearchBar > div { grid-template-columns: 1fr; }'),
+  'Sold inventory search should have standout desktop styling and a stacked mobile layout.'
+);
 
 console.log('Inventory toolbar checks passed.');

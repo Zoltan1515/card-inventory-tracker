@@ -254,6 +254,11 @@ textarea { min-height: 90px; resize: vertical; }
 .exportInventoryButton { min-height: 44px; }
 .filterStatus { color: var(--muted); font-weight: 800; }
 .filterStatus.active { color: var(--neon-green); }
+.soldInventorySearchBar { display: grid; gap: 8px; border: 1px solid rgba(57,255,156,.36); border-radius: 18px; background: linear-gradient(135deg, rgba(57,255,156,.12), rgba(103,232,249,.07)); padding: 14px; margin: 0 0 16px; box-shadow: 0 0 28px rgba(57,255,156,.08); }
+.soldInventorySearchBar label { color: var(--neon-green); font-size: .78rem; font-weight: 1000; letter-spacing: .12em; text-transform: uppercase; }
+.soldInventorySearchBar > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.soldInventorySearchBar input { min-height: 48px; border-color: rgba(57,255,156,.34); background: rgba(2,7,16,.72); font-size: 1rem; font-weight: 800; }
+.soldInventorySearchBar input:focus { border-color: rgba(57,255,156,.78); box-shadow: 0 0 0 3px rgba(57,255,156,.14), 0 0 24px rgba(57,255,156,.12); }
 .inventoryFilterPanel label { min-width: 0; }
 .filterSearch { grid-column: span 2; }
 .filterActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
@@ -1034,6 +1039,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--neon-green); box
   .saleCelebrationCard, .saleCelebrationActions { grid-template-columns: 1fr; }
   .saleCelebrationActions .secondary { width: 100%; }
   .filterSearch { grid-column: auto; }
+  .soldInventorySearchBar > div { grid-template-columns: 1fr; }
+  .soldInventorySearchBar .secondary { width: 100%; }
   .cardRow, .noSelectCardRow {
     grid-template-columns: 28px 58px minmax(0, 1fr);
     gap: 10px;
