@@ -283,6 +283,7 @@ const privatePrimeLotDescriptionNoteLabels = new Set([
   "buyer shipping charge",
   "purchase date",
   "purchase price",
+  "sport",
   "wct purchase price",
   "cost basis",
   "asking price",

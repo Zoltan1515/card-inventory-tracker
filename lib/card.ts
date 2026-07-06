@@ -5,6 +5,7 @@ export type CardRecord = {
   workspaceId?: string;
   name: string;
   category: string;
+  sport: string;
   year: string;
   setName: string;
   cardNumber: string;
@@ -103,6 +104,7 @@ export const emptyCard = (): CardRecord => {
     id: crypto.randomUUID(),
     name: "",
     category: "Sports",
+    sport: "",
     year: "",
     setName: "",
     cardNumber: "",

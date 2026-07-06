@@ -152,11 +152,18 @@ const normalizeGradingStatus = (status: string | null | undefined): GradingSubmi
   return "At Grading";
 };
 
+const sportFromCardNotes = (notes = "") => notes
+  .split("\n")
+  .find((line) => line.toLowerCase().startsWith("sport:"))
+  ?.replace(/^sport:\s*/i, "")
+  .trim() || "";
+
 export const rowToCard = (row: CardRow): CardRecord => ({
   id: row.id,
   workspaceId: row.workspace_id ?? undefined,
   name: row.name,
   category: friendlyCardCategory(row.category),
+  sport: sportFromCardNotes(text(row.notes)),
   year: text(row.year),
   setName: text(row.set_name),
   cardNumber: text(row.card_number),

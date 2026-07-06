@@ -381,7 +381,11 @@ const uniqueSorted = (values: string[]) => Array.from(new Set(values.map((value)
 
 const listingNotesPrefix = "WCT_LISTINGS_JSON:";
 const listingKey = (listing: Pick<MultiPlatformListing, "platform" | "url">) => `${listing.platform.trim().toLowerCase()}|${listing.url.trim().toLowerCase()}`;
-const cleanListingNotes = (notes = "") => notes.split("\n").filter((line) => !line.startsWith(listingNotesPrefix)).join("\n").trim();
+const cleanListingNotes = (notes = "") => notes
+  .split("\n")
+  .filter((line) => !line.startsWith(listingNotesPrefix) && !line.toLowerCase().startsWith("sport:"))
+  .join("\n")
+  .trim();
 const parseStoredListings = (notes = ""): MultiPlatformListing[] => {
   const line = notes.split("\n").find((entry) => entry.startsWith(listingNotesPrefix));
   if (!line) return [];
@@ -594,16 +598,31 @@ const sportFromCardNotes = (notes = "") => notes
   ?.replace(/^sport:\s*/i, "")
   .trim() || "";
 const inferPrimeLotSport = (card: CardRecord) => (
-  normalizePrimeLotSport(sportFromCardNotes(card.notes))
+  normalizePrimeLotSport(card.sport)
+  || normalizePrimeLotSport(sportFromCardNotes(card.notes))
   || normalizePrimeLotSport(card.category)
   || normalizePrimeLotSport(card.setName)
 );
+const notesWithPrimeLotSport = (notes: string, sport: string) => {
+  const cleanNotes = cleanListingNotes(notes);
+  const normalizedSport = normalizePrimeLotSport(sport);
+  return [cleanNotes, normalizedSport ? `Sport: ${normalizedSport}` : ""].filter(Boolean).join("\n");
+};
+const cardWithPrimeLotSport = (card: CardRecord, sport: string): CardRecord => {
+  const normalizedSport = normalizePrimeLotSport(sport);
+  return {
+    ...card,
+    sport: normalizedSport,
+    notes: notesWithPrimeLotSport(card.notes, normalizedSport),
+  };
+};
 const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   ...emptyCard(),
   ...card,
   id: card.id || crypto.randomUUID(),
   name: card.name || "",
   category: friendlyCardCategory(card.category) || "Sports",
+  sport: normalizePrimeLotSport(card.sport) || normalizePrimeLotSport(sportFromCardNotes(card.notes || "")),
   status: card.status || "Not Listed",
   askingPrice: Number(card.askingPrice ?? 0) || 0,
   lowestAcceptablePrice: Number(card.lowestAcceptablePrice ?? 0) || 0,
@@ -770,7 +789,8 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
   const listedDate = csvValue(row, ["listed date", "date listed"]);
   const saleDate = csvValue(row, ["sale date", "sold date", "date sold"]);
   const notes = csvValue(row, ["notes", "note", "description", "condition"]);
-  const category = csvValue(row, ["category", "sport", "type", "game"]) || "Sports";
+  const importedSport = normalizePrimeLotSport(csvValue(row, ["primelot sport", "sport", "league", "sport category", "sport type"]));
+  const category = csvValue(row, ["category", "type", "game"]) || "Sports";
   const listingUrl = csvValue(row, ["listing url", "url", "link"]);
   const frontPhotoUrl = csvValue(row, ["front photo url", "photo url", "image", "image url", "picture"]);
   const backPhotoUrl = csvValue(row, ["back photo url", "back image url", "reverse photo url", "back picture"]);
@@ -779,7 +799,7 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
 
   const importedStatus: CardStatus = soldPrice > 0 ? "Sold" : askingPrice > 0 || listedPlatform || listingUrl ? "Listed" : status;
   const now = new Date().toISOString();
-  const card: CardRecord = {
+  const card: CardRecord = cardWithPrimeLotSport({
     ...emptyCard(),
     id: crypto.randomUUID(),
     name: name || [year, setName, cardNumber].filter(Boolean).join(" ") || `Imported card row ${sourceRow}`,
@@ -807,7 +827,7 @@ const importCardFromCsvRow = (row: CsvRow, sourceRow: number): ImportCardPreview
     notes,
     createdAt: now,
     updatedAt: now,
-  };
+  }, importedSport);
   const warnings = [
     !name ? "Missing card/player name" : "",
     !purchasePrice ? "No purchase price" : "",
@@ -1981,7 +2001,7 @@ export default function Home() {
 
     const now = new Date().toISOString();
     const preparedCard = activeCard.status === "Listed" || activeCard.status === "Sold" ? prepareCardForStatus(activeCard, activeCard.status) : activeCard;
-    const cardToSave: CardRecord = {
+    const cardToSave: CardRecord = cardWithPrimeLotSport({
       ...preparedCard,
       gradingCompany: activeCardGradingCompany.trim(),
       grade: cleanGradeLabel(activeCardGrade),
@@ -1992,7 +2012,7 @@ export default function Home() {
       listedBy: preparedCard.status === "Listed" ? preparedCard.listedBy || currentUsername : preparedCard.listedBy,
       soldAt: preparedCard.status === "Sold" ? preparedCard.soldAt || now : preparedCard.soldAt,
       soldBy: preparedCard.status === "Sold" ? preparedCard.soldBy || currentUsername : preparedCard.soldBy,
-    };
+    }, preparedCard.sport || inferPrimeLotSport(preparedCard));
     const validationError = validateCardBusinessRules(cardToSave);
     if (validationError) {
       setError(validationError);
@@ -2345,7 +2365,7 @@ export default function Home() {
       listedDate: "",
       listedAt: "",
       listedBy: "",
-      notes: cleanListingNotes(card.notes),
+      notes: notesWithPrimeLotSport(cleanListingNotes(card.notes), card.sport),
       updatedAt: new Date().toISOString(),
       updatedBy: currentUsername,
     });
@@ -2420,7 +2440,7 @@ export default function Home() {
         listedDate: "",
         listedAt: "",
         listedBy: "",
-        notes: cleanListingNotes(sourceCard.notes),
+        notes: notesWithPrimeLotSport(cleanListingNotes(sourceCard.notes), sourceCard.sport),
         updatedAt: now,
         updatedBy: currentUsername,
       };
@@ -2446,7 +2466,7 @@ export default function Home() {
   const saveEditedCard = async (event: FormEvent) => {
     event.preventDefault();
     if (!editingCard?.name.trim()) return;
-    const nextCard = { ...editingCard, updatedAt: new Date().toISOString(), updatedBy: currentUsername };
+    const nextCard = cardWithPrimeLotSport({ ...editingCard, updatedAt: new Date().toISOString(), updatedBy: currentUsername }, editingCard.sport || inferPrimeLotSport(editingCard));
     const validationError = validateCardBusinessRules(nextCard);
     if (validationError) {
       setError(validationError);
@@ -4264,6 +4284,14 @@ export default function Home() {
           <form className="formGrid simpleForm" id="add-inventory-form" onSubmit={saveCard}>
             <Field label="Card/player name" value={activeCard.name} onChange={(v) => setActiveCard({ ...activeCard, name: v })} required />
             <Field label="Category" value={activeCard.category} onChange={(v) => setActiveCard({ ...activeCard, category: v })} placeholder="Sports, Pokemon, MTG..." />
+            {primeLotCardTypeForCategory(activeCard.category) === "sports" && (
+              <label>Sport
+                <select value={activeCard.sport} onChange={(e) => setActiveCard(cardWithPrimeLotSport(activeCard, e.target.value))}>
+                  <option value="">Choose sport</option>
+                  {primeLotSportOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </label>
+            )}
             <Field label="Year" value={activeCard.year} onChange={(v) => setActiveCard({ ...activeCard, year: v })} />
             <Field label="Set" value={activeCard.setName} onChange={(v) => setActiveCard({ ...activeCard, setName: v })} />
             <Field label="Card #" value={activeCard.cardNumber} onChange={(v) => setActiveCard({ ...activeCard, cardNumber: v })} />
@@ -4323,7 +4351,7 @@ export default function Home() {
                 )}
               </div>
             )}
-            <label className="full textareaLabel">Notes<textarea value={activeCard.notes} onChange={(e) => setActiveCard({ ...activeCard, notes: e.target.value })} /></label>
+            <label className="full textareaLabel">Notes<textarea value={cleanListingNotes(activeCard.notes)} onChange={(e) => setActiveCard({ ...activeCard, notes: notesWithPrimeLotSport(e.target.value, activeCard.sport) })} /></label>
             <div className="full splitList">
               <strong>Extra costs for this card (optional)</strong>
               <p className="muted">Only fill these in if you paid extra for this card, like shipping, tax, or duty. They will be saved in Expenses automatically.</p>
@@ -5097,6 +5125,14 @@ export default function Home() {
             <div className="formGrid simpleForm">
               <Field label="Card/player name" value={editingCard.name} onChange={(v) => setEditingCard({ ...editingCard, name: v })} required />
               <Field label="Category" value={editingCard.category} onChange={(v) => setEditingCard({ ...editingCard, category: v })} placeholder="Sports, Pokemon, MTG..." />
+              {primeLotCardTypeForCategory(editingCard.category) === "sports" && (
+                <label>Sport
+                  <select value={editingCard.sport} onChange={(e) => setEditingCard(cardWithPrimeLotSport(editingCard, e.target.value))}>
+                    <option value="">Choose sport</option>
+                    {primeLotSportOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                  </select>
+                </label>
+              )}
               <Field label="Year" value={editingCard.year} onChange={(v) => setEditingCard({ ...editingCard, year: v })} />
               <Field label="Set" value={editingCard.setName} onChange={(v) => setEditingCard({ ...editingCard, setName: v })} />
               <Field label="Card #" value={editingCard.cardNumber} onChange={(v) => setEditingCard({ ...editingCard, cardNumber: v })} />
@@ -5157,7 +5193,7 @@ export default function Home() {
                   )}
                 </div>
               )}
-              <label className="full textareaLabel">Notes<textarea value={cleanListingNotes(editingCard.notes)} onChange={(e) => setEditingCard({ ...editingCard, notes: notesWithListings(e.target.value, activeListingsForCard(editingCard)) })} /></label>
+              <label className="full textareaLabel">Notes<textarea value={cleanListingNotes(editingCard.notes)} onChange={(e) => setEditingCard({ ...editingCard, notes: notesWithPrimeLotSport(notesWithListings(e.target.value, activeListingsForCard(editingCard)), editingCard.sport) })} /></label>
               <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Save changes"}</button>
             </div>
           </form>

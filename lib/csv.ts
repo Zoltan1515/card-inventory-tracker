@@ -27,6 +27,7 @@ export type ProfitSummaryCsvInput = {
 const cardHeaders: Array<[keyof CardRecord, string]> = [
   ["name", "Name"],
   ["category", "Category"],
+  ["sport", "PrimeLot Sport"],
   ["year", "Year"],
   ["setName", "Set"],
   ["cardNumber", "Card Number"],
@@ -50,6 +51,7 @@ const cardHeaders: Array<[keyof CardRecord, string]> = [
 const salesHeaders: Array<[keyof CardRecord | "refundTotal" | "netSoldPrice" | "profitBeforeExpenses", string]> = [
   ["name", "Name"],
   ["category", "Category"],
+  ["sport", "PrimeLot Sport"],
   ["year", "Year"],
   ["setName", "Set"],
   ["cardNumber", "Card Number"],
