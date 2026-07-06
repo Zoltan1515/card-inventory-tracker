@@ -13,6 +13,17 @@ assert(
 );
 
 assert(
+  route.includes('sport?: string;') &&
+    route.includes('"sport",') &&
+    route.includes('const normalizePrimeLotSport = (value?: string) =>') &&
+    route.includes('const cardMissingSport = cards.find((card) => listingTypeForCard(card) === "single_card" && cardTypeForCategory(card.category) === "sports" && !normalizePrimeLotSport(card.sport));') &&
+    route.includes('Choose the sport for ${cardMissingSport.name || "that sports card"} before importing to PrimeLot.') &&
+    route.includes('sport: cardTypeForCategory(card.category) === "sports" ? normalizePrimeLotSport(card.sport) || null : null') &&
+    route.includes('formData.append("sport", cardTypeForCategory(card.category) === "sports" ? normalizePrimeLotSport(card.sport) : "");'),
+  'PrimeLot API should accept, validate, and write sport for sports single-card imports.'
+);
+
+assert(
   !route.includes('shipping_price: Number(cards[index].shippingCharge || 0)'),
   'PrimeLot API should not write buyer shipping only to shipping_price because PrimeLot listings read shipping_cost.'
 );

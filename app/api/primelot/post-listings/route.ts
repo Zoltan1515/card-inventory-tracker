@@ -27,6 +27,7 @@ type CardPayload = {
   purchasePrice?: number;
   soldPrice?: number;
   listingType?: PrimeLotListingType;
+  sport?: string;
   notes?: string;
 };
 
@@ -116,6 +117,7 @@ const singleCardPrimeLotColumns = [
   "condition",
   "grading_company",
   "grade",
+  "sport",
   "price",
   "image_url_front",
   "image_url_back",
@@ -157,6 +159,32 @@ const cardTypeForCategory = (category?: string) => {
   if (value.includes("pokemon") || value.includes("pokémon")) return "pokemon";
   if (value.includes("one piece")) return "one_piece";
   return "sports";
+};
+const primeLotSportOptions = new Set(["baseball", "basketball", "football", "hockey", "soccer", "mma", "wrestling", "racing", "golf", "tennis", "other"]);
+const primeLotSportAliases: Record<string, string> = {
+  auto: "racing",
+  autosport: "racing",
+  boxing: "mma",
+  cfl: "football",
+  f1: "racing",
+  formula1: "racing",
+  footballcards: "football",
+  mlb: "baseball",
+  mma: "mma",
+  nascar: "racing",
+  nba: "basketball",
+  ncaafootball: "football",
+  nfl: "football",
+  nhl: "hockey",
+  racing: "racing",
+  ufc: "mma",
+  wwe: "wrestling",
+};
+const normalizePrimeLotSport = (value?: string) => {
+  const normalized = (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!normalized) return "";
+  if (primeLotSportOptions.has(normalized)) return normalized;
+  return primeLotSportAliases[normalized] || "";
 };
 
 const cleanGrade = (value?: string) => (value || "").trim().replace(/^grade:\s*/i, "");
@@ -314,6 +342,7 @@ const singleCardPrimeLotRow = (card: CardPayload, primeLotSellerUserId: string, 
     condition: "near_mint",
     grading_company: grading.company || null,
     grade: grading.grade || null,
+    sport: cardTypeForCategory(card.category) === "sports" ? normalizePrimeLotSport(card.sport) || null : null,
     price: Number(card.askingPrice || 0),
     image_url_front: normalizePrimeLotImageUrl(card.frontPhotoUrl),
     image_url_back: normalizePrimeLotImageUrl(card.backPhotoUrl),
@@ -424,6 +453,8 @@ export async function POST(request: NextRequest) {
     return false;
   });
   if (cardMissingListingType) return jsonError("Choose Single Card, Sealed Product, or Lot before importing to PrimeLot.");
+  const cardMissingSport = cards.find((card) => listingTypeForCard(card) === "single_card" && cardTypeForCategory(card.category) === "sports" && !normalizePrimeLotSport(card.sport));
+  if (cardMissingSport) return jsonError(`Choose the sport for ${cardMissingSport.name || "that sports card"} before importing to PrimeLot.`);
   const cardWithInvalidPhoto = cards.find((card) => (
     (card.frontPhotoUrl?.trim() && !normalizePrimeLotImageUrl(card.frontPhotoUrl))
     || (card.backPhotoUrl?.trim() && !normalizePrimeLotImageUrl(card.backPhotoUrl))
@@ -456,6 +487,7 @@ export async function POST(request: NextRequest) {
     const formData = new FormData();
     formData.append("listingType", listingType);
     formData.append("cardType", cardTypeForCategory(card.category));
+    formData.append("sport", cardTypeForCategory(card.category) === "sports" ? normalizePrimeLotSport(card.sport) : "");
     formData.append("sourcePlatform", "wickedcardtracker");
     formData.append("wctCardId", card.id);
     formData.append("purchasePrice", String(Number(card.purchasePrice || 0)));
@@ -463,6 +495,7 @@ export async function POST(request: NextRequest) {
       sourcePlatform: "wickedcardtracker",
       wctCardId: card.id,
       purchasePrice: Number(card.purchasePrice || 0),
+      sport: cardTypeForCategory(card.category) === "sports" ? normalizePrimeLotSport(card.sport) : null,
       listings: [row],
     })], { type: "application/json" }), `wicked-card-tracker-${card.id}.json`);
     return formData;

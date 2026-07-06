@@ -44,7 +44,8 @@ assert(
     page.includes('primeLotReviewErrors') &&
     page.includes('Fix the highlighted fields before importing drafts to PrimeLot.') &&
     page.includes('fieldErrors.listingType') &&
-    page.includes('fieldErrors.askingPrice'),
+    page.includes('fieldErrors.askingPrice') &&
+    page.includes('fieldErrors.sport'),
   'Review modal should show validation errors inside the modal and mark missing fields before closing.'
 );
 
@@ -76,6 +77,18 @@ assert(
 assert(
   page.includes('const reviewedPrimeLotCards = () => selectedPrimeLotCards.map((card) => {'),
   'Confirm action should post the same PrimeLot rows counted as postable.'
+);
+
+assert(
+  page.includes('const primeLotSportOptions = [') &&
+    page.includes('{ value: "basketball", label: "Basketball" }') &&
+    page.includes('const inferPrimeLotSport = (card: CardRecord)') &&
+    page.includes('sport: inferPrimeLotSport(card)') &&
+    page.includes('const sportRequired = draft.listingType === "single_card" && primeLotCardTypeForCategory(card.category) === "sports";') &&
+    page.includes('<label>Sport<select required aria-invalid={Boolean(fieldErrors.sport)} value={draft.sport} onChange={(event) => updatePrimeLotReviewDraft(card.id, "sport", event.target.value)}>') &&
+    page.includes('cardErrors.sport = "Choose the sport for this sports card.";') &&
+    page.includes('sport: draft?.sport || ""'),
+  'PrimeLot review modal should require and post sport for sports single-card imports.'
 );
 
 assert(

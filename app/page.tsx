@@ -80,6 +80,7 @@ type GradingLinkQueryResult = {
 };
 type ReturnedGradingFeeCard = { card: CardRecord; gradingFee: number };
 type PrimeLotListingType = "single_card" | "sealed_product" | "lot";
+type PrimeLotReviewDraft = { askingPrice: string; shippingCharge: string; gradingCompany: string; listingType: PrimeLotListingType | ""; sport: string };
 type PrimeLotPostResult = {
   postedCount: number;
   totalAmount: number;
@@ -121,6 +122,19 @@ const primeLotListingTypeOptions: Array<{ value: PrimeLotListingType; label: str
   { value: "lot", label: "Lot" },
 ];
 const primeLotListingTypeLabels = Object.fromEntries(primeLotListingTypeOptions.map((option) => [option.value, option.label])) as Record<PrimeLotListingType, string>;
+const primeLotSportOptions = [
+  { value: "baseball", label: "Baseball" },
+  { value: "basketball", label: "Basketball" },
+  { value: "football", label: "Football" },
+  { value: "hockey", label: "Hockey" },
+  { value: "soccer", label: "Soccer" },
+  { value: "mma", label: "UFC / MMA" },
+  { value: "wrestling", label: "Wrestling" },
+  { value: "racing", label: "Racing" },
+  { value: "golf", label: "Golf" },
+  { value: "tennis", label: "Tennis" },
+  { value: "other", label: "Other Sport" },
+];
 const expenseCategories: ExpenseCategory[] = ["HST", "Marketplace Fees", "Duties", "Grading Fees", "Shipping", "Card Show Table", "Supplies", "Gas", "Airfare", "Other"];
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const primeLotDraftStatuses = new Set(["draft", "pending", "inactive", "archived", "deleted", "removed"]);
@@ -543,6 +557,47 @@ const friendlyCardCategory = (value: string | undefined) => {
   if (normalized === "sealed_product") return "Sealed Product";
   return titleCaseCategoryLabel(category);
 };
+const primeLotCardTypeForCategory = (category?: string) => {
+  const value = (category || "").toLowerCase();
+  if (value.includes("pokemon") || value.includes("pokémon")) return "pokemon";
+  if (value.includes("one piece")) return "one_piece";
+  return "sports";
+};
+const primeLotSportAliases: Record<string, string> = {
+  auto: "racing",
+  autosport: "racing",
+  boxing: "mma",
+  cfl: "football",
+  f1: "racing",
+  formula1: "racing",
+  footballcards: "football",
+  mlb: "baseball",
+  mma: "mma",
+  nascar: "racing",
+  nba: "basketball",
+  ncaafootball: "football",
+  nfl: "football",
+  nhl: "hockey",
+  racing: "racing",
+  ufc: "mma",
+  wwe: "wrestling",
+};
+const normalizePrimeLotSport = (value?: string) => {
+  const normalized = (value || "").trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!normalized) return "";
+  if (primeLotSportOptions.some((option) => option.value === normalized)) return normalized;
+  return primeLotSportAliases[normalized] || "";
+};
+const sportFromCardNotes = (notes = "") => notes
+  .split("\n")
+  .find((line) => line.toLowerCase().startsWith("sport:"))
+  ?.replace(/^sport:\s*/i, "")
+  .trim() || "";
+const inferPrimeLotSport = (card: CardRecord) => (
+  normalizePrimeLotSport(sportFromCardNotes(card.notes))
+  || normalizePrimeLotSport(card.category)
+  || normalizePrimeLotSport(card.setName)
+);
 const normalizeStoredCard = (card: Partial<CardRecord>): CardRecord => ({
   ...emptyCard(),
   ...card,
@@ -850,8 +905,8 @@ export default function Home() {
   const [primeLotDetailsOpen, setPrimeLotDetailsOpen] = useState(false);
   const [primeLotModalOpen, setPrimeLotModalOpen] = useState(false);
   const [primeLotReviewOpen, setPrimeLotReviewOpen] = useState(false);
-  const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, { askingPrice: string; shippingCharge: string; gradingCompany: string; listingType: PrimeLotListingType | "" }>>({});
-  const [primeLotReviewErrors, setPrimeLotReviewErrors] = useState<Record<string, Partial<Record<"askingPrice" | "listingType" | "gradingCompany", string>>>>({});
+  const [primeLotReviewDrafts, setPrimeLotReviewDrafts] = useState<Record<string, PrimeLotReviewDraft>>({});
+  const [primeLotReviewErrors, setPrimeLotReviewErrors] = useState<Record<string, Partial<Record<"askingPrice" | "listingType" | "gradingCompany" | "sport", string>>>>({});
   const [primeLotReviewError, setPrimeLotReviewError] = useState("");
   const [primeLotPostResult, setPrimeLotPostResult] = useState<PrimeLotPostResult | null>(null);
   const [primeLotMembershipRequiredOpen, setPrimeLotMembershipRequiredOpen] = useState(false);
@@ -3309,18 +3364,20 @@ export default function Home() {
       shippingCharge: String(card.shippingCharge || 0),
       gradingCompany: card.gradingCompany || "",
       listingType: "" as PrimeLotListingType | "",
+      sport: inferPrimeLotSport(card),
     }])));
     setPrimeLotReviewOpen(true);
   };
 
-  const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge" | "listingType", value: string) => {
+  const updatePrimeLotReviewDraft = (cardId: string, field: "askingPrice" | "shippingCharge" | "listingType" | "sport", value: string) => {
     setPrimeLotReviewError("");
     setPrimeLotReviewErrors((errors) => {
       if (field === "shippingCharge") return errors;
       const cardErrors = errors[cardId];
-      if (!cardErrors || !(field in cardErrors)) return errors;
+      if (!cardErrors || (!(field in cardErrors) && field !== "listingType")) return errors;
       const remainingCardErrors = { ...cardErrors };
       delete remainingCardErrors[field];
+      if (field === "listingType") delete remainingCardErrors.sport;
       if (!Object.keys(remainingCardErrors).length) {
         const remainingErrors = { ...errors };
         delete remainingErrors[cardId];
@@ -3335,6 +3392,7 @@ export default function Home() {
         shippingCharge: current?.shippingCharge || "0",
         gradingCompany: current?.gradingCompany || "",
         listingType: current?.listingType || "" as PrimeLotListingType | "",
+        sport: current?.sport || "",
       };
       if (field === "listingType") nextDraft.listingType = value as PrimeLotListingType | "";
       else nextDraft[field] = value;
@@ -3366,6 +3424,7 @@ export default function Home() {
           shippingCharge: drafts[card.id]?.shippingCharge || String(card.shippingCharge || 0),
           gradingCompany: drafts[card.id]?.gradingCompany || card.gradingCompany || "",
           listingType: drafts[card.id]?.listingType || "",
+          sport: drafts[card.id]?.sport || inferPrimeLotSport(card),
         },
       }));
     }
@@ -3378,15 +3437,17 @@ export default function Home() {
       askingPrice: Number(draft?.askingPrice || 0),
       shippingCharge: Number(draft?.shippingCharge || 0),
       listingType: draft?.listingType || "",
+      sport: draft?.sport || "",
     };
   });
 
   const confirmPrimeLotPost = async () => {
     const cardsToPost = reviewedPrimeLotCards();
-    const reviewErrors = cardsToPost.reduce<Record<string, Partial<Record<"askingPrice" | "listingType" | "gradingCompany", string>>>>((errors, card) => {
-      const cardErrors: Partial<Record<"askingPrice" | "listingType" | "gradingCompany", string>> = {};
+    const reviewErrors = cardsToPost.reduce<Record<string, Partial<Record<"askingPrice" | "listingType" | "gradingCompany" | "sport", string>>>>((errors, card) => {
+      const cardErrors: Partial<Record<"askingPrice" | "listingType" | "gradingCompany" | "sport", string>> = {};
       if (Number(card.askingPrice || 0) <= 0) cardErrors.askingPrice = "Add a listing price.";
       if (!card.listingType) cardErrors.listingType = "Choose Single Card, Sealed Product, or Lot.";
+      if (card.listingType === "single_card" && primeLotCardTypeForCategory(card.category) === "sports" && !card.sport) cardErrors.sport = "Choose the sport for this sports card.";
       if (card.grade.trim() && !card.gradingCompany.trim()) cardErrors.gradingCompany = "Add the grading company on this card before importing.";
       if (Object.keys(cardErrors).length) errors[card.id] = cardErrors;
       return errors;
@@ -3824,8 +3885,9 @@ export default function Home() {
               {selectedCards.map((card) => {
                 const canPostToPrimeLot = canPostCardToPrimeLot(card);
                 const isAlreadyOnPrimeLot = alreadyOnPrimeLot(card);
-                const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "", listingType: "" as PrimeLotListingType | "" };
+                const draft = primeLotReviewDrafts[card.id] || { askingPrice: String(card.askingPrice || ""), shippingCharge: String(card.shippingCharge || 0), gradingCompany: card.gradingCompany || "", listingType: "" as PrimeLotListingType | "", sport: inferPrimeLotSport(card) };
                 const fieldErrors = primeLotReviewErrors[card.id] || {};
+                const sportRequired = draft.listingType === "single_card" && primeLotCardTypeForCategory(card.category) === "sports";
                 const total = Number(draft.askingPrice || 0) * cardQuantity(card);
                 return (
                   <article className={`${canPostToPrimeLot ? "primeLotReviewRow" : "primeLotReviewRow blocked"} ${Object.keys(fieldErrors).length ? "needsReview" : ""}`} key={card.id}>
@@ -3844,6 +3906,15 @@ export default function Home() {
                         </select></label>
                         {fieldErrors.listingType && <p className="fieldErrorText">{fieldErrors.listingType}</p>}
                       </div>
+                      {sportRequired && (
+                        <div className={fieldErrors.sport ? "primeLotReviewField invalid" : "primeLotReviewField"}>
+                          <label>Sport<select required aria-invalid={Boolean(fieldErrors.sport)} value={draft.sport} onChange={(event) => updatePrimeLotReviewDraft(card.id, "sport", event.target.value)}>
+                            <option value="">Choose sport</option>
+                            {primeLotSportOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                          </select></label>
+                          {fieldErrors.sport && <p className="fieldErrorText">{fieldErrors.sport}</p>}
+                        </div>
+                      )}
                       <div className={fieldErrors.askingPrice ? "primeLotReviewField invalid" : "primeLotReviewField"}>
                         <Field label="Listing price" type="number" value={draft.askingPrice} onChange={(value) => updatePrimeLotReviewDraft(card.id, "askingPrice", value)} required />
                         {fieldErrors.askingPrice && <p className="fieldErrorText">{fieldErrors.askingPrice}</p>}
