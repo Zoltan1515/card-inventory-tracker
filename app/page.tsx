@@ -901,6 +901,7 @@ export default function Home() {
   const [confirmingMoveBackToListed, setConfirmingMoveBackToListed] = useState<CardRecord | null>(null);
   const [listingCard, setListingCard] = useState<CardRecord | null>(null);
   const [editingCard, setEditingCard] = useState<CardRecord | null>(null);
+  const [editingInventoryExpenseDraft, setEditingInventoryExpenseDraft] = useState<InventoryExpenseDraft>(emptyInventoryExpenseDraft());
   const [deletingCard, setDeletingCard] = useState<CardRecord | null>(null);
   const [inlineCostDrafts, setInlineCostDrafts] = useState<Record<string, string>>({});
   const [confirmingClearListing, setConfirmingClearListing] = useState<CardRecord | null>(null);
@@ -1579,13 +1580,13 @@ export default function Home() {
     return cardQuantity(card) > 1 ? `cost each • Qty ${cardQuantity(card)}` : "cost each";
   };
   const inlineCostValue = (card: CardRecord) => inlineCostDrafts[card.id] ?? String(Number(card.purchasePrice || 0));
-  const inventoryExpenseRowsForCard = (card: CardRecord): ExpenseRecord[] => {
+  const inventoryExpenseRowsForCard = (card: CardRecord, draft: InventoryExpenseDraft = inventoryExpenseDraft): ExpenseRecord[] => {
     const now = new Date().toISOString();
     const expenseDate = card.purchaseDate || todayIso();
     const rows: Array<{ category: ExpenseCategory; amount: number }> = [
-      { category: "Shipping", amount: inventoryExpenseAmount(inventoryExpenseDraft.shipping) },
-      { category: "HST", amount: inventoryExpenseAmount(inventoryExpenseDraft.hst) },
-      { category: "Duties", amount: inventoryExpenseAmount(inventoryExpenseDraft.duties) },
+      { category: "Shipping", amount: inventoryExpenseAmount(draft.shipping) },
+      { category: "HST", amount: inventoryExpenseAmount(draft.hst) },
+      { category: "Duties", amount: inventoryExpenseAmount(draft.duties) },
     ];
     return rows.filter((row) => row.amount > 0).map((row) => ({
       ...emptyExpense(),
@@ -1751,7 +1752,7 @@ export default function Home() {
   const openAttentionItem = (item: AttentionItem) => {
     if (item.kind === "card") {
       const card = cards.find((entry) => entry.id === item.recordId);
-      if (card) setEditingCard(card);
+      if (card) openEditCardModal(card);
       return;
     }
 
@@ -2474,9 +2475,22 @@ export default function Home() {
     }
     const ok = await updateCard(nextCard);
     if (ok) {
-      setNotice(`Updated ${nextCard.name}.`);
-      setEditingCard(null);
+      const inventoryExpenseRows = nextCard.status === "Not Listed" ? inventoryExpenseRowsForCard(nextCard, editingInventoryExpenseDraft) : [];
+      const savedExpenseRows = await insertExpenseRecords(inventoryExpenseRows);
+      if (savedExpenseRows === null) return;
+      setNotice(`Updated ${nextCard.name}${savedExpenseRows.length ? ` and added ${money(savedExpenseRows.reduce((sum, expense) => sum + expense.amount, 0))} in expenses` : ""}.`);
+      closeEditCardModal();
     }
+  };
+
+  const openEditCardModal = (card: CardRecord) => {
+    setEditingInventoryExpenseDraft(emptyInventoryExpenseDraft());
+    setEditingCard(card);
+  };
+
+  const closeEditCardModal = () => {
+    setEditingInventoryExpenseDraft(emptyInventoryExpenseDraft());
+    setEditingCard(null);
   };
 
   const openSaleModal = (card: CardRecord) => {
@@ -4466,7 +4480,7 @@ export default function Home() {
                         )}
                       </div>
                       <div className="rowActions">
-                        <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit card</button>
+                        <button className="secondary" onClick={() => openEditCardModal(card)} type="button">Edit card</button>
                       </div>
                     </article>
                   );
@@ -4855,7 +4869,7 @@ export default function Home() {
                   </div>
                 ) : (
                   <div className="rowActions">
-                    <button className="secondary" onClick={() => setEditingCard(card)} type="button">Edit</button>
+                    <button className="secondary" onClick={() => openEditCardModal(card)} type="button">Edit</button>
                     <button className="secondary" onClick={() => openSaleModal(card)} type="button">Sale</button>
                     <button className="danger" onClick={() => requestDeleteCard(card)} type="button">Delete</button>
                   </div>
@@ -5120,7 +5134,7 @@ export default function Home() {
                 <p className="eyebrow">Edit card</p>
                 <h2>{editingCard.name || "Card details"}</h2>
               </div>
-              <button className="secondary" type="button" onClick={() => setEditingCard(null)}>Cancel</button>
+              <button className="secondary" type="button" onClick={closeEditCardModal}>Cancel</button>
             </div>
             <div className="formGrid simpleForm">
               <Field label="Card/player name" value={editingCard.name} onChange={(v) => setEditingCard({ ...editingCard, name: v })} required />
@@ -5194,6 +5208,18 @@ export default function Home() {
                 </div>
               )}
               <label className="full textareaLabel">Notes<textarea value={cleanListingNotes(editingCard.notes)} onChange={(e) => setEditingCard({ ...editingCard, notes: notesWithPrimeLotSport(notesWithListings(e.target.value, activeListingsForCard(editingCard)), editingCard.sport) })} /></label>
+              {editingCard.status === "Not Listed" && (
+                <div className="full splitList">
+                  <strong>Add expenses for this card (optional)</strong>
+                  <p className="muted">Use this for extra costs you paid after the card was already added, like shipping, tax, or duties. These save under Expenses and lower Cash on Hand.</p>
+                  <div className="splitRow">
+                    <Field label="Shipping" type="number" value={editingInventoryExpenseDraft.shipping} onChange={(v) => setEditingInventoryExpenseDraft((draft) => ({ ...draft, shipping: v }))} />
+                    <Field label="HST" type="number" value={editingInventoryExpenseDraft.hst} onChange={(v) => setEditingInventoryExpenseDraft((draft) => ({ ...draft, hst: v }))} />
+                    <Field label="Duties" type="number" value={editingInventoryExpenseDraft.duties} onChange={(v) => setEditingInventoryExpenseDraft((draft) => ({ ...draft, duties: v }))} />
+                  </div>
+                  <p className="muted">New expense total: <strong>{money(inventoryExpenseDraftTotal(editingInventoryExpenseDraft))}</strong></p>
+                </div>
+              )}
               <button className="primary full" type="submit" disabled={photoUploading}>{photoUploading ? "Uploading photo…" : "Save changes"}</button>
             </div>
           </form>
