@@ -29,13 +29,14 @@ assert(
   'Inventory toolbar should have dedicated layout, export, and filter status styling.'
 );
 assert(
-  page.includes('{isSoldInventoryView && (') &&
+  page.includes('const inventorySearchLabel = isSoldInventoryView ? "Search sold listings" : activeInventoryMainView === "Listed" ? "Search listed cards" : "Search not listed cards";') &&
   page.includes('className="soldInventorySearchBar"') &&
-  page.includes('Search sold listings') &&
-  page.includes('aria-label="Search sold listings"') &&
+  page.includes('htmlFor="inventory-section-search">{inventorySearchLabel}</label>') &&
+  page.includes('aria-label={inventorySearchLabel}') &&
+  page.includes('placeholder={inventorySearchPlaceholder}') &&
   page.includes('onChange={(e) => setQuery(e.target.value)}') &&
   page.includes('onClick={() => setQuery("")}'),
-  'Sold inventory should have an always-visible search bar wired to the inventory query.'
+  'Inventory should have an always-visible search bar for Not Listed, Listed, and Sold views wired to the inventory query.'
 );
 assert(
   page.includes('const defaultInventorySort = statusFilter === "Sold" ? "newest-sale" : "newest-purchase";') &&

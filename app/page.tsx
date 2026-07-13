@@ -1643,6 +1643,12 @@ export default function Home() {
   });
   const isSoldInventoryView = statusFilter === "Sold";
   const activeInventoryMainView: InventoryMainView = statusFilter === "Listed" ? "Listed" : "Not Listed";
+  const inventorySearchLabel = isSoldInventoryView ? "Search sold listings" : activeInventoryMainView === "Listed" ? "Search listed cards" : "Search not listed cards";
+  const inventorySearchPlaceholder = isSoldInventoryView
+    ? "Search sold cards by name, set, card #, platform, or notes..."
+    : activeInventoryMainView === "Listed"
+      ? "Search listed cards by name, set, card #, platform, or notes..."
+      : "Search not listed cards by name, set, card #, platform, or notes...";
   const saleExpenseTotalForCard = (card: CardRecord) => expenses.filter((expense) => isSaleExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
   const gradingFeeTotalForCard = (card: CardRecord) => expenses.filter((expense) => isGradingExpenseForCard(expense, card)).reduce((sum, expense) => sum + expense.amount, 0);
   const totalCostBasisForCard = (card: CardRecord) => cardPurchaseCost(card) + gradingFeeTotalForCard(card);
@@ -4608,15 +4614,13 @@ export default function Home() {
             </div>
           </div>
 
-          {isSoldInventoryView && (
-            <div className="soldInventorySearchBar" role="search">
-              <label htmlFor="sold-inventory-search">Search sold listings</label>
-              <div>
-                <input id="sold-inventory-search" aria-label="Search sold listings" placeholder="Search sold cards by name, set, card #, platform, or notes..." value={query} onChange={(e) => setQuery(e.target.value)} />
-                {query.trim() && <button className="secondary" type="button" onClick={() => setQuery("")}>Clear search</button>}
-              </div>
+          <div className="soldInventorySearchBar" role="search">
+            <label htmlFor="inventory-section-search">{inventorySearchLabel}</label>
+            <div>
+              <input id="inventory-section-search" aria-label={inventorySearchLabel} placeholder={inventorySearchPlaceholder} value={query} onChange={(e) => setQuery(e.target.value)} />
+              {query.trim() && <button className="secondary" type="button" onClick={() => setQuery("")}>Clear search</button>}
             </div>
-          )}
+          </div>
 
           {inventoryFiltersOpen && (
           <section className="inventoryFilterPanel" id="inventory-filter-panel" aria-label="Inventory search and filters">
